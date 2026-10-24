@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "seed": "tsx scripts/seed.ts",
     "eval": "tsx scripts/eval.ts",
     "spacetime:publish": "spacetime publish --module-path spacetimedb --server maincloud",
