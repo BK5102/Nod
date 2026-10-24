@@ -350,7 +350,7 @@ export class MoneyRoute {
   }
 
   /** Plays one run from real results. Reduced motion jumps to the final state. */
-  play(run: RouteRun) {
+  play(run: RouteRun, opts: { instant?: boolean } = {}) {
     this.reset();
     this.onPhase?.("running");
     if (this.accountBase) {
@@ -363,7 +363,7 @@ export class MoneyRoute {
     this.slipNod = this.slip(run, Z_NOD);
     const byId = new Map(run.checks.map((c) => [c.id, c]));
 
-    const T = this.reduced ? 0 : 1;
+    const T = this.reduced || opts.instant ? 0 : 1;
     // Both slips drop into the inbox together.
     for (const slip of [this.slipBase, this.slipNod]) {
       const s = slip;
@@ -457,7 +457,7 @@ export class MoneyRoute {
     this.renderer.setSize(w, h, false);
     // Fit the whole route across the width; on narrow screens fit the height instead.
     const aspect = w / h;
-    const halfW = aspect >= 2.2 ? 13.6 : Math.max(13.6, 6.4 * aspect);
+    const halfW = aspect >= 2.2 ? 13.6 : Math.max(11.8, 8.2 * aspect);
     const halfH = halfW / aspect;
     this.camera.left = -halfW;
     this.camera.right = halfW;

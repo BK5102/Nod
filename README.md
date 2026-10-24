@@ -74,13 +74,50 @@ Public data source: [https://data.sfgov.org/d/n9pm-xkyq](https://data.sfgov.org/
 
 **What did you not build?** Real sign-in, a real bank connection, a real brain-computer interface, an earned-autonomy ladder (behind a flag, off), a replay clock, an evaluation curve, an identity check, multiple currencies, credit notes, and a full accounting system.
 
+## Pitch script (3 minutes)
+
+Screens are named in brackets. Before judging: run `pnpm demo:reset`, open every page once so the server is warm, and keep Baseline vs Nod open.
+
+**0:00 to 0:20, the moment.** [Baseline vs Nod] "This email says: we changed banks this week, please pay this $6,771 invoice into our new account ending 7731, it's due tomorrow. Watch the same invoice go to two agents." [Run both] "The baseline, a simple pay-everything agent we wrote, sends the money to 7731. Nod holds it, and says why in one sentence: the invoice asks for 7731, the account on file ends 4821."
+
+**0:20 to 0:45, the problem.** "This is a common scam. In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud, and 45% cited vendor impersonation. Since June 2026, Nacha's rules require every business sending ACH payments to have a process for spotting payments made under false pretenses, which includes vendor impersonation. Catching the changed account is not new; many tools do it. The weak point is the human yes that comes after. People click yes out of habit."
+
+**0:45 to 1:10, is it real enough.** [Hand Nod an invoice] "Hand Nod any invoice, yours included." [Paste the judge's invoice, or the Changed bank account sample] "Claude reads it, the rules in the database set the tier, and Claude explains. Claude can raise a tier, never lower it." [What is real] "Here is everything that is real and everything that is simulated."
+
+**1:10 to 1:40, would you hire it.** [Four questions] "The seat is an accounts payable clerk with limited access." [Let Nod try to approve its own payment] "Nod asks the database to approve its own payment with a perfect signal. The database refuses, on Nod's own identity, and logs it. That rule lives in SpacetimeDB reducers, so no client can get around it."
+
+**1:40 to 2:10, something new.** [Approve] "Now the human yes. This approver can only send one slow, shaky signal. It is SIMULATED; no real device." [Space during the window] "Not clear enough, so Nod asks again with a longer window." [Space again] "Still not clear, so it defaults to no and holds. The receipt stores how reliable that yes was. To our knowledge that is uncommon."
+
+**2:10 to 2:40, the other two moments.** [Four questions, Make the bank fail once] "The bank fails mid-payment. Nothing posts. Nod retries with the same idempotency key and pays exactly once." [Ask: Why did you refuse HP-1180?] "Ask why, and Nod answers only from the receipts. Ask about something that never happened, and it says not in the record."
+
+**2:40 to 3:00, close.** "Nod is a robot bookkeeper that won't send your money to a scammer's new bank account, and makes sure the person's yes can be trusted. Fictional organization, simulated signal, mock bank, all labeled. Thank you."
+
+## Two-minute question list
+
+- **Is this new?** Catching a changed bank account is not. Nod focuses on the yes after the flag: no self-approval, a shaky yes is evidence, and a receipt records how reliable each approval was.
+- **Why not just rules?** Rules decide the tier. Claude reads messy invoices and explains, and can only raise a tier.
+- **What if Claude is down?** Intake shows the error and a retry. Nothing is faked and nothing pays. The hold in the side-by-side comes from the rules, so it still works.
+- **What is real?** Policy engine, role checks, ledger, receipts, Claude calls. Simulated: the organization, vendor names, invoices, the approval signal, the bank. Routine amounts are modeled on San Francisco's public vendor payments.
+- **How do you know it works?** 43 unit tests, 11 segregation-of-duties checks against the live database, scripts for the hold and the recovery, five test invoices and an answer key. We wrote the tests and the answer key, so they show the design works, not that it catches unseen fraud.
+- **Why SpacetimeDB?** The ledger, role checks, receipts and live dashboard live in reducers and tables, so the rules run where the data is and no client can bypass them, and the dashboard updates live.
+- **Does this make an organization Nacha compliant?** No. It produces the kind of record such a process needs.
+- **Is the brain-computer interface real?** No. The signal is SIMULATED. It stands in for any slow or shaky approval, and we make no accuracy claim.
+- **Can anyone sit as the approver?** In the demo, yes. Real sign-in is not built. The agent and operator seats are locked.
+- **What would you build next?** Real sign-in, a real bank connection (an Increase sandbox adapter is written), and a pilot with one small organization to see whether the approval record is useful.
+
+## Project image
+
+![Nod: the same invoice through a pay-everything baseline and through Nod](public/project-image.png)
+
+Rendered from the app's own scene (`/cover`, captured with `scripts/shot.ts`).
+
 ## Run it
 
 ```bash
 pnpm install
 spacetime start                      # local SpacetimeDB, or use Maincloud
 pnpm spacetime:publish:local nod-local
-pnpm seed                            # also the one-command demo reset
+pnpm demo:reset                      # one-command reset through reducers; never republishes or deletes the database
 pnpm dev                             # http://localhost:3001
 pnpm test
 ```

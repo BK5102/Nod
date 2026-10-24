@@ -8,7 +8,7 @@ import type { MoneyRoute, RouteRun } from "@/lib/three/route";
  * when one arrives, and resets to the empty route otherwise. Without WebGL it renders nothing and the
  * outcome cards below carry the result on their own.
  */
-export function MoneyRouteCanvas({ run, onPhase }: { run: RouteRun | null; onPhase?: (p: "idle" | "running" | "done") => void }) {
+export function MoneyRouteCanvas({ run, onPhase, instant = false, className }: { run: RouteRun | null; onPhase?: (p: "idle" | "running" | "done") => void; instant?: boolean; className?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const scene = useRef<MoneyRoute | null>(null);
   const [supported, setSupported] = useState(true);
@@ -39,16 +39,16 @@ export function MoneyRouteCanvas({ run, onPhase }: { run: RouteRun | null; onPha
     const s = scene.current;
     if (!s) return;
     s.onPhase = onPhase;
-    if (run) s.play(run);
+    if (run) s.play(run, { instant });
     else s.reset();
-  }, [run, ready, onPhase]);
+  }, [run, ready, onPhase, instant]);
 
   if (!supported) return null;
   return (
     <figure className="m-0 bg-paper">
       <canvas
         ref={canvas}
-        className="block h-[420px] w-full sm:h-[540px]"
+        className={className ?? "block h-[420px] w-full sm:h-[540px]"}
         role="img"
         aria-label={
           run
