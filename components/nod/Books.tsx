@@ -7,6 +7,7 @@ import { tables } from "@/src/module_bindings";
 import { dayTime, money, STATUS_WORDS, longDate } from "@/lib/ui/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { seededLabel } from "@/lib/ui/seeded";
 import { ReceiptEntry } from "./ReceiptEntry";
 
 const DECISION: Record<string, { word: string; cls: string }> = {
@@ -179,7 +180,7 @@ export function Books() {
                       <Link href={`/invoice?id=${r.invoiceId}`} className="hover:underline">
                         {r.vendorName}
                       </Link>
-                      {invoices.find((i) => i.invoiceId === r.invoiceId)?.extractionMethod === "seed" && <span className="ml-2 text-xs font-bold text-ink-soft">SEEDED</span>}
+                      {(() => { const m = invoices.find((i) => i.invoiceId === r.invoiceId)?.extractionMethod ?? ""; const l = seededLabel(m); return l ? <span className="ml-2 text-xs font-bold text-ink-soft" title={l}>SEEDED</span> : null; })()}
                     </td>
                     <td className="py-2 pr-2">
                       <span className={cn("px-1.5 py-0.5 text-xs font-bold", DECISION[r.decision]?.cls)}>{DECISION[r.decision]?.word ?? r.decision}</span>

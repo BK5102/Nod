@@ -1,0 +1,53 @@
+{
+  "source": {
+    "title": "Vendor Payments (Vouchers)",
+    "publisher": "City and County of San Francisco, Controller's Office",
+    "url": "https://data.sfgov.org/d/n9pm-xkyq",
+    "license": "Open Data Commons Public Domain Dedication and License",
+    "fiscal_year": "2025",
+    "downloaded_at": "2026-10-24T05:55:45.886Z"
+  },
+  "uses": "Payment categories, the distribution of paid amounts per category, the fiscal year, and voucher and PO number formats. Not supplier names.",
+  "categories": {
+    "produce": {
+      "subObject": "Food",
+      "count": 4000,
+      "p10": 49.78,
+      "p25": 125.45,
+      "p50": 336.74,
+      "p75": 1311,
+      "p90": 3118.95
+    },
+    "dairy": {
+      "subObject": "Food",
+      "count": 4000,
+      "p10": 49.78,
+      "p25": 125.45,
+      "p50": 336.74,
+      "p75": 1311,
+      "p90": 3118.95
+    },
+    "printing": {
+      "subObject": "Printing",
+      "count": 1952,
+      "p10": 18.79,
+      "p25": 104.49,
+      "p50": 348.05,
+      "p75": 1244.28,
+      "p90": 4343.9
+    },
+    "cleaning": {
+      "subObject": "Janitorial Services",
+      "count": 359,
+      "p10": 120,
+      "p25": 175,
+      "p50": 906.72,
+      "p75": 3840.5,
+      "p90": 15416.2
+    }
+  },
+  "formats": {
+    "voucherDigits": 10,
+    "poDigits": 12
+  }
+}

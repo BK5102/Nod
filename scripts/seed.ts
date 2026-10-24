@@ -14,10 +14,47 @@ import { MockBank } from "@/lib/bank/mock";
 import { heuristicCheck } from "@/lib/claude/check";
 import { ACTORS, COMPANY, CONTRACTS, PURCHASE_ORDERS, VENDORS } from "@/lib/seed/company";
 import { answerKey, INVOICE_SPECS, materialize, PERIOD_CLOSES, type InvoiceSpec } from "@/lib/seed/scenario";
+import { renderInvoice } from "@/lib/seed/render";
+import { VENDORS as VENDOR_LIST } from "@/lib/seed/company";
+import type { ExtractedInvoice } from "@/spacetimedb/src/core/types";
 import { checkInputFor } from "@/lib/stdb/map";
 import { connectAs, reason, subscribeAll, waitFor, type Conn } from "@/lib/stdb/node";
 import { samplesFor } from "@/spacetimedb/src/core/classifier";
 import { Identity } from "spacetimedb";
+
+/** Amount model from San Francisco's public vendor payments (scripts/seed-public.ts), if downloaded. */
+interface PublicModel {
+  source: { url: string; fiscal_year: string };
+  categories: Record<string, { p50: number; p75: number }>;
+}
+const MODEL: PublicModel | null = (() => {
+  try {
+    return JSON.parse(fs.readFileSync("data/public-model.json", "utf8")) as PublicModel;
+  } catch {
+    return null;
+  }
+})();
+const CATEGORY_OF: Record<string, string> = { ven_harbor: "produce", ven_dairy: "dairy", ven_bayline: "printing" };
+
+/**
+ * Routine unit-rate bills are rescaled so their totals fall in the middle of the real distribution
+ * for their category (between the median and the 75th percentile of FY public vouchers). Bills with
+ * a planted problem, a person's decision, or a fixed contract fee keep their designed amounts.
+ */
+function modelAmount(spec: InvoiceSpec, extracted: ExtractedInvoice): ExtractedInvoice {
+  const cat = spec.vendor_id ? CATEGORY_OF[spec.vendor_id] : undefined;
+  const q = cat ? MODEL?.categories[cat] : undefined;
+  // The demo queue (bills arriving June 22) keeps its designed amounts so it always waits for a person.
+  if (!q || spec.answer.error_type !== "none" || spec.approver || spec.is_canary || spec.date >= "2026-06-22") return extracted;
+  let h = 0;
+  for (const ch of spec.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const target = Math.round((q.p50 + ((h % 1000) / 1000) * (q.p75 - q.p50)) * 100);
+  const first = extracted.line_items[0]!;
+  const rest = extracted.line_items.slice(1).reduce((a, l) => a + l.amount_cents, 0);
+  const qty = Math.max(1, Math.round((target - rest) / (first.unit_price_cents ?? first.amount_cents)));
+  const items = [{ ...first, quantity: qty, amount_cents: qty * (first.unit_price_cents ?? first.amount_cents) }, ...extracted.line_items.slice(1)];
+  return { ...extracted, line_items: items, amount_cents: items.reduce((a, l) => a + l.amount_cents, 0) };
+}
 
 const HOST = process.env.SPACETIMEDB_HOST ?? "ws://127.0.0.1:3000";
 const DB = process.env.SPACETIMEDB_DB_NAME ?? "nod-local";
@@ -80,6 +117,7 @@ function timeline(until: string): Event[] {
 async function main() {
   const t0 = Date.now();
   console.log(`Seeding ${DB} on ${HOST} through ${UNTIL}`);
+  console.log(MODEL ? `Routine amounts modeled on ${MODEL.source.url} (FY${MODEL.source.fiscal_year}).` : "No public model found (run scripts/seed-public.ts): amounts are GENERATED.");
   const env = readEnvLocal();
   const sameDb = env.get("SPACETIMEDB_DB_NAME") === DB && env.get("SPACETIMEDB_HOST") === HOST;
 
@@ -133,14 +171,19 @@ async function main() {
     try {
       if (e.kind === "invoice") {
         const s = e.spec;
-        const { extracted, raw_text } = materialize(s);
+        const base = materialize(s);
+        const extracted = modelAmount(s, base.extracted);
+        const modeled = extracted !== base.extracted;
+        const vendorForText = VENDOR_LIST.find((v) => v.id === s.vendor_id);
+        const raw_text = modeled && vendorForText ? renderInvoice(s.format === "text" ? "pdf" : s.format, vendorForText, extracted, { extra: s.extra }) : base.raw_text;
         const args = {
           invoiceId: s.id,
           extractedJson: JSON.stringify(extracted),
           rawText: raw_text,
           sourceFormat: s.format,
           filePath: s.format === "pdf" || s.format === "image" ? `/invoices/${s.id}.${s.format === "pdf" ? "pdf" : "png"}` : "",
-          extractionMethod: "seed",
+          // seed-public: amount modeled on SF public vendor payments. seed: designed by us. seed-generated: no public model available.
+          extractionMethod: modeled ? "seed-public" : MODEL ? "seed" : "seed-generated",
           handoffJson: s.handoff ? JSON.stringify({ from: s.handoff.from, note: s.handoff.note, missing: s.handoff.missing }) : "",
         };
         if (s.is_canary) await operator.conn.reducers.injectCanary(args);

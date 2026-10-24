@@ -6,6 +6,7 @@ import type { ClaudeCheck, ExtractedInvoice, RuleResult, SourceRow } from "@/spa
 import { day, dayTime, money, parseJson, STATUS_WORDS, TIER_WORDS } from "@/lib/ui/format";
 import { naivePay } from "@/lib/naive";
 import { cn } from "@/lib/utils";
+import { seededLabel } from "@/lib/ui/seeded";
 import { VoteCard } from "./VoteCard";
 import { ControllerCard } from "./ControllerCard";
 import { ReceiptEntry } from "./ReceiptEntry";
@@ -57,7 +58,7 @@ export function Floor({ invoiceId }: { invoiceId: string }) {
           <h1 id="motion-h" className="text-2xl font-bold">
             {vendor?.name ?? x.vendor_name} wants {money(inv.amountCents)}
           </h1>
-          {inv.extractionMethod === "seed" && <p className="mt-1 text-sm font-bold text-ink-soft">SEEDED invoice from a fictional vendor</p>}
+          {seededLabel(inv.extractionMethod) && <p className="mt-1 text-sm font-bold text-ink-soft">{seededLabel(inv.extractionMethod)}. Fictional vendor.</p>}
           <p className="mt-1 text-ink-soft">
             Invoice {inv.number}, received {dayTime(inv.receivedAt)}
             {x.sender_email ? ` from ${x.sender_email}` : ""}, due {inv.dueDate ? day(inv.dueDate) : "on receipt"}.

@@ -7,6 +7,7 @@ import type { RuleResult } from "@/spacetimedb/src/core/types";
 import { daysBetween } from "@/spacetimedb/src/core/money";
 import { day, money, parseJson, TIER_WORDS } from "@/lib/ui/format";
 import { cn } from "@/lib/utils";
+import { seededLabel } from "@/lib/ui/seeded";
 import { VoteCard } from "./VoteCard";
 
 export function ApproveQueue() {
@@ -58,7 +59,7 @@ export function ApproveQueue() {
                     </button>
                     <span className="block text-ink-soft">
                       {r.number}, due {r.dueDate ? day(r.dueDate) : "on receipt"}
-                      {r.extractionMethod === "seed" && <span className="ml-2 text-xs font-bold">SEEDED</span>}
+                      {seededLabel(r.extractionMethod) && <span className="ml-2 text-xs font-bold" title={seededLabel(r.extractionMethod) ?? ""}>SEEDED</span>}
                     </span>
                   </td>
                   <td className="py-3 pr-3">
