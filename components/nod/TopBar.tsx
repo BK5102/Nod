@@ -14,6 +14,7 @@ const NAV = [
   { href: "/moment", label: "Baseline vs Nod" },
   { href: "/approve", label: "Approve" },
   { href: "/books", label: "Books" },
+  { href: "/why-nod", label: "Why Nod" },
 ];
 
 /** The mark: a single raised voting card, the product's one gesture. */
