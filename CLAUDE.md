@@ -46,6 +46,8 @@ Two people, 18 hours to submission (Sunday 9:00 AM PT, Cal Hacks 13.0). Live dem
 
 When your flight is canceled, you have about 20 minutes to buy your way home before the good options sell out, and today you do it alone, on a phone, in a gate line, with no one checking that you are not overpaying.
 
+- **The "Mass Panic" dynamic:** If 200 people at your gate are trying to book the remaining 15 seats on a competing airline's flight, the bottleneck is often the speed of the API, not the lack of financial tools. (The 200 and 15 are an illustrative example, not a measured figure.) This is why speed is part of the product: ranked options in under 10 seconds and approve-and-pay in one call.
+
 ## The idea
 
 A shopping agent for the worst 20 minutes of a trip.
