@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTable } from "spacetimedb/react";
 import { tables } from "@/src/module_bindings";
 import type { ClaudeCheck, ExtractedInvoice, RuleResult, SourceRow } from "@/spacetimedb/src/core/types";
@@ -10,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { VoteCard } from "./VoteCard";
 import { ControllerCard } from "./ControllerCard";
 import { ReceiptEntry } from "./ReceiptEntry";
+import { AgentTryApprove } from "./AgentTryApprove";
 
 const SOURCE_WORDS: Record<string, string> = {
   invoice: "the invoice",
@@ -28,7 +28,6 @@ export function Floor({ invoiceId }: { invoiceId: string }) {
   const [vendors] = useTable(tables.vendor);
   const [receipts] = useTable(tables.receipt.where((r) => r.invoiceId.eq(invoiceId)));
   const [approvals] = useTable(tables.approval.where((r) => r.invoiceId.eq(invoiceId)));
-  const [tried, setTried] = useState<string | null>(null);
 
   const inv = invoices[0];
   const d = decisions[0];
@@ -49,12 +48,6 @@ export function Floor({ invoiceId }: { invoiceId: string }) {
   const naive = naivePay(x, vendor?.bankLast4 ?? null);
   const receipt = [...receipts].sort((a, b) => b.seq - a.seq)[0];
   const hold = d.finalTier === "HOLD";
-
-  async function agentTries() {
-    const res = await fetch("/api/agent/try-approve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ invoiceId }) });
-    const b = (await res.json()) as { ok: boolean; result?: { message: string }; error?: string };
-    setTried(b.result?.message ?? b.error ?? "No answer");
-  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-12">
@@ -178,10 +171,9 @@ export function Floor({ invoiceId }: { invoiceId: string }) {
             Can Nod approve its own request?
           </h2>
           <p className="mt-1 text-sm text-ink-soft">Nod asks the database to approve this with a perfect signal, using its own identity.</p>
-          <button type="button" onClick={agentTries} className="mt-3 text-sm font-bold underline">
-            Let Nod try
-          </button>
-          {tried && <p className="mt-2 text-sm font-bold text-no">{tried}</p>}
+          <div className="mt-3">
+            <AgentTryApprove invoiceId={invoiceId} />
+          </div>
         </section>
       </aside>
     </div>

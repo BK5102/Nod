@@ -7,6 +7,7 @@ import { tables } from "@/src/module_bindings";
 import { dayTime, money, STATUS_WORDS, longDate } from "@/lib/ui/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ReceiptEntry } from "./ReceiptEntry";
 
 const DECISION: Record<string, { word: string; cls: string }> = {
   paid: { word: "Paid", cls: "bg-yes text-white" },
@@ -54,6 +55,8 @@ export function Books() {
   const minutes = [...receipts].sort((a, b) => b.seq - a.seq);
   const trail = [...audit].sort((a, b) => Number(b.id - a.id)).slice(0, 8);
   const name = (id: string) => actors.find((a) => a.actorId === id)?.name.split(",")[0] ?? id;
+  const [openSeq, setOpenSeq] = useState<number | null>(null);
+  const opened = minutes.find((r) => r.seq === openSeq) ?? null;
 
   if (!ready) return <p className="py-24 text-center text-ink-soft">Opening the books...</p>;
 
@@ -144,7 +147,12 @@ export function Books() {
           <h2 id="minutes-h" className="text-lg font-bold">
             Minute book
           </h2>
-          <p className="mt-1 text-sm text-ink-soft">Every decision, numbered and hash-chained. Newest first.</p>
+          <p className="mt-1 text-sm text-ink-soft">Every decision, numbered and hash-chained. Newest first. Select a row to open its receipt.</p>
+          {opened && (
+            <div className="mt-3 border border-rule">
+              <ReceiptEntry receipt={opened} />
+            </div>
+          )}
           <div className="mt-3 max-h-[420px] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white">
@@ -153,13 +161,18 @@ export function Books() {
                   <th className="py-2 pr-2 font-normal">When</th>
                   <th className="py-2 pr-2 font-normal">Vendor</th>
                   <th className="py-2 pr-2 font-normal">Decision</th>
-                  <th className="py-2 pr-2 text-right font-normal">Signal</th>
+                  <th className="py-2 pr-2 text-right font-normal">Approval reliability</th>
                   <th className="py-2 text-right font-normal">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {minutes.map((r) => (
-                  <tr key={r.seq} className="border-t border-rule">
+                  <tr
+                    key={r.seq}
+                    className={cn("cursor-pointer border-t border-rule hover:bg-paper-raised", openSeq === r.seq && "bg-paper-raised")}
+                    onClick={() => setOpenSeq(openSeq === r.seq ? null : r.seq)}
+                    aria-selected={openSeq === r.seq}
+                  >
                     <td className="py-2 pr-2 text-right tabular-nums text-ink-soft">{r.seq}</td>
                     <td className="py-2 pr-2 whitespace-nowrap">{dayTime(r.asOf)}</td>
                     <td className="py-2 pr-2">

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { useTable } from "spacetimedb/react";
 import { tables } from "@/src/module_bindings";
 import { money } from "@/lib/ui/format";
 import { Button } from "@/components/ui/button";
 import { RecoveryPanel } from "./RecoveryPanel";
 import { WhyBox } from "./WhyBox";
+import { AgentTryApprove } from "./AgentTryApprove";
 
 /** Hyphenate's four judging questions, answered on screen, in order, from the live books. */
 export function FourQuestions() {
@@ -16,7 +16,6 @@ export function FourQuestions() {
   const [receipts] = useTable(tables.receipt);
   const [health] = useTable(tables.health);
   const [canary] = useTable(tables.canaryStats);
-  const [refusal, setRefusal] = useState<string | null>(null);
 
   const h = health[0];
   const c = canary[0];
@@ -29,13 +28,6 @@ export function FourQuestions() {
     [...receipts].filter((r) => r.signalConfidence >= 0).sort((a, b) => b.seq - a.seq)[0];
   const WORDS: Record<string, string> = { paid: "paid after a yes", held: "held", rejected: "refused", canary_caught: "attention check caught", canary_missed: "attention check missed" };
   const target = invoices.find((i) => i.status === "awaiting_approval") ?? invoices.find((i) => i.invoiceId === "inv_moment");
-
-  async function letNodTry() {
-    if (!target) return;
-    const res = await fetch("/api/agent/try-approve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ invoiceId: target.invoiceId }) });
-    const b = (await res.json()) as { ok: boolean; result?: { message: string }; error?: string };
-    setRefusal(b.result?.message ?? b.error ?? "No answer");
-  }
 
   return (
     <div className="space-y-6">
@@ -81,10 +73,9 @@ export function FourQuestions() {
             <div>
               <h3 className="font-bold">Never approves its own payments</h3>
               <p className="text-sm text-ink-soft">Nod asks the database to approve a bill with a perfect signal, using its own identity.</p>
-              <button type="button" onClick={letNodTry} className="mt-1 font-bold underline" disabled={!target}>
-                Let Nod try
-              </button>
-              {refusal && <p className="mt-1 font-bold text-no">{refusal}</p>}
+              <div className="mt-2">
+                <AgentTryApprove invoiceId={target?.invoiceId ?? null} />
+              </div>
             </div>
             <div>
               <h3 className="font-bold">Knows when to ask</h3>

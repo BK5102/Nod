@@ -145,7 +145,7 @@ export function VoteCard({ invoiceId, compact = false }: { invoiceId: string; co
           <dd className="tabular-nums font-bold">{(windowMs / 1000).toFixed(0)} s</dd>
         </div>
         <div>
-          <dt className="text-ink-soft">Confidence</dt>
+          <dt className="text-ink-soft">Approval reliability</dt>
           <dd className="tabular-nums font-bold">{liveP === null ? "-" : liveP.toFixed(2)}</dd>
         </div>
       </dl>
@@ -168,7 +168,7 @@ export function VoteCard({ invoiceId, compact = false }: { invoiceId: string; co
           </button>
         ) : (
           <Button size="lg" className="w-full" onClick={begin} disabled={!open || !seated || phase === "sending" || !isActive}>
-            {phase === "sending" ? "The database is scoring the signal..." : !open ? "No vote needed now" : attempt > 1 ? "Ask again (Space)" : "Open the confirm window (Space)"}
+            {phase === "sending" ? "The database is scoring the signal..." : !open ? "No vote needed now" : attempt > 1 ? "Re-confirm with a longer window (Space)" : "Open the confirm window (Space)"}
           </Button>
         )}
       </div>
