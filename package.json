@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:backend": "tsc --noEmit -p tsconfig.backend.json && tsc --noEmit -p spacetimedb",
     "test": "vitest run --passWithNoTests",
-    "spacetime:publish": "spacetime publish --module-path spacetimedb --server maincloud",
+    "spacetime:publish": "spacetime publish --module-path spacetimedb --server maincloud rerouted-calhacks13",
     "spacetime:generate": "spacetime generate --lang typescript --out-dir src/module_bindings --module-path spacetimedb",
     "db:setup": "tsx scripts/setup.ts",
     "demo:reset": "tsx scripts/reset.ts",

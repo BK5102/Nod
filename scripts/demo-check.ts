@@ -88,9 +88,9 @@ async function main() {
   const receipts = [...traveler.db.receipt.iter()].filter((x) => x.tripId === DEMO_TRIP_ID);
   check(trip.spendCents === 41_200 && receipts.length === 1, "booked at $412, one receipt", `spend ${trip.spendCents}, ${receipts.length} receipts`);
 
-  // 7. one flight per trip
-  const coastal = offer(traveler, "off_coastal_0600")!;
-  const second = await refused(traveler.reducers.approveOffer({ offerId: coastal.offerId, quoteHash: coastal.quoteHash }));
+  // 7. one flight per trip (the $0 free rebooking, so the cap check cannot be the reason)
+  const freeRebook = offer(traveler, "off_bayline_free")!;
+  const second = await refused(traveler.reducers.approveOffer({ offerId: freeRebook.offerId, quoteHash: freeRebook.quoteHash }));
   check(!!second && /already have a flight/.test(second), "a second flight is refused", second ?? "was NOT refused");
 
   // 8. blocked options stay blocked
