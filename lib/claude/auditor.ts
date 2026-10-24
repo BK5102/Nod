@@ -18,7 +18,12 @@ export interface WhyAnswer {
 }
 
 /** Picks the receipts most likely to matter for a question: by invoice number, vendor, amount or month. */
-export function relevantReceipts(question: string, receipts: readonly Receipt[], focusInvoiceId?: string): Receipt[] {
+export function relevantReceipts(
+  question: string,
+  receipts: readonly Receipt[],
+  focusInvoiceId?: string,
+  invoiceNumbers: Record<string, string> = {},
+): Receipt[] {
   if (focusInvoiceId) {
     const hit = receipts.filter((r) => r.invoice_id === focusInvoiceId);
     if (hit.length) return hit;
@@ -32,6 +37,8 @@ export function relevantReceipts(question: string, receipts: readonly Receipt[],
     if (q.includes(month)) s += 2;
     if (q.includes(r.decision)) s += 1;
     if (q.includes(`#${r.seq}`) || q.includes(`receipt ${r.seq}`)) s += 10;
+    const num = invoiceNumbers[r.invoice_id]?.toLowerCase();
+    if (num && num.length > 3 && q.includes(num)) s += 12;
     return { r, s };
   });
   return scored
@@ -47,8 +54,13 @@ function describe(r: Receipt): string {
   return `Receipt #${r.seq} (${r.as_of.slice(0, 10)}): ${r.decision} ${formatCents(r.amount_cents)} to ${r.vendor_name}, tier ${r.tier}. ${rules} ${sig} ${r.note}`;
 }
 
-export async function askWhy(question: string, receipts: readonly Receipt[], focusInvoiceId?: string): Promise<WhyAnswer> {
-  const picked = relevantReceipts(question, receipts, focusInvoiceId);
+export async function askWhy(
+  question: string,
+  receipts: readonly Receipt[],
+  focusInvoiceId?: string,
+  invoiceNumbers: Record<string, string> = {},
+): Promise<WhyAnswer> {
+  const picked = relevantReceipts(question, receipts, focusInvoiceId, invoiceNumbers);
   if (picked.length === 0) {
     return { in_record: false, answer: "Not in the record. No receipt matches that vendor, amount, month or invoice.", cited: [], method: "template" };
   }

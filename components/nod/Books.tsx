@@ -256,7 +256,7 @@ function IngestForm() {
         Hand Nod a bill
       </h2>
       <p className="mt-1 text-sm text-ink-soft">Paste text or attach a photo or PDF. Claude reads it, the books decide.</p>
-      <Link href="/" className="mt-3 inline-block font-bold underline">
+      <Link href="/intake" className="mt-3 inline-block font-bold underline">
         Open the intake
       </Link>
     </section>

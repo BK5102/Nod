@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import { ProofPanel } from "./ProofPanel";
 
 const NAV = [
-  { href: "/", label: "Hand Nod an invoice" },
+  { href: "/", label: "Four questions" },
+  { href: "/intake", label: "Hand Nod an invoice" },
   { href: "/moment", label: "Baseline vs Nod" },
   { href: "/approve", label: "Approve" },
   { href: "/books", label: "Books" },
