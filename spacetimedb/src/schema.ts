@@ -1,13 +1,14 @@
 import { schema, table, t } from 'spacetimedb/server';
 
-// Money is integer cents in u32 (max about $42.9M, plenty for a small nonprofit).
-// Simulated time is ISO strings from the sim_clock row, never the wall clock.
-// Nested records (extracted fields, rules, sources, review) are JSON strings written only by reducers.
+// Money is integer cents in u32. Times are ISO strings derived from ctx.timestamp, never the wall clock.
+// Nested records (rules) are JSON strings written only by reducers.
+// Public tables carry no personal data: name, email, booking reference, loyalty number and card data
+// live only in the private traveler_profile and payment_token tables.
 
-/** The identity that published the module. Seeds the company and runs demo controls. */
+/** The identity that published the module. Assigns the agent and operator seats. */
 export const admin = table({ name: 'admin' }, { identity: t.identity().primaryKey() });
 
-/** People and the agent. Roles live here; identities are bound to actors through seats. */
+/** The traveler, the agent and the demo operator. Roles live here; identities bind to actors through seats. */
 export const actor = table(
   { name: 'actor', public: true },
   { actorId: t.string().primaryKey(), name: t.string(), role: t.string() }
@@ -19,255 +20,134 @@ export const seat = table(
   { identity: t.identity().primaryKey(), actorId: t.string() }
 );
 
-export const vendor = table(
-  { name: 'vendor', public: true },
+export const trip = table(
+  { name: 'trip', public: true },
   {
-    vendorId: t.string().primaryKey(),
-    name: t.string(),
+    tripId: t.string().primaryKey(),
+    route: t.string(),
+    flight: t.string(),
+    departs: t.string(),
+    deadlineText: t.string(),
+    status: t.string(), // scheduled | canceled | options_ready | booked
+    cancelReason: t.string(),
+    canceledAt: t.string(),
+    bookedAt: t.string(),
+    fareCents: t.u32(),
+    refundOwedCents: t.u32(),
+    spendCents: t.u32(),
+  }
+);
+
+/** The card's rules for the trip. No card data. */
+export const mandate = table(
+  { name: 'mandate', public: true },
+  {
+    tripId: t.string().primaryKey(),
+    tripCapCents: t.u32(),
+    askAboveCents: t.u32(),
+    autoCeilingCents: t.u32(),
+    categories: t.string(),
+    summary: t.string(),
+  }
+);
+
+export const offer = table(
+  { name: 'offer', public: true },
+  {
+    offerId: t.string().primaryKey(),
+    tripId: t.string(),
+    kind: t.string(), // free_rebooking | flight | hotel
+    merchant: t.string(),
+    title: t.string(),
+    departs: t.string(),
+    arrives: t.string(),
+    meetsDeadline: t.bool(),
+    priceCents: t.u32(),
+    refundable: t.bool(),
     category: t.string(),
-    expenseAccount: t.string(),
-    bankLast4: t.string(),
-    bankChangedAt: t.string(),
-    heightenedUntil: t.string(),
-    firstSeenAt: t.string(),
-    emailDomain: t.string(),
-  }
-);
-
-export const vendorChange = table(
-  { name: 'vendor_change', public: true },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    vendorId: t.string(),
-    actorId: t.string(),
-    field: t.string(),
-    oldValue: t.string(),
-    newValue: t.string(),
-    at: t.string(),
-  }
-);
-
-export const contract = table(
-  { name: 'contract', public: true },
-  { contractId: t.string().primaryKey(), vendorId: t.string().index('btree'), json: t.string() }
-);
-
-export const purchaseOrder = table(
-  { name: 'purchase_order', public: true },
-  {
-    poId: t.string().primaryKey(),
-    vendorId: t.string().index('btree'),
-    number: t.string(),
-    amountCents: t.u32(),
-    description: t.string(),
-    status: t.string(),
-    createdAt: t.string(),
-  }
-);
-
-export const invoice = table(
-  { name: 'invoice', public: true },
-  {
-    invoiceId: t.string().primaryKey(),
-    vendorId: t.string(),
-    poId: t.string(),
-    number: t.string(),
-    amountCents: t.u32(),
-    dueDate: t.string(),
-    receivedAt: t.string(),
-    sourceFormat: t.string(),
-    filePath: t.string(),
-    rawText: t.string(),
-    extractedJson: t.string(),
-    extractionMethod: t.string(),
-    status: t.string(),
-    handoffJson: t.string(),
-    approvalRequestedAt: t.string(),
-    nudgedAt: t.string(),
-    assignedApprover: t.string(),
-    period: t.string(),
-  }
-);
-
-/** Which invoices are planted attention checks. Private: the approver must not be able to tell. */
-export const canary = table({ name: 'canary' }, { invoiceId: t.string().primaryKey() });
-
-export const canaryStats = table(
-  { name: 'canary_stats', public: true },
-  { id: t.u32().primaryKey(), presented: t.u32(), caught: t.u32(), missed: t.u32() }
-);
-
-export const policyDecision = table(
-  { name: 'policy_decision', public: true },
-  {
-    invoiceId: t.string().primaryKey(),
-    sourcesJson: t.string(),
+    mcc: t.string(),
+    rank: t.u32(), // 1, 2, 3...; 0 means set aside
+    tier: t.string(), // AUTO | ASK | BLOCK
     rulesJson: t.string(),
-    ruleTier: t.string(),
-    claudeJson: t.string(),
-    finalTier: t.string(),
-    decidedAt: t.string(),
-    reviewed: t.bool(),
+    claudeReason: t.string(),
+    flagged: t.bool(),
+    flagReason: t.string(),
+    quoteHash: t.string(),
+    expiresAt: t.string(),
+    status: t.string(), // open | booked | set_aside
   }
 );
 
-export const approval = table(
-  { name: 'approval', public: true },
+/** The agent's progress, one row per step, streamed to the traveler through subscriptions. */
+export const agentStep = table(
+  { name: 'agent_step', public: true },
   {
     id: t.u64().primaryKey().autoInc(),
-    invoiceId: t.string().index('btree'),
-    actorId: t.string(),
-    decision: t.string(),
-    confidence: t.f64(),
-    windowMs: t.u32(),
-    attempt: t.u32(),
-    latencyMs: t.u32(),
+    tripId: t.string(),
+    seq: t.u32(),
+    kind: t.string(), // info | search | decision | refusal | error
+    text: t.string(),
     at: t.string(),
   }
 );
 
-export const controllerCheck = table(
-  { name: 'controller_check', public: true },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    invoiceId: t.string(),
-    actorId: t.string(),
-    outcome: t.string(),
-    note: t.string(),
-    at: t.string(),
-  }
-);
-
-/** Phase one of a payment: authorized here, executed by the server against the bank, settled back here. */
-export const paymentIntent = table(
-  { name: 'payment_intent' },
-  {
-    invoiceId: t.string().primaryKey(),
-    idempotencyKey: t.string(),
-    vendorId: t.string(),
-    vendorName: t.string(),
-    amountCents: t.u32(),
-    toLast4: t.string(),
-    status: t.string(),
-    attempts: t.u32(),
-    lastError: t.string(),
-    signalConfidence: t.f64(),
-    actorIdsJson: t.string(),
-    note: t.string(),
-  }
-);
-
-export const bankTransfer = table(
-  { name: 'bank_transfer' },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    invoiceId: t.string(),
-    vendorId: t.string(),
-    amountCents: t.u32(),
-    toLast4: t.string(),
-    adapter: t.string(),
-    externalId: t.string(),
-    status: t.string(),
-    error: t.string(),
-    at: t.string(),
-  }
-);
-
-export const journalEntry = table(
-  { name: 'journal_entry' },
-  { id: t.u64().primaryKey().autoInc(), invoiceId: t.string(), memo: t.string(), postedAt: t.string() }
-);
-
-export const journalLine = table(
-  { name: 'journal_line' },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    entryId: t.u64().index('btree'),
-    account: t.string(),
-    debitCents: t.u32(),
-    creditCents: t.u32(),
-  }
-);
-
+/** Append-only and hash-chained. No reducer updates a receipt; only reset_demo clears the demo trip. */
 export const receipt = table(
   { name: 'receipt', public: true },
   {
     seq: t.u32().primaryKey(),
-    invoiceId: t.string().index('btree'),
-    vendorName: t.string(),
+    tripId: t.string(),
+    action: t.string(),
+    offerId: t.string(),
+    merchant: t.string(),
     amountCents: t.u32(),
-    decision: t.string(),
     tier: t.string(),
     rulesJson: t.string(),
-    explanation: t.string(),
-    /** -1 when no approval signal was involved. */
-    signalConfidence: t.f64(),
-    actorIdsJson: t.string(),
-    asOf: t.string(),
-    note: t.string(),
+    actor: t.string(),
+    quoteHash: t.string(),
+    tokenLast4: t.string(),
+    at: t.string(),
     prevHash: t.string(),
     hash: t.string(),
   }
 );
 
-export const autonomyState = table(
-  { name: 'autonomy_state', public: true },
-  { id: t.u32().primaryKey(), cleanStreak: t.u32(), rung: t.u32(), ceilingCents: t.u32(), updatedAt: t.string() }
-);
-
-export const simClock = table(
-  { name: 'sim_clock', public: true },
+/** Private. Never sent to Claude, never copied into a public row. */
+export const travelerProfile = table(
+  { name: 'traveler_profile' },
   {
-    id: t.u32().primaryKey(),
-    asOf: t.string(),
-    closedThrough: t.string(),
-    bankOutage: t.bool(),
-    openingBalanceCents: t.u32(),
+    tripId: t.string().primaryKey(),
+    name: t.string(),
+    email: t.string(),
+    bookingRef: t.string(),
+    loyaltyNumber: t.string(),
   }
 );
 
-export const auditEvent = table(
-  { name: 'audit_event', public: true },
+/** Private mock card token (SIMULATED). Only last4 ever leaves this table, on receipts. */
+export const paymentToken = table(
+  { name: 'payment_token' },
   {
-    id: t.u64().primaryKey().autoInc(),
-    at: t.string(),
-    actorId: t.string(),
-    action: t.string(),
-    target: t.string(),
-    allowed: t.bool(),
-    detail: t.string(),
+    tripId: t.string().primaryKey(),
+    tokenRef: t.string(),
+    last4: t.string(),
+    capCents: t.u32(),
+    allowedMccs: t.string(),
+    expiresAt: t.string(),
   }
-);
-
-/** Planted-error answer key. Private; read by no reducer that makes a payment decision. */
-export const answerKey = table(
-  { name: 'eval_answer_key' },
-  { invoiceId: t.string().primaryKey(), errorType: t.string(), expectedAction: t.string() }
 );
 
 const spacetimedb = schema({
   admin,
   actor,
   seat,
-  vendor,
-  vendorChange,
-  contract,
-  purchaseOrder,
-  invoice,
-  canary,
-  canaryStats,
-  policyDecision,
-  approval,
-  controllerCheck,
-  paymentIntent,
-  bankTransfer,
-  journalEntry,
-  journalLine,
+  trip,
+  mandate,
+  offer,
+  agentStep,
   receipt,
-  autonomyState,
-  simClock,
-  auditEvent,
-  answerKey,
+  travelerProfile,
+  paymentToken,
 });
 
 export default spacetimedb;

@@ -28,28 +28,8 @@ export function connectAs(host: string, db: string, token?: string, timeoutMs = 
   });
 }
 
-/** Every public table and view the server needs to reason about the books. */
-export const ALL_TABLES = [
-  tables.actor,
-  tables.seat,
-  tables.vendor,
-  tables.vendorChange,
-  tables.contract,
-  tables.purchaseOrder,
-  tables.invoice,
-  tables.canaryStats,
-  tables.policyDecision,
-  tables.approval,
-  tables.controllerCheck,
-  tables.receipt,
-  tables.autonomyState,
-  tables.simClock,
-  tables.auditEvent,
-  tables.payQueue,
-  tables.ledgerBalances,
-  tables.journal,
-  tables.health,
-];
+/** Every public table. Private tables (traveler_profile, payment_token) are never readable by clients. */
+export const ALL_TABLES = [tables.actor, tables.seat, tables.trip, tables.mandate, tables.offer, tables.agentStep, tables.receipt];
 
 export function subscribeAll(conn: Conn, timeoutMs = 20_000): Promise<void> {
   return new Promise((resolve, reject) => {

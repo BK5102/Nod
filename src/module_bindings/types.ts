@@ -10,12 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export const AccountBalance = __t.object("AccountBalance", {
-  account: __t.string(),
-  balanceCents: __t.f64(),
-});
-export type AccountBalance = __Infer<typeof AccountBalance>;
-
 export const Actor = __t.object("Actor", {
   actorId: __t.string(),
   name: __t.string(),
@@ -28,218 +22,74 @@ export const Admin = __t.object("Admin", {
 });
 export type Admin = __Infer<typeof Admin>;
 
-export const Approval = __t.object("Approval", {
+export const AgentStep = __t.object("AgentStep", {
   id: __t.u64(),
-  invoiceId: __t.string(),
-  actorId: __t.string(),
-  decision: __t.string(),
-  confidence: __t.f64(),
-  windowMs: __t.u32(),
-  attempt: __t.u32(),
-  latencyMs: __t.u32(),
+  tripId: __t.string(),
+  seq: __t.u32(),
+  kind: __t.string(),
+  text: __t.string(),
   at: __t.string(),
 });
-export type Approval = __Infer<typeof Approval>;
+export type AgentStep = __Infer<typeof AgentStep>;
 
-export const AuditEvent = __t.object("AuditEvent", {
-  id: __t.u64(),
-  at: __t.string(),
-  actorId: __t.string(),
-  action: __t.string(),
-  target: __t.string(),
-  allowed: __t.bool(),
-  detail: __t.string(),
+export const Mandate = __t.object("Mandate", {
+  tripId: __t.string(),
+  tripCapCents: __t.u32(),
+  askAboveCents: __t.u32(),
+  autoCeilingCents: __t.u32(),
+  categories: __t.string(),
+  summary: __t.string(),
 });
-export type AuditEvent = __Infer<typeof AuditEvent>;
+export type Mandate = __Infer<typeof Mandate>;
 
-export const AutonomyState = __t.object("AutonomyState", {
-  id: __t.u32(),
-  cleanStreak: __t.u32(),
-  rung: __t.u32(),
-  ceilingCents: __t.u32(),
-  updatedAt: __t.string(),
-});
-export type AutonomyState = __Infer<typeof AutonomyState>;
-
-export const BankTransfer = __t.object("BankTransfer", {
-  id: __t.u64(),
-  invoiceId: __t.string(),
-  vendorId: __t.string(),
-  amountCents: __t.u32(),
-  toLast4: __t.string(),
-  adapter: __t.string(),
-  externalId: __t.string(),
-  status: __t.string(),
-  error: __t.string(),
-  at: __t.string(),
-});
-export type BankTransfer = __Infer<typeof BankTransfer>;
-
-export const Canary = __t.object("Canary", {
-  invoiceId: __t.string(),
-});
-export type Canary = __Infer<typeof Canary>;
-
-export const CanaryStats = __t.object("CanaryStats", {
-  id: __t.u32(),
-  presented: __t.u32(),
-  caught: __t.u32(),
-  missed: __t.u32(),
-});
-export type CanaryStats = __Infer<typeof CanaryStats>;
-
-export const Contract = __t.object("Contract", {
-  contractId: __t.string(),
-  vendorId: __t.string(),
-  json: __t.string(),
-});
-export type Contract = __Infer<typeof Contract>;
-
-export const ControllerCheck = __t.object("ControllerCheck", {
-  id: __t.u64(),
-  invoiceId: __t.string(),
-  actorId: __t.string(),
-  outcome: __t.string(),
-  note: __t.string(),
-  at: __t.string(),
-});
-export type ControllerCheck = __Infer<typeof ControllerCheck>;
-
-export const EvalAnswerKey = __t.object("EvalAnswerKey", {
-  invoiceId: __t.string(),
-  errorType: __t.string(),
-  expectedAction: __t.string(),
-});
-export type EvalAnswerKey = __Infer<typeof EvalAnswerKey>;
-
-export const Health = __t.object("Health", {});
-export type Health = __Infer<typeof Health>;
-
-export const HealthCheck = __t.object("HealthCheck", {
-  reconciled: __t.bool(),
-  ledgerCashCents: __t.f64(),
-  bankCashCents: __t.f64(),
-  differenceCents: __t.f64(),
-  entriesBalanced: __t.bool(),
-  unmatchedTransfers: __t.u32(),
-  chainOk: __t.bool(),
-  chainLength: __t.u32(),
-  chainBrokenAt: __t.u32(),
-  chainReason: __t.string(),
-});
-export type HealthCheck = __Infer<typeof HealthCheck>;
-
-export const Invoice = __t.object("Invoice", {
-  invoiceId: __t.string(),
-  vendorId: __t.string(),
-  poId: __t.string(),
-  number: __t.string(),
-  amountCents: __t.u32(),
-  dueDate: __t.string(),
-  receivedAt: __t.string(),
-  sourceFormat: __t.string(),
-  filePath: __t.string(),
-  rawText: __t.string(),
-  extractedJson: __t.string(),
-  extractionMethod: __t.string(),
-  status: __t.string(),
-  handoffJson: __t.string(),
-  approvalRequestedAt: __t.string(),
-  nudgedAt: __t.string(),
-  assignedApprover: __t.string(),
-  period: __t.string(),
-});
-export type Invoice = __Infer<typeof Invoice>;
-
-export const Journal = __t.object("Journal", {});
-export type Journal = __Infer<typeof Journal>;
-
-export const JournalEntry = __t.object("JournalEntry", {
-  id: __t.u64(),
-  invoiceId: __t.string(),
-  memo: __t.string(),
-  postedAt: __t.string(),
-});
-export type JournalEntry = __Infer<typeof JournalEntry>;
-
-export const JournalLine = __t.object("JournalLine", {
-  id: __t.u64(),
-  entryId: __t.u64(),
-  account: __t.string(),
-  debitCents: __t.u32(),
-  creditCents: __t.u32(),
-});
-export type JournalLine = __Infer<typeof JournalLine>;
-
-export const JournalView = __t.object("JournalView", {
-  entryId: __t.f64(),
-  invoiceId: __t.string(),
-  memo: __t.string(),
-  postedAt: __t.string(),
-  account: __t.string(),
-  debitCents: __t.f64(),
-  creditCents: __t.f64(),
-});
-export type JournalView = __Infer<typeof JournalView>;
-
-export const LedgerBalances = __t.object("LedgerBalances", {});
-export type LedgerBalances = __Infer<typeof LedgerBalances>;
-
-export const PayQueue = __t.object("PayQueue", {});
-export type PayQueue = __Infer<typeof PayQueue>;
-
-export const PaymentIntent = __t.object("PaymentIntent", {
-  invoiceId: __t.string(),
-  idempotencyKey: __t.string(),
-  vendorId: __t.string(),
-  vendorName: __t.string(),
-  amountCents: __t.u32(),
-  toLast4: __t.string(),
-  status: __t.string(),
-  attempts: __t.u32(),
-  lastError: __t.string(),
-  signalConfidence: __t.f64(),
-  actorIdsJson: __t.string(),
-  note: __t.string(),
-});
-export type PaymentIntent = __Infer<typeof PaymentIntent>;
-
-export const PolicyDecision = __t.object("PolicyDecision", {
-  invoiceId: __t.string(),
-  sourcesJson: __t.string(),
+export const Offer = __t.object("Offer", {
+  offerId: __t.string(),
+  tripId: __t.string(),
+  kind: __t.string(),
+  merchant: __t.string(),
+  title: __t.string(),
+  departs: __t.string(),
+  arrives: __t.string(),
+  meetsDeadline: __t.bool(),
+  priceCents: __t.u32(),
+  refundable: __t.bool(),
+  category: __t.string(),
+  mcc: __t.string(),
+  rank: __t.u32(),
+  tier: __t.string(),
   rulesJson: __t.string(),
-  ruleTier: __t.string(),
-  claudeJson: __t.string(),
-  finalTier: __t.string(),
-  decidedAt: __t.string(),
-  reviewed: __t.bool(),
-});
-export type PolicyDecision = __Infer<typeof PolicyDecision>;
-
-export const PurchaseOrder = __t.object("PurchaseOrder", {
-  poId: __t.string(),
-  vendorId: __t.string(),
-  number: __t.string(),
-  amountCents: __t.u32(),
-  description: __t.string(),
+  claudeReason: __t.string(),
+  flagged: __t.bool(),
+  flagReason: __t.string(),
+  quoteHash: __t.string(),
+  expiresAt: __t.string(),
   status: __t.string(),
-  createdAt: __t.string(),
 });
-export type PurchaseOrder = __Infer<typeof PurchaseOrder>;
+export type Offer = __Infer<typeof Offer>;
+
+export const PaymentToken = __t.object("PaymentToken", {
+  tripId: __t.string(),
+  tokenRef: __t.string(),
+  last4: __t.string(),
+  capCents: __t.u32(),
+  allowedMccs: __t.string(),
+  expiresAt: __t.string(),
+});
+export type PaymentToken = __Infer<typeof PaymentToken>;
 
 export const Receipt = __t.object("Receipt", {
   seq: __t.u32(),
-  invoiceId: __t.string(),
-  vendorName: __t.string(),
+  tripId: __t.string(),
+  action: __t.string(),
+  offerId: __t.string(),
+  merchant: __t.string(),
   amountCents: __t.u32(),
-  decision: __t.string(),
   tier: __t.string(),
   rulesJson: __t.string(),
-  explanation: __t.string(),
-  signalConfidence: __t.f64(),
-  actorIdsJson: __t.string(),
-  asOf: __t.string(),
-  note: __t.string(),
+  actor: __t.string(),
+  quoteHash: __t.string(),
+  tokenLast4: __t.string(),
+  at: __t.string(),
   prevHash: __t.string(),
   hash: __t.string(),
 });
@@ -251,36 +101,28 @@ export const Seat = __t.object("Seat", {
 });
 export type Seat = __Infer<typeof Seat>;
 
-export const SimClock = __t.object("SimClock", {
-  id: __t.u32(),
-  asOf: __t.string(),
-  closedThrough: __t.string(),
-  bankOutage: __t.bool(),
-  openingBalanceCents: __t.u32(),
-});
-export type SimClock = __Infer<typeof SimClock>;
-
-export const Vendor = __t.object("Vendor", {
-  vendorId: __t.string(),
+export const TravelerProfile = __t.object("TravelerProfile", {
+  tripId: __t.string(),
   name: __t.string(),
-  category: __t.string(),
-  expenseAccount: __t.string(),
-  bankLast4: __t.string(),
-  bankChangedAt: __t.string(),
-  heightenedUntil: __t.string(),
-  firstSeenAt: __t.string(),
-  emailDomain: __t.string(),
+  email: __t.string(),
+  bookingRef: __t.string(),
+  loyaltyNumber: __t.string(),
 });
-export type Vendor = __Infer<typeof Vendor>;
+export type TravelerProfile = __Infer<typeof TravelerProfile>;
 
-export const VendorChange = __t.object("VendorChange", {
-  id: __t.u64(),
-  vendorId: __t.string(),
-  actorId: __t.string(),
-  field: __t.string(),
-  oldValue: __t.string(),
-  newValue: __t.string(),
-  at: __t.string(),
+export const Trip = __t.object("Trip", {
+  tripId: __t.string(),
+  route: __t.string(),
+  flight: __t.string(),
+  departs: __t.string(),
+  deadlineText: __t.string(),
+  status: __t.string(),
+  cancelReason: __t.string(),
+  canceledAt: __t.string(),
+  bookedAt: __t.string(),
+  fareCents: __t.u32(),
+  refundOwedCents: __t.u32(),
+  spendCents: __t.u32(),
 });
-export type VendorChange = __Infer<typeof VendorChange>;
+export type Trip = __Infer<typeof Trip>;
 

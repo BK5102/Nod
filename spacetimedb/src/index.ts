@@ -1,345 +1,343 @@
-﻿import { t, SenderError } from 'spacetimedb/server';
-import spacetimedb, { paymentIntent } from './schema';
-import {
-  audit,
-  caller,
-  changeBank,
-  clock,
-  closePeriod,
-  controllerConfirm,
-  escalate,
-  failPayment,
-  ingest,
-  isAdmin,
-
-  recordApproval,
-  requireAdmin,
-  requireRole,
-  settle,
-  sweepStalls,
-  type Ctx,
-} from './ops';
-import { openingEntry, ACCOUNTS } from './core/ledger';
-import { AUTO_PAY_MANDATE_CENTS, EARNED_AUTONOMY } from './core/autonomy';
-import { verifyChain } from './core/chain';
-import type { Receipt, RuleResult, Tier } from './core/types';
+import { t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
+import spacetimedb from './schema';
+import { deadlineLabel, evaluateOffer, quoteHash, rankOffers } from './core/policy';
+import { mergeFlags } from './core/tiers';
+import { checkMockToken } from './core/token';
+import { GENESIS_HASH, hashReceipt } from './core/receipt';
+import { addMinutes, dollars } from './core/money';
+import { CANCEL_REASON, DEMO_MANDATE, DEMO_PROFILE, DEMO_TOKEN, DEMO_TRIP, QUOTE_MINUTES } from './core/seed';
+import type { Flag, MandateRules, OfferInput, OfferKind, RuleHit, Tier } from './core/types';
 
 export default spacetimedb;
 
+type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
+type OfferRow = ReturnType<Ctx['db']['offer']['offerId']['find']> & {};
+type TripRow = ReturnType<Ctx['db']['trip']['tripId']['find']> & {};
+
+const ACTORS = [
+  { actorId: 'act_traveler', name: 'Traveler', role: 'traveler' },
+  { actorId: 'act_agent', name: 'Rerouted agent', role: 'agent' },
+  { actorId: 'act_operator', name: 'Demo operator', role: 'operator' },
+];
 /** Seats only the admin can assign. */
 const RESERVED = ['agent', 'operator'];
+const STEP_KINDS = ['info', 'search', 'decision', 'refusal', 'error'];
 
-// ------------------------------------------------------------------ lifecycle
+// ------------------------------------------------------------------ helpers
+
+function nowIso(ctx: Ctx): string {
+  return new Date(Number(ctx.timestamp.microsSinceUnixEpoch / 1000n)).toISOString();
+}
+
+function isAdmin(ctx: Ctx): boolean {
+  return !!ctx.db.admin.identity.find(ctx.sender);
+}
+
+/** The caller's actor, from its seat. Roles are never taken from arguments. */
+function caller(ctx: Ctx) {
+  const s = ctx.db.seat.identity.find(ctx.sender);
+  return s ? (ctx.db.actor.actorId.find(s.actorId) ?? null) : null;
+}
+
+function requireRole(ctx: Ctx, roles: string[], action: string) {
+  if (roles.includes('operator') && isAdmin(ctx)) return;
+  const a = caller(ctx);
+  if (!a || !roles.includes(a.role)) {
+    throw new SenderError(`Refused: ${a ? `the ${a.role}` : 'an unseated identity'} cannot ${action}.`);
+  }
+}
+
+function getTrip(ctx: Ctx, tripId: string): TripRow {
+  const tr = ctx.db.trip.tripId.find(tripId);
+  if (!tr) throw new SenderError(`No trip ${tripId}. Reset the demo first.`);
+  return tr;
+}
+
+function mandateRules(ctx: Ctx, tripId: string): MandateRules {
+  const m = ctx.db.mandate.tripId.find(tripId);
+  if (!m) throw new SenderError(`No card rules for ${tripId}. Reset the demo first.`);
+  return { tripCapCents: m.tripCapCents, askAboveCents: m.askAboveCents, autoCeilingCents: m.autoCeilingCents, categories: m.categories.split(',') };
+}
+
+function offersOf(ctx: Ctx, tripId: string): OfferRow[] {
+  return [...ctx.db.offer.iter()].filter((o) => o.tripId === tripId);
+}
+
+function addStep(ctx: Ctx, tripId: string, kind: string, text: string) {
+  const seq = [...ctx.db.agentStep.iter()].filter((s) => s.tripId === tripId).length + 1;
+  ctx.db.agentStep.insert({ id: 0n, tripId, seq, kind, text, at: nowIso(ctx) });
+}
+
+function toInput(o: OfferRow): OfferInput {
+  return {
+    offerId: o.offerId,
+    kind: o.kind as OfferKind,
+    merchant: o.merchant,
+    title: o.title,
+    departs: o.departs,
+    arrives: o.arrives,
+    meetsDeadline: o.meetsDeadline,
+    priceCents: o.priceCents,
+    refundable: o.refundable,
+    category: o.category,
+    mcc: o.mcc,
+  };
+}
+
+/** Runs the card's rules on one offer, keeping any Claude flag already on it (flags only raise). */
+function retier(ctx: Ctx, tr: TripRow, o: OfferInput, all: readonly OfferInput[], keep: RuleHit[]) {
+  const free = all.find((x) => x.kind === 'free_rebooking') ?? null;
+  const ev = evaluateOffer(o, mandateRules(ctx, tr.tripId), {
+    spendCents: tr.spendCents,
+    freeOption: free && free.offerId !== o.offerId ? { merchant: free.merchant, meetsDeadline: free.meetsDeadline } : null,
+    deadlineLabel: deadlineLabel(tr.deadlineText),
+  });
+  const flags: Flag[] = keep.map((r) => ({ severity: r.tier === 'BLOCK' ? 'BLOCK' : 'ASK', reason: r.reason }));
+  return { tier: mergeFlags(ev.tier, flags), rules: [...ev.rules, ...keep] };
+}
+
+/** Recomputes ranks for every offer on the trip. BLOCK offers are set aside with rank 0. */
+function rerank(ctx: Ctx, tripId: string) {
+  const offers = offersOf(ctx, tripId);
+  const ranks = rankOffers(offers.map((o) => ({ offerId: o.offerId, kind: o.kind, meetsDeadline: o.meetsDeadline, priceCents: o.priceCents, tier: o.tier as Tier })));
+  for (const o of offers) {
+    const rank = ranks.get(o.offerId) ?? 0;
+    const status = o.status === 'booked' ? 'booked' : o.tier === 'BLOCK' ? 'set_aside' : 'open';
+    if (rank !== o.rank || status !== o.status) ctx.db.offer.offerId.update({ ...o, rank, status });
+  }
+}
+
+function flagHits(o: OfferRow): RuleHit[] {
+  return (JSON.parse(o.rulesJson) as RuleHit[]).filter((r) => r.id === 'claude_flag');
+}
+
+function seedActors(ctx: Ctx) {
+  for (const a of ACTORS) if (!ctx.db.actor.actorId.find(a.actorId)) ctx.db.actor.insert(a);
+}
+
+// ------------------------------------------------------------------ lifecycle and seats
 
 export const init = spacetimedb.init((ctx) => {
   ctx.db.admin.insert({ identity: ctx.sender });
+  seedActors(ctx);
 });
 
-// ------------------------------------------------------------------ seats (identity -> actor)
-
 /**
- * Anyone may sit in a human seat for the demo (approver, controller, auditor). Nobody can take the
- * agent seat this way, and an identity seated as the agent can never move to a human seat, so the
- * agent can request payments but never approve them.
+ * Any browser may take the traveler seat. Nobody can take the agent or operator seat this way, and an
+ * identity seated as the agent or operator can never move to the traveler seat, so the agent can never
+ * approve a purchase.
  */
 export const takeSeat = spacetimedb.reducer({ actorId: t.string() }, (ctx, { actorId }) => {
   const target = ctx.db.actor.actorId.find(actorId);
   if (!target) throw new SenderError(`No actor ${actorId}`);
-  if (RESERVED.includes(target.role)) throw new SenderError(`Refused: the ${target.role} seat is assigned by the admin only`);
+  if (RESERVED.includes(target.role)) throw new SenderError(`Refused: the ${target.role} seat is assigned by the admin only.`);
   const mine = ctx.db.seat.identity.find(ctx.sender);
   const myRole = mine ? ctx.db.actor.actorId.find(mine.actorId)?.role : undefined;
-  if (myRole && RESERVED.includes(myRole)) {
-    throw new SenderError(`Refused: the ${myRole} identity cannot take a human seat`);
-  }
+  if (myRole && RESERVED.includes(myRole)) throw new SenderError(`Refused: the ${myRole} identity cannot take the traveler seat.`);
   if (mine) ctx.db.seat.identity.update({ identity: ctx.sender, actorId });
   else ctx.db.seat.insert({ identity: ctx.sender, actorId });
 });
 
-export const leaveSeat = spacetimedb.reducer((ctx) => {
-  const mine = ctx.db.seat.identity.find(ctx.sender);
-  const role = mine ? ctx.db.actor.actorId.find(mine.actorId)?.role : undefined;
-  if (mine && role && !RESERVED.includes(role)) ctx.db.seat.identity.delete(ctx.sender);
-});
-
 /** Admin only: binds an identity to any seat, including the reserved agent and operator seats. */
 export const assignSeat = spacetimedb.reducer({ who: t.identity(), actorId: t.string() }, (ctx, { who, actorId }) => {
-  requireAdmin(ctx);
+  if (!isAdmin(ctx)) throw new SenderError('Refused: only the admin identity can assign seats.');
+  seedActors(ctx);
   if (!ctx.db.actor.actorId.find(actorId)) throw new SenderError(`No actor ${actorId}`);
   const s = ctx.db.seat.identity.find(who);
   if (s) ctx.db.seat.identity.update({ identity: who, actorId });
   else ctx.db.seat.insert({ identity: who, actorId });
 });
 
-/** Demo controls (clock, bank outage, canaries) need the admin or the operator seat. */
-function requireOperator(ctx: Ctx) {
-  if (isAdmin(ctx)) return;
-  requireRole(ctx, 'operator', 'use the simulation controls');
-}
+// ------------------------------------------------------------------ operator (demo controls, SIMULATED)
 
-/**
- * Refused reducer calls roll back, so they cannot write their own audit row. The caller records the
- * refusal here afterwards, under its own identity, so every denied attempt is on the record.
- */
-export const logDenied = spacetimedb.reducer({ action: t.string(), target: t.string(), detail: t.string() }, (ctx, a) => {
-  const who = caller(ctx);
-  audit(ctx, who?.actorId ?? 'unseated', 'denied', a.target, false, `${who ? who.name : 'An unseated identity'} tried to ${a.action}. ${a.detail}`);
+/** Clears the demo trip and seeds it again. One atomic reducer; never republish to reset. */
+export const resetDemo = spacetimedb.reducer((ctx) => {
+  requireRole(ctx, ['operator'], 'reset the demo');
+  seedActors(ctx);
+  const id = DEMO_TRIP.tripId;
+  for (const o of offersOf(ctx, id)) ctx.db.offer.offerId.delete(o.offerId);
+  for (const s of [...ctx.db.agentStep.iter()]) if (s.tripId === id) ctx.db.agentStep.id.delete(s.id);
+  for (const r of [...ctx.db.receipt.iter()]) if (r.tripId === id) ctx.db.receipt.seq.delete(r.seq);
+  ctx.db.trip.tripId.delete(id);
+  ctx.db.mandate.tripId.delete(id);
+  ctx.db.travelerProfile.tripId.delete(id);
+  ctx.db.paymentToken.tripId.delete(id);
+
+  ctx.db.trip.insert({ ...DEMO_TRIP, status: 'scheduled', cancelReason: '', canceledAt: '', bookedAt: '', refundOwedCents: 0, spendCents: 0 });
+  ctx.db.mandate.insert(DEMO_MANDATE);
+  ctx.db.travelerProfile.insert(DEMO_PROFILE);
+  ctx.db.paymentToken.insert(DEMO_TOKEN);
+});
+
+/** SIMULATED cancellation. The refund for the canceled ticket is owed from this moment. */
+export const cancelFlight = spacetimedb.reducer({ tripId: t.string() }, (ctx, { tripId }) => {
+  requireRole(ctx, ['operator'], 'cancel a flight');
+  const tr = getTrip(ctx, tripId);
+  if (tr.status !== 'scheduled') throw new SenderError('This flight is already canceled. Reset the demo first.');
+  ctx.db.trip.tripId.update({ ...tr, status: 'canceled', cancelReason: CANCEL_REASON, canceledAt: nowIso(ctx), refundOwedCents: tr.fareCents });
+  addStep(ctx, tripId, 'info', `${tr.flight} was canceled: ${CANCEL_REASON}. Your ${dollars(tr.fareCents)} fare is owed back to you.`);
+});
+
+/** SIMULATED price change. New price, new rules, new quote hash: an approval of the old quote no longer works. */
+export const setPrice = spacetimedb.reducer({ offerId: t.string(), priceCents: t.u32() }, (ctx, { offerId, priceCents }) => {
+  requireRole(ctx, ['operator'], 'change a price');
+  const o = ctx.db.offer.offerId.find(offerId);
+  if (!o) throw new SenderError(`No offer ${offerId}`);
+  if (o.status === 'booked') throw new SenderError('This option is already booked.');
+  const tr = getTrip(ctx, o.tripId);
+  const all = offersOf(ctx, o.tripId).map(toInput);
+  const input = { ...toInput(o), priceCents };
+  const { tier, rules } = retier(ctx, tr, input, all, flagHits(o));
+  const expiresAt = addMinutes(nowIso(ctx), QUOTE_MINUTES);
+  ctx.db.offer.offerId.update({ ...o, priceCents, tier, rulesJson: JSON.stringify(rules), expiresAt, quoteHash: quoteHash({ offerId, merchant: o.merchant, priceCents, expiresAt }) });
+  rerank(ctx, o.tripId);
+  addStep(ctx, o.tripId, 'info', `${o.merchant}'s price changed from ${dollars(o.priceCents)} to ${dollars(priceCents)}.`);
 });
 
 // ------------------------------------------------------------------ agent
 
-const ingestArgs = {
-  invoiceId: t.string(),
-  extractedJson: t.string(),
-  rawText: t.string(),
-  sourceFormat: t.string(),
-  filePath: t.string(),
-  extractionMethod: t.string(),
-  handoffJson: t.string(),
-};
-
-export const submitInvoice = spacetimedb.reducer(ingestArgs, (ctx, a) => {
-  requireRole(ctx, 'agent', 'take in invoices');
-  ingest(ctx, a, false);
+export const logStep = spacetimedb.reducer({ tripId: t.string(), kind: t.string(), text: t.string() }, (ctx, a) => {
+  requireRole(ctx, ['agent', 'operator'], 'write agent steps');
+  if (!STEP_KINDS.includes(a.kind)) throw new SenderError(`Unknown step kind ${a.kind}`);
+  getTrip(ctx, a.tripId);
+  addStep(ctx, a.tripId, a.kind, a.text.slice(0, 400));
 });
 
-export const escalateInvoice = spacetimedb.reducer({ invoiceId: t.string(), claudeJson: t.string() }, (ctx, a) => {
-  requireRole(ctx, 'agent', 'record the second review');
-  escalate(ctx, a.invoiceId, a.claudeJson);
-});
-
-export const settlePayment = spacetimedb.reducer({ invoiceId: t.string(), externalId: t.string(), adapter: t.string() }, (ctx, a) => {
-  requireRole(ctx, 'agent', 'settle a payment');
-  settle(ctx, a.invoiceId, a.externalId, a.adapter);
-});
-
-export const paymentFailed = spacetimedb.reducer({ invoiceId: t.string(), adapter: t.string(), error: t.string() }, (ctx, a) => {
-  requireRole(ctx, 'agent', 'report a bank failure');
-  failPayment(ctx, a.invoiceId, a.adapter, a.error);
-});
-
-export const sweep = spacetimedb.reducer((ctx) => {
-  if (!isAdmin(ctx)) requireRole(ctx, 'agent', 'chase stalled approvals');
-  sweepStalls(ctx);
-});
-
-// ------------------------------------------------------------------ approver and controller
-
-export const approve = spacetimedb.reducer(
-  { invoiceId: t.string(), samples: t.array(t.f64()), latencyMs: t.u32() },
-  (ctx, a) => {
-    recordApproval(ctx, a.invoiceId, a.samples, a.latencyMs);
-  }
-);
-
-export const controllerDecision = spacetimedb.reducer({ invoiceId: t.string(), outcome: t.string(), note: t.string() }, (ctx, a) => {
-  controllerConfirm(ctx, a.invoiceId, a.outcome, a.note);
-});
-
-export const updateVendorBank = spacetimedb.reducer({ vendorId: t.string(), last4: t.string() }, (ctx, a) => {
-  const who = requireRole(ctx, 'controller', 'change vendor bank details');
-  const v = ctx.db.vendor.vendorId.find(a.vendorId);
-  if (!v) throw new SenderError('No such vendor');
-  changeBank(ctx, who.actorId, v, a.last4, 'by the controller');
-});
-
-export const closeBooks = spacetimedb.reducer({ period: t.string() }, (ctx, a) => {
-  closePeriod(ctx, a.period);
-});
-
-// ------------------------------------------------------------------ admin: seeding and demo controls
-
-interface CompanyJson {
-  as_of: string;
-  opening_balance_cents: number;
-  actors: { id: string; name: string; role: string }[];
-  vendors: {
-    id: string; name: string; category: string; expense_account: string; bank_last4: string;
-    bank_changed_at: string | null; heightened_until: string | null; first_seen_at: string; email_domain: string;
-  }[];
-  contracts: { id: string; vendor_id: string }[];
-  purchase_orders: { id: string; vendor_id: string; number: string; amount_cents: number; description: string; status: string; created_at: string }[];
+interface SubmittedOffer extends OfferInput {
+  claudeReason?: string;
 }
 
-function wipe(ctx: Ctx) {
-  for (const r of [...ctx.db.receipt.iter()]) ctx.db.receipt.seq.delete(r.seq);
-  for (const r of [...ctx.db.journalLine.iter()]) ctx.db.journalLine.id.delete(r.id);
-  for (const r of [...ctx.db.journalEntry.iter()]) ctx.db.journalEntry.id.delete(r.id);
-  for (const r of [...ctx.db.bankTransfer.iter()]) ctx.db.bankTransfer.id.delete(r.id);
-  for (const r of [...ctx.db.paymentIntent.iter()]) ctx.db.paymentIntent.invoiceId.delete(r.invoiceId);
-  for (const r of [...ctx.db.controllerCheck.iter()]) ctx.db.controllerCheck.id.delete(r.id);
-  for (const r of [...ctx.db.approval.iter()]) ctx.db.approval.id.delete(r.id);
-  for (const r of [...ctx.db.policyDecision.iter()]) ctx.db.policyDecision.invoiceId.delete(r.invoiceId);
-  for (const r of [...ctx.db.canary.iter()]) ctx.db.canary.invoiceId.delete(r.invoiceId);
-  for (const r of [...ctx.db.invoice.iter()]) ctx.db.invoice.invoiceId.delete(r.invoiceId);
-  for (const r of [...ctx.db.purchaseOrder.iter()]) ctx.db.purchaseOrder.poId.delete(r.poId);
-  for (const r of [...ctx.db.contract.iter()]) ctx.db.contract.contractId.delete(r.contractId);
-  for (const r of [...ctx.db.vendorChange.iter()]) ctx.db.vendorChange.id.delete(r.id);
-  for (const r of [...ctx.db.vendor.iter()]) ctx.db.vendor.vendorId.delete(r.vendorId);
-  for (const r of [...ctx.db.auditEvent.iter()]) ctx.db.auditEvent.id.delete(r.id);
-  for (const r of [...ctx.db.answerKey.iter()]) ctx.db.answerKey.invoiceId.delete(r.invoiceId);
-  for (const r of [...ctx.db.canaryStats.iter()]) ctx.db.canaryStats.id.delete(r.id);
-  for (const r of [...ctx.db.autonomyState.iter()]) ctx.db.autonomyState.id.delete(r.id);
-  for (const r of [...ctx.db.simClock.iter()]) ctx.db.simClock.id.delete(r.id);
-}
-
-/** Demo reset: wipes the books and loads the company as of the start of history. Admin only. */
-export const seedCompany = spacetimedb.reducer({ json: t.string() }, (ctx, { json }) => {
-  requireAdmin(ctx);
-  const c = JSON.parse(json) as CompanyJson;
-  wipe(ctx);
-  for (const a of c.actors) {
-    if (ctx.db.actor.actorId.find(a.id)) ctx.db.actor.actorId.update({ actorId: a.id, name: a.name, role: a.role });
-    else ctx.db.actor.insert({ actorId: a.id, name: a.name, role: a.role });
+/**
+ * The agent hands over what it found. The reducer, not the caller, decides tier, rank, quote hash
+ * and expiry: any tier or rank in the JSON is ignored.
+ */
+export const submitOffers = spacetimedb.reducer({ tripId: t.string(), offersJson: t.string() }, (ctx, { tripId, offersJson }) => {
+  requireRole(ctx, ['agent'], 'submit offers');
+  const tr = getTrip(ctx, tripId);
+  if (tr.status === 'scheduled') throw new SenderError('The flight has not been canceled.');
+  if (tr.status === 'booked') throw new SenderError('This trip is already booked.');
+  let parsed: SubmittedOffer[];
+  try {
+    parsed = JSON.parse(offersJson) as SubmittedOffer[];
+  } catch {
+    throw new SenderError('offersJson is not valid JSON');
   }
-  for (const v of c.vendors) {
-    ctx.db.vendor.insert({
-      vendorId: v.id, name: v.name, category: v.category, expenseAccount: v.expense_account, bankLast4: v.bank_last4,
-      bankChangedAt: v.bank_changed_at ?? '', heightenedUntil: v.heightened_until ?? '', firstSeenAt: v.first_seen_at, emailDomain: v.email_domain,
-    });
-  }
-  for (const k of c.contracts) ctx.db.contract.insert({ contractId: k.id, vendorId: k.vendor_id, json: JSON.stringify(k) });
-  for (const p of c.purchase_orders) {
-    ctx.db.purchaseOrder.insert({ poId: p.id, vendorId: p.vendor_id, number: p.number, amountCents: p.amount_cents, description: p.description, status: p.status, createdAt: p.created_at });
-  }
-  ctx.db.simClock.insert({ id: 1, asOf: c.as_of, closedThrough: '', bankOutage: false, openingBalanceCents: c.opening_balance_cents });
-  ctx.db.autonomyState.insert({ id: 1, cleanStreak: 0, rung: 0, ceilingCents: EARNED_AUTONOMY ? 0 : AUTO_PAY_MANDATE_CENTS, updatedAt: c.as_of });
-  ctx.db.canaryStats.insert({ id: 1, presented: 0, caught: 0, missed: 0 });
-  const open = openingEntry(c.opening_balance_cents, '2026-01-01T00:00:00.000Z');
-  const row = ctx.db.journalEntry.insert({ id: 0n, invoiceId: '', memo: open.memo, postedAt: open.posted_at });
-  for (const l of open.lines) ctx.db.journalLine.insert({ id: 0n, entryId: row.id, account: l.account, debitCents: l.debit_cents, creditCents: l.credit_cents });
-});
-
-export const setAnswerKey = spacetimedb.reducer({ json: t.string() }, (ctx, { json }) => {
-  requireAdmin(ctx);
-  for (const r of JSON.parse(json) as { invoice_id: string; error_type: string; expected_action: string }[]) {
-    const row = { invoiceId: r.invoice_id, errorType: r.error_type, expectedAction: r.expected_action };
-    if (ctx.db.answerKey.invoiceId.find(r.invoice_id)) ctx.db.answerKey.invoiceId.update(row);
-    else ctx.db.answerKey.insert(row);
-  }
-});
-
-/** Moves simulated time forward (never back: receipts must stay in time order), then chases stalls. */
-export const setClock = spacetimedb.reducer({ asOf: t.string() }, (ctx, { asOf }) => {
-  requireOperator(ctx);
-  const c = clock(ctx);
-  if (asOf < c.asOf) throw new SenderError('The clock only moves forward. Reset to replay from the start.');
-  ctx.db.simClock.id.update({ ...c, asOf });
-  sweepStalls(ctx);
-});
-
-export const setBankOutage = spacetimedb.reducer({ on: t.bool() }, (ctx, { on }) => {
-  requireOperator(ctx);
-  ctx.db.simClock.id.update({ ...clock(ctx), bankOutage: on });
-  audit(ctx, 'operator', 'bank_outage', 'bank', true, on ? 'Simulated bank outage started.' : 'Simulated bank outage ended.');
-});
-
-/** An attention check, planted by the operator. It goes through the same pipeline; it can never pay. */
-export const injectCanary = spacetimedb.reducer(ingestArgs, (ctx, a) => {
-  requireOperator(ctx);
-  ingest(ctx, a, true);
-  audit(ctx, 'operator', 'canary_injected', a.invoiceId, true, 'A known-bad invoice was added to the approval queue as an attention check.');
-});
-
-// ------------------------------------------------------------------ public views over private tables
-
-/** What the server should send to the bank: authorized or failed-and-retryable intents. */
-export const payQueue = spacetimedb.anonymousView({ name: 'pay_queue', public: true }, t.array(paymentIntent.rowType), (ctx) =>
-  [...ctx.db.paymentIntent.iter()].filter((p) => p.status === 'authorized' || p.status === 'failed')
-);
-
-const AccountBalance = t.object('AccountBalance', { account: t.string(), balanceCents: t.f64() });
-
-export const ledgerBalances = spacetimedb.anonymousView({ name: 'ledger_balances', public: true }, t.array(AccountBalance), (ctx) => {
-  const m = new Map<string, number>();
-  for (const l of ctx.db.journalLine.iter()) m.set(l.account, (m.get(l.account) ?? 0) + l.debitCents - l.creditCents);
-  return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([account, balanceCents]) => ({ account, balanceCents }));
-});
-
-const JournalView = t.object('JournalView', {
-  entryId: t.f64(),
-  invoiceId: t.string(),
-  memo: t.string(),
-  postedAt: t.string(),
-  account: t.string(),
-  debitCents: t.f64(),
-  creditCents: t.f64(),
-});
-
-export const journal = spacetimedb.anonymousView({ name: 'journal', public: true }, t.array(JournalView), (ctx) => {
-  const entries = new Map([...ctx.db.journalEntry.iter()].map((e) => [e.id, e]));
-  return [...ctx.db.journalLine.iter()].map((l) => {
-    const e = entries.get(l.entryId);
-    return {
-      entryId: Number(l.entryId),
-      invoiceId: e?.invoiceId ?? '',
-      memo: e?.memo ?? '',
-      postedAt: e?.postedAt ?? '',
-      account: l.account,
-      debitCents: l.debitCents,
-      creditCents: l.creditCents,
-    };
-  });
-});
-
-const Health = t.object('HealthCheck', {
-  reconciled: t.bool(),
-  ledgerCashCents: t.f64(),
-  bankCashCents: t.f64(),
-  differenceCents: t.f64(),
-  entriesBalanced: t.bool(),
-  unmatchedTransfers: t.u32(),
-  chainOk: t.bool(),
-  chainLength: t.u32(),
-  chainBrokenAt: t.u32(),
-  chainReason: t.string(),
-});
-
-/** Bank vs ledger reconciliation and receipt-chain verification, computed inside the database. */
-export const health = spacetimedb.anonymousView({ name: 'health', public: true }, t.array(Health), (ctx) => {
-  const c = ctx.db.simClock.id.find(1);
-  if (!c) return [];
-  const executed = [...ctx.db.bankTransfer.iter()].filter((x) => x.status === 'executed');
-  const bank = c.openingBalanceCents - executed.reduce((a, x) => a + x.amountCents, 0);
-  const perEntry = new Map<bigint, number>();
-  let ledgerCash = 0;
-  for (const l of ctx.db.journalLine.iter()) {
-    perEntry.set(l.entryId, (perEntry.get(l.entryId) ?? 0) + l.debitCents - l.creditCents);
-    if (l.account === ACCOUNTS.cash) ledgerCash += l.debitCents - l.creditCents;
-  }
-  const balanced = [...perEntry.values()].every((v) => v === 0);
-  const paidIds = new Set([...ctx.db.journalEntry.iter()].filter((e) => e.memo.startsWith('Payment of')).map((e) => e.invoiceId));
-  const unmatched = executed.filter((x) => !paidIds.has(x.invoiceId)).length;
-  const receipts: Receipt[] = [...ctx.db.receipt.iter()].map((r) => ({
-    id: String(r.seq),
-    seq: r.seq,
-    invoice_id: r.invoiceId,
-    vendor_name: r.vendorName,
-    amount_cents: r.amountCents,
-    decision: r.decision as Receipt['decision'],
-    tier: r.tier as Tier,
-    rules: JSON.parse(r.rulesJson) as Pick<RuleResult, 'id' | 'reason' | 'tier'>[],
-    claude_explanation: r.explanation,
-    signal_confidence: r.signalConfidence < 0 ? null : r.signalConfidence,
-    actor_ids: JSON.parse(r.actorIdsJson) as string[],
-    as_of: r.asOf,
-    note: r.note,
-    prev_hash: r.prevHash,
-    hash: r.hash,
+  if (!Array.isArray(parsed) || parsed.length === 0) throw new SenderError('No offers submitted');
+  const all: OfferInput[] = parsed.map((p) => ({
+    offerId: String(p.offerId),
+    kind: (['free_rebooking', 'flight', 'hotel'].includes(p.kind) ? p.kind : 'flight') as OfferKind,
+    merchant: String(p.merchant),
+    title: String(p.title),
+    departs: String(p.departs ?? ''),
+    arrives: String(p.arrives ?? ''),
+    meetsDeadline: !!p.meetsDeadline,
+    priceCents: Math.max(0, Math.round(Number(p.priceCents) || 0)),
+    refundable: !!p.refundable,
+    category: String(p.category),
+    mcc: String(p.mcc),
   }));
-  const chain = verifyChain(receipts);
-  return [
-    {
-      reconciled: ledgerCash === bank && balanced && unmatched === 0,
-      ledgerCashCents: ledgerCash,
-      bankCashCents: bank,
-      differenceCents: ledgerCash - bank,
-      entriesBalanced: balanced,
-      unmatchedTransfers: unmatched,
-      chainOk: chain.ok,
-      chainLength: chain.length,
-      chainBrokenAt: chain.broken_at_seq ?? 0,
-      chainReason: chain.reason ?? '',
-    },
-  ];
+
+  for (const o of offersOf(ctx, tripId)) ctx.db.offer.offerId.delete(o.offerId);
+  const expiresAt = addMinutes(nowIso(ctx), QUOTE_MINUTES);
+  all.forEach((o, i) => {
+    const { tier, rules } = retier(ctx, tr, o, all, []);
+    ctx.db.offer.insert({
+      ...o,
+      tripId,
+      rank: 0,
+      tier,
+      rulesJson: JSON.stringify(rules),
+      claudeReason: String(parsed[i]!.claudeReason ?? '').slice(0, 300),
+      flagged: false,
+      flagReason: '',
+      quoteHash: quoteHash({ offerId: o.offerId, merchant: o.merchant, priceCents: o.priceCents, expiresAt }),
+      expiresAt,
+      status: 'open',
+    });
+  });
+  rerank(ctx, tripId);
+  ctx.db.trip.tripId.update({ ...tr, status: 'options_ready' });
 });
 
+/** A Claude flag. It can only raise the tier; BLOCK sets the offer aside. */
+export const flagOffer = spacetimedb.reducer({ offerId: t.string(), severity: t.string(), reason: t.string() }, (ctx, a) => {
+  requireRole(ctx, ['agent'], 'flag offers');
+  const o = ctx.db.offer.offerId.find(a.offerId);
+  if (!o) throw new SenderError(`No offer ${a.offerId}`);
+  if (o.status === 'booked') throw new SenderError('This option is already booked.');
+  const severity: Flag['severity'] = a.severity === 'BLOCK' ? 'BLOCK' : 'ASK';
+  const reason = a.reason.slice(0, 300);
+  const tier = mergeFlags(o.tier as Tier, [{ severity, reason }]);
+  const rules = [...(JSON.parse(o.rulesJson) as RuleHit[]), { id: 'claude_flag', tier: severity, reason }];
+  ctx.db.offer.offerId.update({ ...o, tier, rulesJson: JSON.stringify(rules), flagged: true, flagReason: reason });
+  rerank(ctx, o.tripId);
+});
+
+// ------------------------------------------------------------------ traveler
+
+/**
+ * Approve and pay in one atomic transaction. Every check runs first; any failure throws and nothing
+ * changes. The approval covers exactly one quote hash, so a changed price needs a new yes.
+ */
+export const approveOffer = spacetimedb.reducer({ offerId: t.string(), quoteHash: t.string() }, (ctx, a) => {
+  const who = caller(ctx);
+  if (!who) throw new SenderError('Refused: take the traveler seat first.');
+  if (who.role === 'agent') throw new SenderError('Refused: the agent cannot approve its own purchase.');
+  if (who.role !== 'traveler') throw new SenderError('Refused: only the traveler can approve a purchase.');
+
+  const o = ctx.db.offer.offerId.find(a.offerId);
+  if (!o) throw new SenderError(`No offer ${a.offerId}`);
+  if (o.status === 'booked') throw new SenderError('This option is already booked.');
+  const rules = JSON.parse(o.rulesJson) as RuleHit[];
+  if (o.tier === 'BLOCK') {
+    const first = rules.find((r) => r.tier === 'BLOCK');
+    throw new SenderError(`Refused: this option is blocked. ${first?.reason ?? ''}`.trim());
+  }
+  if (a.quoteHash !== o.quoteHash) throw new SenderError(`The price changed to ${dollars(o.priceCents)}. Approve the new price to continue.`);
+  const now = nowIso(ctx);
+  if (now > o.expiresAt) throw new SenderError('This price expired. Ask the agent for a fresh quote.');
+
+  const tr = getTrip(ctx, o.tripId);
+  const m = mandateRules(ctx, o.tripId);
+  const total = tr.spendCents + o.priceCents;
+  if (total > m.tripCapCents) {
+    throw new SenderError(`Refused: this would take the trip to ${dollars(total)}, over your ${dollars(m.tripCapCents)} cap.`);
+  }
+  const isFlight = o.kind !== 'hotel';
+  if (isFlight && offersOf(ctx, o.tripId).some((x) => x.status === 'booked' && x.kind !== 'hotel')) {
+    throw new SenderError('You already have a flight booked for this trip.');
+  }
+  const token = ctx.db.paymentToken.tripId.find(o.tripId);
+  if (!token) throw new SenderError('Refused: no card on file for this trip.');
+  const check = checkMockToken(
+    { last4: token.last4, capCents: token.capCents, allowedMccs: token.allowedMccs.split(','), expiresAt: token.expiresAt },
+    tr.spendCents,
+    o.priceCents,
+    o.mcc,
+    now
+  );
+  if (!check.ok) throw new SenderError(check.reason);
+
+  // Every check passed: book, update the trip, append the receipt.
+  ctx.db.offer.offerId.update({ ...o, status: 'booked' });
+  ctx.db.trip.tripId.update({ ...tr, spendCents: total, status: isFlight ? 'booked' : tr.status, bookedAt: isFlight && !tr.bookedAt ? now : tr.bookedAt });
+
+  const prev = [...ctx.db.receipt.iter()].sort((x, y) => y.seq - x.seq)[0] ?? null;
+  const body = {
+    seq: (prev?.seq ?? 0) + 1,
+    tripId: o.tripId,
+    action: 'booked',
+    offerId: o.offerId,
+    merchant: o.merchant,
+    amountCents: o.priceCents,
+    tier: o.tier,
+    rulesJson: o.rulesJson,
+    actor: 'traveler',
+    quoteHash: o.quoteHash,
+    tokenLast4: token.last4,
+    at: now,
+  };
+  const prevHash = prev?.hash ?? GENESIS_HASH;
+  ctx.db.receipt.insert({ ...body, prevHash, hash: hashReceipt(prevHash, body) });
+  addStep(ctx, o.tripId, 'decision', `Booked ${o.title} for ${dollars(o.priceCents)} on the card ending ${token.last4}. You approved this exact price.`);
+});

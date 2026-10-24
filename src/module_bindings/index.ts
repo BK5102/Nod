@@ -34,47 +34,26 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import ApproveReducer from "./approve_reducer";
+import ApproveOfferReducer from "./approve_offer_reducer";
 import AssignSeatReducer from "./assign_seat_reducer";
-import CloseBooksReducer from "./close_books_reducer";
-import ControllerDecisionReducer from "./controller_decision_reducer";
-import EscalateInvoiceReducer from "./escalate_invoice_reducer";
-import InjectCanaryReducer from "./inject_canary_reducer";
-import LeaveSeatReducer from "./leave_seat_reducer";
-import LogDeniedReducer from "./log_denied_reducer";
-import PaymentFailedReducer from "./payment_failed_reducer";
-import SeedCompanyReducer from "./seed_company_reducer";
-import SetAnswerKeyReducer from "./set_answer_key_reducer";
-import SetBankOutageReducer from "./set_bank_outage_reducer";
-import SetClockReducer from "./set_clock_reducer";
-import SettlePaymentReducer from "./settle_payment_reducer";
-import SubmitInvoiceReducer from "./submit_invoice_reducer";
-import SweepReducer from "./sweep_reducer";
+import CancelFlightReducer from "./cancel_flight_reducer";
+import FlagOfferReducer from "./flag_offer_reducer";
+import LogStepReducer from "./log_step_reducer";
+import ResetDemoReducer from "./reset_demo_reducer";
+import SetPriceReducer from "./set_price_reducer";
+import SubmitOffersReducer from "./submit_offers_reducer";
 import TakeSeatReducer from "./take_seat_reducer";
-import UpdateVendorBankReducer from "./update_vendor_bank_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
 import ActorRow from "./actor_table";
-import ApprovalRow from "./approval_table";
-import AuditEventRow from "./audit_event_table";
-import AutonomyStateRow from "./autonomy_state_table";
-import CanaryStatsRow from "./canary_stats_table";
-import ContractRow from "./contract_table";
-import ControllerCheckRow from "./controller_check_table";
-import HealthRow from "./health_table";
-import InvoiceRow from "./invoice_table";
-import JournalRow from "./journal_table";
-import LedgerBalancesRow from "./ledger_balances_table";
-import PayQueueRow from "./pay_queue_table";
-import PolicyDecisionRow from "./policy_decision_table";
-import PurchaseOrderRow from "./purchase_order_table";
+import AgentStepRow from "./agent_step_table";
+import MandateRow from "./mandate_table";
+import OfferRow from "./offer_table";
 import ReceiptRow from "./receipt_table";
 import SeatRow from "./seat_table";
-import SimClockRow from "./sim_clock_table";
-import VendorRow from "./vendor_table";
-import VendorChangeRow from "./vendor_change_table";
+import TripRow from "./trip_table";
 
 /** Type-only namespace exports for generated type groups. */
 
@@ -91,120 +70,42 @@ const tablesSchema = __schema({
       { name: 'actor_actor_id_key', constraint: 'unique', columns: ['actorId'] },
     ],
   }, ActorRow),
-  approval: __table({
-    name: 'approval',
+  agentStep: __table({
+    name: 'agent_step',
     indexes: [
-      { accessor: 'id', name: 'approval_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-      { accessor: 'invoiceId', name: 'approval_invoice_id_idx_btree', algorithm: 'btree', columns: [
-        'invoiceId',
-      ] },
-    ],
-    constraints: [
-      { name: 'approval_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, ApprovalRow),
-  auditEvent: __table({
-    name: 'audit_event',
-    indexes: [
-      { accessor: 'id', name: 'audit_event_id_idx_btree', algorithm: 'btree', columns: [
+      { accessor: 'id', name: 'agent_step_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
     ],
     constraints: [
-      { name: 'audit_event_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'agent_step_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, AuditEventRow),
-  autonomyState: __table({
-    name: 'autonomy_state',
+  }, AgentStepRow),
+  mandate: __table({
+    name: 'mandate',
     indexes: [
-      { accessor: 'id', name: 'autonomy_state_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
+      { accessor: 'tripId', name: 'mandate_trip_id_idx_btree', algorithm: 'btree', columns: [
+        'tripId',
       ] },
     ],
     constraints: [
-      { name: 'autonomy_state_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'mandate_trip_id_key', constraint: 'unique', columns: ['tripId'] },
     ],
-  }, AutonomyStateRow),
-  canaryStats: __table({
-    name: 'canary_stats',
+  }, MandateRow),
+  offer: __table({
+    name: 'offer',
     indexes: [
-      { accessor: 'id', name: 'canary_stats_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
+      { accessor: 'offerId', name: 'offer_offer_id_idx_btree', algorithm: 'btree', columns: [
+        'offerId',
       ] },
     ],
     constraints: [
-      { name: 'canary_stats_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'offer_offer_id_key', constraint: 'unique', columns: ['offerId'] },
     ],
-  }, CanaryStatsRow),
-  contract: __table({
-    name: 'contract',
-    indexes: [
-      { accessor: 'contractId', name: 'contract_contract_id_idx_btree', algorithm: 'btree', columns: [
-        'contractId',
-      ] },
-      { accessor: 'vendorId', name: 'contract_vendor_id_idx_btree', algorithm: 'btree', columns: [
-        'vendorId',
-      ] },
-    ],
-    constraints: [
-      { name: 'contract_contract_id_key', constraint: 'unique', columns: ['contractId'] },
-    ],
-  }, ContractRow),
-  controllerCheck: __table({
-    name: 'controller_check',
-    indexes: [
-      { accessor: 'id', name: 'controller_check_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'controller_check_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, ControllerCheckRow),
-  invoice: __table({
-    name: 'invoice',
-    indexes: [
-      { accessor: 'invoiceId', name: 'invoice_invoice_id_idx_btree', algorithm: 'btree', columns: [
-        'invoiceId',
-      ] },
-    ],
-    constraints: [
-      { name: 'invoice_invoice_id_key', constraint: 'unique', columns: ['invoiceId'] },
-    ],
-  }, InvoiceRow),
-  policyDecision: __table({
-    name: 'policy_decision',
-    indexes: [
-      { accessor: 'invoiceId', name: 'policy_decision_invoice_id_idx_btree', algorithm: 'btree', columns: [
-        'invoiceId',
-      ] },
-    ],
-    constraints: [
-      { name: 'policy_decision_invoice_id_key', constraint: 'unique', columns: ['invoiceId'] },
-    ],
-  }, PolicyDecisionRow),
-  purchaseOrder: __table({
-    name: 'purchase_order',
-    indexes: [
-      { accessor: 'poId', name: 'purchase_order_po_id_idx_btree', algorithm: 'btree', columns: [
-        'poId',
-      ] },
-      { accessor: 'vendorId', name: 'purchase_order_vendor_id_idx_btree', algorithm: 'btree', columns: [
-        'vendorId',
-      ] },
-    ],
-    constraints: [
-      { name: 'purchase_order_po_id_key', constraint: 'unique', columns: ['poId'] },
-    ],
-  }, PurchaseOrderRow),
+  }, OfferRow),
   receipt: __table({
     name: 'receipt',
     indexes: [
-      { accessor: 'invoiceId', name: 'receipt_invoice_id_idx_btree', algorithm: 'btree', columns: [
-        'invoiceId',
-      ] },
       { accessor: 'seq', name: 'receipt_seq_idx_btree', algorithm: 'btree', columns: [
         'seq',
       ] },
@@ -224,89 +125,30 @@ const tablesSchema = __schema({
       { name: 'seat_identity_key', constraint: 'unique', columns: ['identity'] },
     ],
   }, SeatRow),
-  simClock: __table({
-    name: 'sim_clock',
+  trip: __table({
+    name: 'trip',
     indexes: [
-      { accessor: 'id', name: 'sim_clock_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
+      { accessor: 'tripId', name: 'trip_trip_id_idx_btree', algorithm: 'btree', columns: [
+        'tripId',
       ] },
     ],
     constraints: [
-      { name: 'sim_clock_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'trip_trip_id_key', constraint: 'unique', columns: ['tripId'] },
     ],
-  }, SimClockRow),
-  vendor: __table({
-    name: 'vendor',
-    indexes: [
-      { accessor: 'vendorId', name: 'vendor_vendor_id_idx_btree', algorithm: 'btree', columns: [
-        'vendorId',
-      ] },
-    ],
-    constraints: [
-      { name: 'vendor_vendor_id_key', constraint: 'unique', columns: ['vendorId'] },
-    ],
-  }, VendorRow),
-  vendorChange: __table({
-    name: 'vendor_change',
-    indexes: [
-      { accessor: 'id', name: 'vendor_change_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'vendor_change_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, VendorChangeRow),
-  health: __table({
-    name: 'health',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, HealthRow),
-  journal: __table({
-    name: 'journal',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, JournalRow),
-  ledgerBalances: __table({
-    name: 'ledger_balances',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, LedgerBalancesRow),
-  payQueue: __table({
-    name: 'pay_queue',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, PayQueueRow),
+  }, TripRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("approve", ApproveReducer),
+  __reducerSchema("approve_offer", ApproveOfferReducer),
   __reducerSchema("assign_seat", AssignSeatReducer),
-  __reducerSchema("close_books", CloseBooksReducer),
-  __reducerSchema("controller_decision", ControllerDecisionReducer),
-  __reducerSchema("escalate_invoice", EscalateInvoiceReducer),
-  __reducerSchema("inject_canary", InjectCanaryReducer),
-  __reducerSchema("leave_seat", LeaveSeatReducer),
-  __reducerSchema("log_denied", LogDeniedReducer),
-  __reducerSchema("payment_failed", PaymentFailedReducer),
-  __reducerSchema("seed_company", SeedCompanyReducer),
-  __reducerSchema("set_answer_key", SetAnswerKeyReducer),
-  __reducerSchema("set_bank_outage", SetBankOutageReducer),
-  __reducerSchema("set_clock", SetClockReducer),
-  __reducerSchema("settle_payment", SettlePaymentReducer),
-  __reducerSchema("submit_invoice", SubmitInvoiceReducer),
-  __reducerSchema("sweep", SweepReducer),
+  __reducerSchema("cancel_flight", CancelFlightReducer),
+  __reducerSchema("flag_offer", FlagOfferReducer),
+  __reducerSchema("log_step", LogStepReducer),
+  __reducerSchema("reset_demo", ResetDemoReducer),
+  __reducerSchema("set_price", SetPriceReducer),
+  __reducerSchema("submit_offers", SubmitOffersReducer),
   __reducerSchema("take_seat", TakeSeatReducer),
-  __reducerSchema("update_vendor_bank", UpdateVendorBankReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

@@ -6,19 +6,13 @@ export function formatCents(cents: number): string {
   return `${sign}$${dollars}.${rem}`;
 }
 
-/** Parses "$1,234.50", "1234.5", "USD 1,234" into cents. Returns null when no amount is present. */
-export function parseMoneyToCents(input: string): number | null {
-  const m = input.replace(/,/g, "").match(/-?\d+(?:\.\d{1,2})?/);
-  if (!m) return null;
-  return Math.round(parseFloat(m[0]) * 100);
+/** "$389" for whole dollars, "$389.50" otherwise. Used in every reason and refusal string. */
+export function dollars(cents: number): string {
+  return cents % 100 === 0 ? formatCents(cents).slice(0, -3) : formatCents(cents);
 }
 
-export const DAY_MS = 24 * 60 * 60 * 1000;
+export const MINUTE_MS = 60 * 1000;
 
-export function daysBetween(a: string, b: string): number {
-  return (new Date(b).getTime() - new Date(a).getTime()) / DAY_MS;
-}
-
-export function addDays(iso: string, days: number): string {
-  return new Date(new Date(iso).getTime() + days * DAY_MS).toISOString();
+export function addMinutes(iso: string, minutes: number): string {
+  return new Date(new Date(iso).getTime() + minutes * MINUTE_MS).toISOString();
 }

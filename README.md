@@ -133,13 +133,16 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 
 ```bash
 pnpm install
-cp .env.example .env.local      # fill in SpacetimeDB, agent and operator tokens, Anthropic key
-pnpm spacetime:publish          # publish the module to Maincloud
+spacetime login                 # once; the publishing identity becomes the module admin
+cp .env.example .env.local      # set SPACETIMEDB_DB_NAME and ANTHROPIC_API_KEY
+pnpm spacetime:publish          # publish the module to Maincloud (first time: add the database name)
 pnpm spacetime:generate         # regenerate src/module_bindings
-pnpm demo:reset                 # seed the demo through the reset reducer
-pnpm test                       # tiers, ranking, flag merge, quote hash
-npx tsx scripts/demo-check.ts   # replays the whole demo with no UI, plus role, quote, cap, chain and privacy checks
-pnpm dev                        # the demo runs locally against Maincloud
+pnpm db:setup                   # assigns the agent and operator seats, writes their tokens to .env.local, seeds the demo
+pnpm test                       # tiers, ranking, flag merge, quote hash, mock token, receipt chain
+pnpm typecheck:backend          # backend and module only
+pnpm dev                        # the demo runs locally against Maincloud, on http://localhost:3001
+pnpm demo:check                 # with dev running: replays the whole demo, plus role, quote, cap, chain and privacy checks
+pnpm demo:reset                 # reset between runs
 ```
 
 Never reset the live database with `spacetime publish -c`. Use `pnpm demo:reset`.

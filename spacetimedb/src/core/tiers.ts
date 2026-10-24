@@ -1,6 +1,6 @@
-import type { ClaudeFlag, Tier } from "./types";
+import type { Flag, Tier } from "./types";
 
-const RANK: Record<Tier, number> = { AUTO: 0, ASK: 1, HOLD: 2 };
+const RANK: Record<Tier, number> = { AUTO: 0, ASK: 1, BLOCK: 2 };
 
 export function tierRank(t: Tier): number {
   return RANK[t];
@@ -12,9 +12,9 @@ export function maxTier(...tiers: Tier[]): Tier {
 
 /**
  * Merge Claude's flags into the rule tier. The result is never lower than the rule tier:
- * Claude can escalate a payment, never lower it. Unknown severities are treated as ASK.
+ * Claude can make an offer stricter, never looser. Unknown severities are treated as ASK.
  */
-export function mergeClaudeFlags(ruleTier: Tier, flags: readonly ClaudeFlag[]): Tier {
-  const flagTiers = flags.map((f) => (f.severity === "HOLD" ? "HOLD" : "ASK") as Tier);
+export function mergeFlags(ruleTier: Tier, flags: readonly Flag[]): Tier {
+  const flagTiers = flags.map((f) => (f.severity === "BLOCK" ? "BLOCK" : "ASK") as Tier);
   return maxTier(ruleTier, ...flagTiers);
 }

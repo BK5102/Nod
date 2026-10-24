@@ -1,0 +1,37 @@
+import { connection } from "@/lib/stdb/server";
+import { body, fail, ok } from "@/lib/server/http";
+import { runAgent } from "@/lib/agent/run";
+import { DEMO_TRIP_ID } from "@/spacetimedb/src/core/seed";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+type In = { action: "reset" } | { action: "cancel" } | { action: "price"; offerId: string; priceCents: number };
+
+/** Demo controls (SIMULATED), run as the operator identity. The agent run uses the agent identity. */
+export async function POST(req: Request) {
+  try {
+    const b = await body<In>(req);
+    const op = await connection("operator");
+    if (b.action === "reset") {
+      await op.reducers.resetDemo({});
+      return ok({ tripId: DEMO_TRIP_ID });
+    }
+    if (b.action === "cancel") {
+      await op.reducers.cancelFlight({ tripId: DEMO_TRIP_ID });
+      const run = await runAgent(DEMO_TRIP_ID);
+      console.log(`[demo] cancel to options in ${run.ms} ms (claude ${run.claudeOk ? "ok" : `failed: ${run.claudeError}`})`);
+      return ok({ tripId: DEMO_TRIP_ID, ...run });
+    }
+    if (b.action === "price") {
+      const priceCents = Math.round(Number(b.priceCents));
+      if (!b.offerId || !Number.isFinite(priceCents) || priceCents < 0) throw new Error("price needs offerId and priceCents");
+      await op.reducers.setPrice({ offerId: b.offerId, priceCents });
+      return ok({ offerId: b.offerId, priceCents });
+    }
+    throw new Error("Unknown action. Use reset, cancel or price.");
+  } catch (e) {
+    return fail(e);
+  }
+}

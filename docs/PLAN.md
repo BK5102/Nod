@@ -155,18 +155,18 @@ Frozen at the end of milestone B1. After that, a change needs a message to the f
 | cancelReason | string | Empty until canceled |
 | canceledAt | string | ISO time, from `ctx.timestamp` |
 | bookedAt | string | ISO time, from `ctx.timestamp` |
-| fareCents | u64 | 31800 |
-| refundOwedCents | u64 | 31800 once canceled |
-| spendCents | u64 | |
+| fareCents | u32 | 31800 |
+| refundOwedCents | u32 | 31800 once canceled |
+| spendCents | u32 | |
 
 **`mandate`**, the card rules (no card data):
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | tripId | string (pk) | |
-| tripCapCents | u64 | 60000 |
-| askAboveCents | u64 | 25000 |
-| autoCeilingCents | u64 | 0 |
+| tripCapCents | u32 | 60000 |
+| askAboveCents | u32 | 25000 |
+| autoCeilingCents | u32 | 0 |
 | categories | string | `"airline,lodging"` |
 | summary | string | `"Up to $600 on this trip. Ask me above $250. Airlines and hotels only."` |
 
@@ -182,7 +182,7 @@ Frozen at the end of milestone B1. After that, a change needs a message to the f
 | departs | string | |
 | arrives | string | |
 | meetsDeadline | bool | |
-| priceCents | u64 | |
+| priceCents | u32 | |
 | refundable | bool | |
 | category | string | |
 | mcc | string | |
@@ -211,12 +211,12 @@ Frozen at the end of milestone B1. After that, a change needs a message to the f
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| seq | u64 (pk) | |
+| seq | u32 (pk) | |
 | tripId | string | |
 | action | string | `booked` |
 | offerId | string | |
 | merchant | string | |
-| amountCents | u64 | |
+| amountCents | u32 | |
 | tier | string | |
 | rulesJson | string | |
 | actor | string | `traveler` |
@@ -243,14 +243,14 @@ Frozen at the end of milestone B1. After that, a change needs a message to the f
 
 ### Server routes the browser calls (JSON in and out)
 
-All four return `{ ok: true, ... }` or `{ ok: false, error }`.
+All four return `{ ok: true, result: {...} }` or `{ ok: false, error, refused }`. Money is integer cents as plain numbers (u32), never bigints.
 
 | Route | Returns |
 | --- | --- |
 | `POST /api/demo {action: "reset"}` | |
 | `POST /api/demo {action: "cancel"}` | Returns when offers are ready. Steps stream through the subscription meanwhile |
 | `POST /api/demo {action: "price", offerId, priceCents}` | |
-| `POST /api/agent/try-approve {offerId}` | `{ refused: true, reason }` |
+| `POST /api/agent/try-approve {offerId}` | `result: { refused: true, reason }` |
 
 ### Refusal messages (exact strings)
 
