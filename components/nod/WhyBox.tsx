@@ -66,6 +66,9 @@ export function WhyBox() {
         <Button type="submit" disabled={busy || !q.trim()}>
           {busy ? "Reading the receipts..." : "Ask"}
         </Button>
+        <Button type="button" variant="outline" onClick={() => { setQ(""); setA(null); setError(null); }} disabled={busy || (!a && !error && !q)}>
+          Reset
+        </Button>
       </form>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {ASK.map((x) => (

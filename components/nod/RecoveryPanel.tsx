@@ -37,9 +37,14 @@ export function RecoveryPanel() {
 
   return (
     <div>
-      <Button onClick={run} disabled={busy}>
-        {busy ? "Running..." : out ? "Run it again" : "Make the bank fail once"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={run} disabled={busy}>
+          {busy ? "Running..." : out ? "Run it again" : "Make the bank fail once"}
+        </Button>
+        <Button variant="outline" onClick={() => { setOut(null); setError(null); }} disabled={busy || (!out && !error)}>
+          Reset
+        </Button>
+      </div>
       {error && <p className="mt-3 text-no">{error}</p>}
       {out && (
         <div aria-live="polite" className="mt-4">
