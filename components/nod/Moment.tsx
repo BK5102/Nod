@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { money } from "@/lib/ui/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MoneyRouteCanvas } from "./MoneyRouteCanvas";
+import type { RouteRun } from "@/lib/three/route";
 
 interface Result {
   invoice: { id: string; number: string; amount_cents: number; vendor: string; asks_last4: string | null; on_file_last4: string | null; rawText: string };
   baseline: { amount_cents: number; to_last4: string; wrong_account: boolean };
   nod: { tier: string; reason: string; rules: { label: string; reason: string; tier: string }[]; ms: number };
+  checks: RouteRun["checks"];
   explanation: string | null;
   claudeError: string | null;
 }
@@ -21,6 +24,13 @@ export function Moment() {
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"idle" | "running" | "done">("idle");
+
+  // ?autorun=1 runs once on load, for rehearsals and screenshots.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("autorun") === "1") void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function run() {
     setBusy(true);
@@ -66,13 +76,29 @@ export function Moment() {
         </p>
       )}
 
+      <MoneyRouteCanvas
+        onPhase={setPhase}
+        run={
+          result
+            ? {
+                amountCents: result.invoice.amount_cents,
+                vendor: result.invoice.vendor,
+                number: result.invoice.number,
+                asksLast4: result.invoice.asks_last4 ?? "????",
+                onFileLast4: result.invoice.on_file_last4 ?? "????",
+                checks: result.checks,
+              }
+            : null
+        }
+      />
+
       {!result && !error && (
-        <div className="bg-white p-8">
-          <p className="text-lg">Press Run both. The baseline and Nod get the identical invoice from Harbor Produce Co., a SEEDED vendor whose account on file ends 4821.</p>
-        </div>
+        <p className="text-lg">
+          Press Run both. The baseline and Nod get the identical invoice from Harbor Produce Co., a SEEDED vendor whose account on file ends 4821.
+        </p>
       )}
 
-      {result && (
+      {result && phase !== "running" && (
         <>
           <div className="grid gap-6 md:grid-cols-2">
             <section aria-labelledby="baseline-h" className={cn("p-6", result.baseline.wrong_account ? "bg-no text-white" : "bg-paper-raised")}>

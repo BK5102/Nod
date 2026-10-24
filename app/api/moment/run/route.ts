@@ -36,7 +36,8 @@ export async function POST() {
       handoffJson: "",
     });
     const d = await waitFor(() => agent.db.policyDecision.invoiceId.find(invoiceId), "the policy decision", 15_000);
-    const rules = (JSON.parse(d.rulesJson) as RuleResult[]).filter((r) => r.fired);
+    const all = JSON.parse(d.rulesJson) as RuleResult[];
+    const rules = all.filter((r) => r.fired);
     const why = rules.find((r) => r.id === "bank_change") ?? rules.find((r) => r.tier === d.ruleTier) ?? rules[0];
     const nodMs = Date.now() - t;
 
@@ -58,6 +59,8 @@ export async function POST() {
       invoice: { id: invoiceId, number: extracted.invoice_number, amount_cents: extracted.amount_cents, vendor: extracted.vendor_name, asks_last4: extracted.remit_bank_last4, on_file_last4: vendor?.bankLast4 ?? null, rawText },
       baseline,
       nod: { tier: d.ruleTier, reason: why?.reason ?? "", rules: rules.map((r) => ({ label: r.label, reason: r.reason, tier: r.tier })), ms: nodMs },
+      // Every checkpoint, passed or fired, for the money-route scene.
+      checks: all.map((r) => ({ id: r.id, label: r.label, fired: r.fired, tier: r.tier, reason: r.reason })),
       explanation,
       claudeError,
     });

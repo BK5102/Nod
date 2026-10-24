@@ -127,7 +127,8 @@ function matchVendor(ctx: Ctx, name: string): VendorRow | null {
   );
 }
 
-const CONSUMING = new Set(['paid', 'awaiting_approval', 'awaiting_controller', 'payment_pending', 'paying', 'reviewing']);
+// A bill still being checked is not committed spend, so it does not use up the PO.
+const CONSUMING = new Set(['paid', 'awaiting_approval', 'awaiting_controller', 'payment_pending', 'paying']);
 
 function poRemaining(ctx: Ctx, poId: string, amount: number, excludeId: string): number {
   let used = 0;
