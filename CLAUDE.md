@@ -1,195 +1,216 @@
-# Nod: project guide for Claude Code
+# Rerouted: project guide for Claude Code
 
-Tagline: A robot bookkeeper that won't send your money to a scammer's new bank account.
+Tagline: Your flight got canceled. Rerouted shops your way home within your card's rules, and you approve with one tap.
 
-## One-line explanation
+We have moved on from Nod, an earlier idea at this event. Its backend code is parked in `wip/nod/` or in git history. Do not extend it.
 
-Scammers pretend to be a company you pay and say "we changed our bank account." Nod is a robot bookkeeper that stops and asks a person before sending money to a new account, and makes sure that person's yes is one you can trust.
+## Source of truth
 
-## Audience and scope
+- `docs/PLAN.md` is the full backend plan. Section 9 is the backend contract the frontend depends on. This file is the short version, and where they conflict, PLAN.md wins.
+- `PROMPT.md` holds the backend build prompts, milestones B1 to B4.
+- `docs/spacetimedb/*.mdc` holds the SpacetimeDB reference. Copy API shapes from it or from the existing module. Never guess them.
 
-Audience: anyone who pays vendors with a small team and limited controls, such as small nonprofits, clubs, family businesses and small offices.
+## Team and time
 
-Scope: one thing only, trusting the human "yes" on a risky payment. We do not build a full accounts payable system, a fraud-detection engine, or a brain-computer interface.
+Two people, 18 hours to submission (Sunday 9:00 AM PT, Cal Hacks 13.0). Live demo at judging.
 
-## The seat
+**This is a working hackathon prototype, not production.** The backend is about 7 hours of work. If something does not show up in the 90-second demo or in a judge's question, do not build it. No extra abstractions, tables, reducers, routes or test files beyond `docs/PLAN.md`.
 
-An accounts payable clerk with limited access (it cannot approve its own payments and cannot edit vendor bank details), a clean record (a receipt for every decision), and clear rules for when to ask a person.
-
-## Why now
-
-- In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud, 63% cited business email compromise, and 45% cited vendor impersonation ([AFP press release, April 15, 2025](https://www.financialprofessionals.org/about/learn-more/press-releases/Details/survey-79-percent-of-organizations-were-victims-of-attempted-or-actual-payments-fraud-activity-in-2024)).
-- Under Nacha's rules, since June 19, 2026 all non-consumer ACH originators, with no volume threshold, must have risk-based processes to identify payments made under "False Pretenses", which Nacha defines to include vendor impersonation and business email compromise ([Nacha, fraud monitoring phase 1](https://www.nacha.org/rules/risk-management-topics-fraud-monitoring-phase-1); [phase 2](https://www.nacha.org/rules/risk-management-topics-fraud-monitoring-phase-2); June 19 was a federal holiday, so the practical date was June 22, 2026). Nod is a prototype that produces the kind of record such a process needs. It does not make anyone compliant.
-
-## What Nod adds
-
-Detecting a changed bank account is already offered by mainstream accounts payable tools, and finance platforms already route exceptions to a person. Nod focuses on the step after the flag, the human yes:
-
-1. The agent can never approve its own payment or edit vendor bank details. This is enforced in code (SpacetimeDB reducers checking ctx.sender), not in the UI.
-2. A shaky yes is treated as evidence. Ambiguous means one re-confirm, and uncertainty defaults to no.
-3. Rules set the risk tier. Claude explains and can only raise a tier, never lower it.
-4. Every decision writes a tamper-evident receipt: rule fired, tier, who approved, and how reliable that approval was. A "why did you do this?" box answers only from receipts and says "not in the record" otherwise.
-
-SpacetimeDB holds the ledger, role checks, receipts and live dashboard in reducers and tables, so the rules cannot be bypassed by any client.
-
-To our knowledge, recording how reliable an approval was is uncommon in payment tools. We have not checked exhaustively.
-
-## What is real and what is simulated
-
-| Component | Real or simulated | How we know |
-| --- | --- | --- |
-| Policy engine, tiers, auto-pay limit | Real, runs inside the database | Unit tests; segregation-of-duties checks against the live database |
-| Claude extraction and explanation | Real when ANTHROPIC_API_KEY is set; errors are shown, never faked | Five messy test invoices in scripts/intake-check.ts |
-| Segregation of duties | Real, enforced by SpacetimeDB reducers on the caller's identity | scripts/sod-check.ts |
-| Ledger and reconciliation | Real double entry, checked in a database view | Bank vs ledger difference shown live on Books |
-| Receipts | Real, append-only and hash-chained | Chain verified in a database view on every change |
-| Organization | Simulated: Eastbay Community Pantry is fictional | Labeled in the app |
-| Vendor amounts | Modeled on public data: routine amounts follow the San Francisco Controller's Vendor Payments (Vouchers) dataset, FY2025, public domain license | scripts/seed-public.ts and data/public-model.json; SEEDED label in the app |
-| Vendor names, dates, invoices, bank details, scam email | Simulated: generated by us. No real organization's name is put on a generated invoice. The public dataset has no payment dates | SEEDED label in the app; scripts/seed.ts |
-| Baseline agent | A simple pay-everything baseline we wrote | lib/naive.ts |
-| Approval signal | Simulated: synthetic signal with a noise slider | SIMULATED badge; no real brain-computer interface, no accuracy claim |
-| Bank | Simulated: MockBank (an Increase sandbox adapter is written but not active) | Adapter logs and idempotency keys |
-
-Public data source: [https://data.sfgov.org/d/n9pm-xkyq](https://data.sfgov.org/d/n9pm-xkyq), published by the City and County of San Francisco under the Open Data Commons Public Domain Dedication and License.
-
-## Known limits
-
-- The organization is fictional and its history is SEEDED. Vendor names are invented on purpose.
-- The approval signal is SIMULATED. It is not a model of any real device, and we make no accuracy claim.
-- The bank is MockBank. No real money moves.
-- Real sign-in is not built: any visitor can sit as the approver or the controller. Only the agent and operator seats are locked.
-- The planted errors and their answer key were written by us, so passing them shows the system does what we designed, not that it catches fraud it has never seen.
-- Claude needs an API key and a network connection. When Claude fails, the app shows the error and pays nothing.
-- One organization, US dollars only, no partial payments or credit notes.
-
-## Questions a judge may ask
-
-**Why not just rules?** Rules decide. The policy engine sets the risk tier inside the database. Claude reads messy invoices, explains the decision in plain English, and can flag what rules cannot see, like "we changed banks" in the body of an email or an instruction hidden in the invoice. Claude can only raise a tier, never lower it. If Claude fails, the app shows the error and nothing is paid.
-
-**What is real?** The policy engine, the role checks, the double-entry ledger, the hash-chained receipts and the Claude calls. The organization, vendor names, invoices and scam email are generated by us; routine amounts are modeled on San Francisco's public vendor payments; the approval signal is SIMULATED; the bank is MockBank. The What is real button in the app shows this table.
-
-**How do you know it works?** 43 unit tests, 11 segregation-of-duties checks against the live database, scripts that replay the bank-change hold and the bank-failure recovery, five messy test invoices (scripts/intake-check.ts), and planted errors with an answer key. We wrote the test invoices, the planted errors and the answer key ourselves, so they show the system does what we designed, not that it catches fraud it has never seen.
-
-**Is catching a changed bank account new?** No. Mainstream accounts payable tools already do it, and finance platforms already route exceptions to a person. Nod focuses on whether the person's yes can be trusted, and on keeping a record of it.
-
-**What did you not build?** Real sign-in, a real bank connection, a real brain-computer interface, an earned-autonomy ladder (behind a flag, off), a replay clock, an evaluation curve, an identity check, multiple currencies, credit notes, and a full accounting system.
-
-## Context
-
-- Event: Cal Hacks 13.0, Oct 23 to 25, 2026, San Francisco.
-- Devpost submission due Sunday Oct 25, 9:00 AM PT. Judging Sunday 10:30 AM to 12:30 PM, live demo required.
-- The project was started during the event from an empty repo.
-- Tracks: Hyphenate (primary; see docs/HYPHENATE_FIT.md), Spacetime (SpacetimeDB is the core real-time backend), Microsoft. Secondary: Capital One Nessie, Best People-First.
-
-## What we build
-
-A robot bookkeeper for one corner of accounts payable: vendor invoices where the bank details changed or something else is off. It reads an invoice, lets rules in the database set the risk tier, pays routine bills inside a fixed $2,500 auto-pay limit, and stops for a person on anything risky. The focus is the step after the flag, the human yes: the agent cannot approve itself, a shaky yes is treated as evidence, and every decision writes a receipt that records how reliable the approval was.
-
-Not solving: a full accounting system, general fraud detection, decoding brain signals, real sign-in.
-
-## How the demo answers Hyphenate's questions
-
-The home page (Four questions) answers them in order, from live data:
-
-- Is it real enough? Hand Nod any invoice (text, email, photo, PDF); the What is real panel; receipts verified and bank vs ledger reconciled in database views; routine amounts modeled on SF public vendor payments.
-- Would you hire it? "Let Nod try to approve its own payment" shows the database refusing it; counts of bills paid alone versus stopped for a person; a receipt for every decision.
-- Did we see something new? Approval reliability stored on every receipt; one planted canary with a catch counter; the SIMULATED single-switch approval segment.
-- The moment, all three kinds: catches (Baseline vs Nod, the 3D money route), recovers (bank fails once, paid exactly once by idempotency key), defends (the why box, answered only from receipts).
-
-The full 3 minute pitch and 2 minute question list are in README.md.
-
-## App map
-
-| Route | What it is |
+| Person | Owns |
 | --- | --- |
-| `/` | Four questions: the guided demo, with the recovery and why box moments inline |
-| `/intake` | Hand Nod an invoice: Claude reads it, the database tiers it, Claude explains; stages, 20 s timeout, retry |
-| `/moment` | Baseline vs Nod on the same changed-bank-details invoice, with the three.js money route |
-| `/approve` | The approver queue and vote card (SIMULATED signal, re-confirm, default to no) |
-| `/books` | Live dashboard: health, attention, queue, minute book (rows open receipts), audit trail, ledger, permissions |
-| `/invoice?id=` | One invoice: rules, sources, baseline outcome, vote card, controller callback, receipt |
-| `/why-nod` | The positioning and the honest comparison table |
-| `/cover` | Renders the project image |
+| Backend | `spacetimedb/`, `lib/`, `app/api/`, `scripts/`, `tests/`, `data/fixtures/`, generated `src/module_bindings/`, `.env.example`, and these docs: `CLAUDE.md`, `docs/PLAN.md`, `PROMPT.md`, `README.md`, `PRODUCT.md` |
+| Frontend | `app/**/page.tsx`, `app/layout.tsx`, `app/globals.css`, `components/`, `public/`, and their own docs |
 
-API routes (all server-side): `/api/intake/{warm,extract,check,decide}`, `/api/moment/{run,recovery}`, `/api/why`, `/api/agent/{pay,try-approve}`, `/api/controller/call`, `/api/operator`, `/api/proof`.
+**Ground rules:**
+- Never edit the other person's files.
+- The backend contract (PLAN.md section 9) is frozen after milestone B1. Change it only after telling the other person, and commit regenerated bindings with the module change.
+- Pull before every push. Make small commits to `main`, with no branches.
+- **Backend schedule:**
+
+  | Hour | Milestone |
+  | --- | --- |
+  | 1.5 | Bindings and `data/fixtures/demo.json` |
+  | 4 | Approve works |
+  | 6 | Full flow |
+  | 7 | `demo-check` passes |
+
+- **Team schedule:**
+
+  | Hours | What |
+  | --- | --- |
+  | 7 to 10 | Integration |
+  | 10 to 12 | Rehearse and submit |
+  | 12 to 18 | Buffer |
+
+## Problem (one line)
+
+When your flight is canceled, you have about 20 minutes to buy your way home before the good options sell out, and today you do it alone, on a phone, in a gate line, with no one checking that you are not overpaying.
+
+## The idea
+
+A shopping agent for the worst 20 minutes of a trip.
+
+When a flight is canceled, the agent:
+1. checks the airline's free rebooking first
+2. compares paid flights and a hotel
+3. ranks them against the traveler's deadline
+4. explains each one in a sentence
+
+The traveler approves one option with one tap. It is bought only if it fits the card's rules (trip cap, ask-first threshold, allowed categories) at the exact price approved.
+
+## Track
+
+**Visa, Best use of Reimagining Shopping ($5,000).** Secondary: Spacetime.
+
+| Criterion | Weight | Backend answer |
+| --- | --- | --- |
+| Innovation | 25% | The card's rules filter the shopping. Free first, paid only when needed |
+| User experience | 25% | Steps stream live. Options in under 10 seconds. Approve-and-pay is one call |
+| Technical execution | 20% | Rules in SpacetimeDB reducers. One Claude call validated with zod. Quote-bound atomic purchase. Hash-chained receipts |
+| Commerce impact | 15% | Canceled at, booked at, options shown and chosen, spend vs cap, and refund owed, all stored and measured live |
+| Trust and responsibility | 15% | Agent refused live. Price change voids the approval. Injected listing flagged. No personal data in public tables or sent to Claude |
 
 ## Stack
 
-| Layer | Choice | Notes |
-| --- | --- | --- |
-| App and API | Next.js 15 (App Router), TypeScript strict, Tailwind 4, shadcn/ui (hand-installed: components.json, Button, cn) | One language |
-| Hosting | Vercel (Next.js only) | Not deployed yet |
-| Database and backend logic | SpacetimeDB 2.13 TypeScript module in `spacetimedb/`, local server now, Maincloud for the demo | Tables, reducers, views, live subscriptions. Every money rule lives in a reducer |
-| Client | `spacetimedb` npm package, `spacetimedb/react`, generated `src/module_bindings` | Browser identities per role (approver, controller); server holds agent and operator tokens |
-| LLM | Anthropic API, model `claude-sonnet-5-5`, structured outputs with zod | Extraction, review and explanation, auditor (why box), simulated controller call. Server-side only. Not yet run: needs ANTHROPIC_API_KEY |
-| Policy engine | Pure TypeScript in `spacetimedb/src/core`, imported by the module, the app and the tests | One copy of the rules |
-| Bank | `lib/bank`: MockBank (default), Increase sandbox (written, verified against docs, not active), Nessie (unverified) | Two-phase: intent in a reducer, bank call in a route, settle in a reducer |
-| 3D | three.js (plain, no framework) in `lib/three/route.ts` | The money route; orthographic camera; reduced-motion jumps to the end |
-| Signal simulator | Canvas in the vote card; classifier runs inside the database | Always labeled SIMULATED |
-| Validation | zod | Every Claude output and every client-supplied extraction |
-| Tooling | pnpm, Vitest, tsx scripts | Python only for offline data generation (`scripts/render_samples.py`) |
+| Layer | Choice |
+| --- | --- |
+| App and API | Next.js (App Router), TypeScript strict. Server routes in `app/api` hold all secrets and outbound calls |
+| Hosting | The demo runs from a laptop (`pnpm dev` against Maincloud). A Vercel deploy is optional, in the buffer. Set `maxDuration = 60` on `/api/demo` |
+| Backend logic | SpacetimeDB TypeScript module in `spacetimedb/`, on Maincloud. Every rule lives in a reducer |
+| Client | `spacetimedb` npm package, generated `src/module_bindings` |
+| LLM | Anthropic API, `claude-sonnet-5-5`. One call per run, server-side |
+| Policy engine | Pure TypeScript in `spacetimedb/src/core/`, Vitest |
+| Providers | Replayed fixture `data/fixtures/demo.json`, fictional names |
+| Card | Mock token in a private table, checked inside `approve_offer` |
+| Validation | zod |
+| Tooling | pnpm, Vitest, tsx scripts |
 
-## Architecture (SpacetimeDB)
+## Architecture (simplified)
 
-Reducers are the only way to write. Each reducer is one transaction: it commits fully or reverts fully.
+**Identities** on `ctx.sender`, through the `actor` and `seat` tables:
+- **traveler:** any browser.
+- **agent:** the server, `SPACETIMEDB_AGENT_TOKEN`.
+- **operator:** the server, `SPACETIMEDB_OPERATOR_TOKEN`, for demo controls.
 
-Flow: a route extracts the invoice with Claude, then the agent calls `submitInvoice`; the reducer matches vendor, PO and contract, checks every source against its system of record, runs the policy engine and writes the rule tier. The route asks Claude for a review and calls `escalateInvoice`, which can only raise the tier. AUTO bills get a payment intent with an idempotency key; others wait. The approver's browser identity calls `approve` with the raw signal window; the classifier runs in the reducer and the protocol decides. A HOLD that the approver accepts needs `controllerDecision` from the controller identity. The route sends authorized intents to the bank and calls `settlePayment` (posts balanced entries, writes the receipt) or `paymentFailed` (nothing posts; the retry reuses the key).
+The agent and operator seats are assigned by the admin only and can never take the traveler seat.
 
-Seats: table `seat` maps an identity to an actor in `actor`. Roles come only from the seat, never from an argument. The agent and operator seats are assigned by the admin (`assignSeat`); human seats can be taken by anyone in the demo (`takeSeat`). The agent is refused by `approve`, `controllerDecision`, `updateVendorBank` and `closeBooks`. A refused call rolls back, so the caller records it with `logDenied`.
+**Flow:**
+1. `POST /api/demo {action: "reset"}` calls `reset_demo`.
+2. `POST /api/demo {action: "cancel"}`:
+   1. `cancel_flight`
+   2. Agent steps through `log_step`.
+   3. One Claude call for reasons and flags.
+   4. `submit_offers`: the reducer tiers, ranks and hashes. It never takes a tier from the caller.
+   5. `flag_offer`: raise only.
+3. `POST /api/agent/try-approve`: the agent calls `approve_offer` and is refused. The route writes a `refusal` step.
+4. `POST /api/demo {action: "price"}` calls `set_price`, so the old quote hash stops working.
+5. The browser calls `approve_offer(offerId, quoteHash)`. In one transaction it checks seat, tier, hash, expiry, cap, one flight per trip and the mock token. Then it books, updates the trip and appends the receipt. Any failure throws, and nothing changes.
 
-Other reducers: `seedCompany`, `setAnswerKey` (admin); `setClock`, `setBankOutage`, `injectCanary` (admin or operator); `sweep` (stalled approvals); `leaveSeat`.
+**Tables:**
+- Public: trip, mandate, offer, agent_step, receipt, actor, seat.
+- Private: admin, traveler_profile, payment_token.
+- No views.
 
-## Data model (SpacetimeDB tables)
+Exact fields are in PLAN.md section 9.
 
-Public: actor, seat, vendor, vendor_change, contract, purchase_order, invoice, canary_stats, policy_decision, approval, controller_check, receipt, autonomy_state, sim_clock, audit_event.
-Private: admin, canary, payment_intent, bank_transfer, journal_entry, journal_line, eval_answer_key.
-Public views over private data: pay_queue, ledger_balances, journal, health (bank vs ledger reconciliation and receipt chain verification).
+## Tiers
 
-- Money is integer cents (u32). Simulated time is ISO strings from sim_clock.
-- Debits equal credits is checked in `settlePayment`; an unbalanced entry throws and the transaction reverts.
-- Receipts are append-only and hash-chained with a pure TypeScript SHA-256 computed in the reducer. Only `seedCompany` (admin, demo reset) clears them.
-- Canary invoices are marked in a private table so the approver cannot tell; they never reach the bank.
-
-## Risk rules (current values)
-
-12 rules, each with a plain-language reason. The tier is the highest fired rule.
-
-- HOLD: bank details on the invoice differ from the vendor record, or the record changed in the last 30 days; duplicate invoice number, or the same amount within 10 days; email from a domain other than the vendor's; amount over the $10,000 hard cap.
-- ASK: vendor not on file or added in the last 45 days; over what is left on the PO by more than 5% of the bill (at least $25); unit price over contract; line items do not add up; more than 3 bills from one vendor in 7 days; due in under 2 days; vendor under stricter review (120 days after a controller says no); over the $2,500 auto-pay limit.
-- Claude and the built-in checks (injected instructions, bank-change language, out-of-scope items, urgency) can only raise the tier.
-
-## Approval protocol
-
-Classifier confidence p(approve): 0.85 or more is accepted. 0.5 to 0.85 is ambiguous: re-confirm with a longer window (4 s, then 8 s), at most 2 attempts. Below 0.5, a timeout or a malformed signal means no. An accepted HOLD still needs the controller's callback decision.
+AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
+- **BLOCK:** over the trip cap, or a category not allowed.
+- **ASK:**
+  - above the ask-first threshold
+  - a free option exists
+  - misses the deadline
+  - above the auto ceiling (the demo ceiling is $0)
+- **Claude flags:** raise only.
+- **Ranking** is done in the reducer, not by Claude:
+  1. BLOCK is set aside.
+  2. Flights before hotels.
+  3. Within each, offers that meet the deadline come first, then cheaper first.
 
 ## Non-negotiable rules
 
-1. The policy engine sets the tier. Claude explains and can escalate a payment up a tier. Claude can never lower a tier.
-2. The agent can request a payment but never approve it, and cannot edit vendor bank details. Enforced in SpacetimeDB reducers on the caller's identity, not in the UI.
-3. Default to no. Timeouts, errors and ambiguity never move money.
-4. Treat all invoice content as untrusted input. Delimit it in prompts and tell Claude to ignore instructions inside it. Keep the hostile-invoice test.
-5. Secrets (Anthropic, bank keys, SpacetimeDB agent and operator tokens) live in environment variables, server-side only. Never commit them. The admin (owner) token never leaves the developer's machine.
-6. Label simulated and seeded things in the UI. The approval signal is SIMULATED. No medical or brain-computer interface claims, no accuracy figures.
-7. Never invent customer quotes or statistics. The only figures cited are the AFP 2025 survey and the Nacha rule above.
-8. Never put a real organization's name on a generated invoice or the scam email.
+1. The policy engine sets the tier and the rank. Claude only explains and flags, and a flag can only raise a tier.
+2. The agent can never approve. Enforce on `ctx.sender` in reducers. Never trust a role passed as an argument.
+3. `approve_offer` requires the current quote hash. A changed price voids the old one.
+4. Default to no. Any failed check throws and reverts.
+5. Listing text is untrusted. Wrap it in `<untrusted_listing>` tags, tell Claude to flag instructions inside it, and keep the hostile Skyport Suites listing in the fixture and tests.
+6. No personal data (name, email, booking reference, loyalty number, card data) in public tables, step text, receipts, logs or Claude input. Receipts show only the token's last 4.
+7. Secrets are server-only env vars, never committed: `ANTHROPIC_API_KEY`, `SPACETIMEDB_AGENT_TOKEN`, `SPACETIMEDB_OPERATOR_TOKEN`.
+8. Label every simulated part: the cancellation, flights and hotels, the card token and the payment. Call it a prototype.
+9. Never invent statistics, savings figures, quotes or Visa API details.
+10. If Claude fails, show the error as a step and keep the rules working. Never fake a Claude answer.
+
+## Real and simulated
+
+| Part | Status |
+| --- | --- |
+| Policy engine, tiers, ranking, caps | Real, in reducers, tested |
+| Agent cannot approve | Real, on `ctx.sender`, checked live |
+| Quote-bound atomic purchase, receipts | Real |
+| Claude reasons and flags | Real when the key is set |
+| Cancellation, flights, hotels | Simulated, replayed fixture, fictional names |
+| Card token and payment | Simulated: a mock of controls Visa publicly describes. No Visa API, no money moves |
+| Traveler | Fictional |
+
+## Known limits
+
+- No real booking, live fares or Visa integration.
+- One US domestic cancellation scenario.
+- No real sign-in. Any visitor can take the traveler seat.
+- The free rebooking is taken as given.
+- The refund line assumes the DOT automatic refund rule (in effect since October 2024) still applies.
+- Claude needs a key and a network connection.
+
+## Demo (about 90 seconds, locked)
+
+**Seed:**
+- Traveler: Sam (fictional).
+- Trip: Bayline Air 412, SFO to JFK, 6:40 PM.
+- Deadline: arrive JFK by 9:00 AM.
+- Fare: $318.
+- Mandate:
+  - $600 trip cap
+  - ask above $250
+  - airlines and hotels only
+  - auto ceiling $0
+
+**Beats:**
+1. The flight is canceled.
+2. Steps stream in.
+3. Ranked options appear:
+   - Harbor Air red-eye, $389
+   - Bayline's free rebooking, which misses 9 AM
+   - Coastal, which misses 9 AM
+   - Airport Inn
+   - Set aside: business class at $1,140 (over cap), and Skyport Suites (its listing tried to instruct the agent)
+4. The agent tries to buy the flight itself and is refused live.
+5. The price changes to $412, so the $389 approval is refused. Sam approves $412.
+6. Booked, with a receipt. $412 of $600 spent.
+7. "$318 refund owed for the canceled ticket", plus the time from cancel to booked.
+
+`scripts/demo-check.ts` replays every beat against the live database with no UI. It also checks the agent refusal, the stale quote, the cap, the receipt chain and that no personal data is public. It is the only check script. `tests/policy.test.ts` is the only test file.
 
 ## Conventions
 
-- TypeScript strict. Small modules. Pure functions for policy and ledger logic, with unit tests.
-- Every Claude call returns JSON validated by a zod schema, with one retry, inside a 19 second budget. Failures are shown, never replaced with canned output.
-- Prose, UI copy and comments: plain and specific. No em dashes, no emojis.
-- Commit to `main` in small commits and push after each step. No branches unless asked. No Co-Authored-By lines.
-- Commands: `pnpm dev` (port 3001), `pnpm test`, `pnpm seed` / `pnpm demo:reset`, `pnpm spacetime:publish:local`, `pnpm spacetime:generate`.
-- Scripts: `scripts/seed-public.ts` (SF public data model), `scripts/sod-check.ts`, `scripts/moment-check.ts`, `scripts/intake-check.ts` (needs the Anthropic key), `scripts/inspect.ts`, `scripts/shot.ts` (live screenshots), `scripts/secret-check.sh`.
-- Flags: `EARNED_AUTONOMY` (off; fixed $2,500 limit), `NOD_SIM_CLOCK` (replay clock and extra canaries, off), `BANK_ADAPTER` (mock by default).
+- TypeScript strict. Small pure functions for rules, ranking, quote hashing, token checks and receipts, all unit tested.
+- Every Claude output is validated with zod, with one retry.
+- No `Date.now` or `Math.random` in reducers. Use `ctx.timestamp`.
+- Demo reset is a reducer (`pnpm demo:reset`), never `spacetime publish -c` on the live database.
+- Prose, copy and comments: plain and specific. No em dashes, no emojis.
+- Commands: `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm demo:reset`, `pnpm spacetime:publish`, `pnpm spacetime:generate`.
 
-## Demo script
+## Cut order if behind
 
-See "Pitch script (3 minutes)" in README.md. It opens on the changed-bank-details moment in the first 20 seconds. Before judging: `pnpm demo:reset`, then open every page once.
+1. The price-change beat.
+2. Claude's per-offer reasons (keep the flags).
+3. Step pacing and extra step text.
 
-## Status and open items (Oct 24, 2026)
+Submit a working Devpost entry by hour 12, then use the buffer to improve it.
 
-- Works locally: module, seed, all screens, all three moments, 43 unit tests, 11 segregation-of-duties checks, secret check, production build.
-- Needs the user: ANTHROPIC_API_KEY (then run scripts/intake-check.ts), `spacetime login` for Maincloud, the Vercel import, Increase keys if the sandbox should be tried.
-- Not yet: a real-browser click-through at full speed, the demo video, the Devpost text.
-- Historical: PROMPT.md and PROMPT-SPACETIMEDB.md are the kickoff prompts. Where they conflict with this file, this file describes what was built.
+**Never cut:**
+- the agent refusal
+- the quote-bound approval
+- the receipts
+- the Skyport flag
+- reset
