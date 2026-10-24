@@ -70,36 +70,23 @@ export function MandateSign({ mandate, trip }: { mandate: Mandate; trip: Trip })
           <div className="absolute inset-y-0 left-0 bg-yellow transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
           <div className="absolute -top-1 -bottom-1 w-0.5 bg-white" style={{ left: `${askPct}%` }} />
         </div>
-        <div className="relative mt-1 h-5 text-xs text-soft">
-          <span className="absolute -translate-x-1/2" style={{ left: `${askPct}%` }}>
-            ask above {money(mandate.askAboveCents)}
+        <div className="relative mt-1 mb-2 h-5 text-sm text-soft">
+          <span className="absolute -translate-x-1/2 font-semibold text-white" style={{ left: `${askPct}%` }}>
+            asks you above {money(mandate.askAboveCents)}
           </span>
-          <span className="absolute right-0">cap {money(cap)}</span>
+          <span className="absolute right-0 font-semibold text-white">trip cap {money(cap)}</span>
         </div>
       </div>
 
-      <ul className="mt-2 grid grid-cols-1 divide-y divide-rule border-t border-rule sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <li className="px-4 py-3">
-          <p className="text-2xl font-black">{money(cap)}</p>
-          <p className="text-sm text-soft">most this trip can cost</p>
-        </li>
-        <li className="px-4 py-3">
-          <p className="text-2xl font-black">{money(mandate.askAboveCents)}</p>
-          <p className="text-sm text-soft">above this, it asks you</p>
-        </li>
-        <li className="px-4 py-3">
-          <p className="text-lg leading-tight font-black">Airlines, hotels</p>
-          <p className="text-sm text-soft">nothing else</p>
-        </li>
-      </ul>
+      <p className="border-t border-rule px-4 py-3 text-base">
+        <span className="font-bold">Airlines and hotels only.</span> <span className="text-soft">Anything else is refused by the database, whatever the agent says.</span>
+      </p>
     </section>
   );
 }
 
-const short = (h: string) => `${h.slice(0, 8)}…${h.slice(-6)}`;
-
 /** The receipt slip, hash-chained: every field a stranger needs to audit the purchase. */
-export function ReceiptSlip({ receipts, trip }: { receipts: Receipt[]; trip: Trip }) {
+export function ReceiptSlip({ receipts, trip, voids = {} }: { receipts: Receipt[]; trip: Trip; voids?: Record<string, { priceCents: number; text: string }> }) {
   if (!receipts.length) return null;
   // Recomputed in this browser from the public rows: any edit to any receipt breaks the chain.
   const chain = verifyReceipts(receipts);
@@ -129,10 +116,18 @@ export function ReceiptSlip({ receipts, trip }: { receipts: Receipt[]; trip: Tri
             <dd className="font-mono">{clockOf(r.at)}</dd>
             <dt className="text-ink/70">Quote</dt>
             <dd className="font-mono text-sm break-all">{r.quoteHash}</dd>
-            <dt className="text-ink/70">Chain</dt>
-            <dd className="font-mono text-sm">
-              #{r.seq} · prev {short(r.prevHash)} · this {short(r.hash)}
-            </dd>
+            {voids[r.offerId] ? (
+              <>
+                <dt className="text-ink/70">Voided</dt>
+                <dd className="font-bold">An earlier approval at {money(voids[r.offerId]!.priceCents)} was refused: the price changed.</dd>
+              </>
+            ) : null}
+            <dt className="text-ink/70">Receipt</dt>
+            <dd className="font-mono">#{r.seq}</dd>
+            <dt className="text-ink/70">Previous hash</dt>
+            <dd className="font-mono text-sm break-all">{r.prevHash}</dd>
+            <dt className="text-ink/70">This hash</dt>
+            <dd className="font-mono text-sm break-all">{r.hash}</dd>
           </dl>
         );
       })}

@@ -120,6 +120,8 @@ export class Corridor {
   private reduced: boolean;
   private status: Trip["status"] | "" = "";
   private disposed = false;
+  /** Sprites grow on narrow screens so labels stay readable on a phone. */
+  private labelScale = 1;
 
   constructor(private host: HTMLElement) {
     this.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -195,7 +197,7 @@ export class Corridor {
       { bg: "#ffcc00", pad: 14, height: 1.6 },
     );
     sign.center.set(0.5, 0);
-    sign.position.set(0, 4.35, 4.2);
+    sign.position.set(0, 4.35, -1);
     frame.add(sign);
     frame.position.x = x;
     this.scene.add(frame);
@@ -214,9 +216,18 @@ export class Corridor {
     // An oblique view from the front left, so the deadline frame reads as a gate the lanes pass under.
     const k = 1.32 * Math.max(1, 1.75 / aspect);
     this.camera.position.set(-7.5 * k, 8.2 * k, 15.5 * k);
-    this.camera.lookAt(0.2, 0.9, -1.2);
+    this.camera.lookAt(0.8, 0.5, -0.4);
     this.camera.updateProjectionMatrix();
+    this.labelScale = aspect < 1.4 ? 1.9 : 1;
+    this.scene.traverse((o) => {
+      if (o instanceof THREE.Sprite) this.fit(o);
+    });
     this.render();
+  }
+
+  private fit(s: THREE.Sprite) {
+    const base = (s.userData.base as THREE.Vector3 | undefined) ?? (s.userData.base = s.scale.clone());
+    s.scale.copy(base).multiplyScalar(this.labelScale);
   }
 
   private render() {
@@ -394,7 +405,8 @@ export class Corridor {
     // Each label stands over its landing, so the deadline frame reads straight against it.
     const land = curve.getPoint(1);
     s.center.set(0.5, 0);
-    s.position.set(land.x, 0.8, z);
+    s.position.set(land.x, o.rank ? 0.7 + (o.rank - 1) * 0.75 : 0.7, z);
+    this.fit(s);
     (s.material as THREE.SpriteMaterial).opacity = 0;
     group.add(s);
     this.scene.add(group);
@@ -407,8 +419,13 @@ export class Corridor {
     this.tween(300, (k) => endCap.scale.setScalar(Math.max(0.001, easeOut(k))), delay + 800);
     this.tween(400, (k) => ((s.material as THREE.SpriteMaterial).opacity = easeOut(k)), delay + 500);
 
-    if (o.rank === 0) {
-      // Closed routes drop off the panel: drawn, held for a beat, then through the floor.
+    if (o.rank === 0) this.drop(route, delay + 2000);
+  }
+
+  /** Closed routes drop off the panel: drawn, held for a beat, then through the floor. */
+  private drop(route: Route, delay: number) {
+    const { group, tube, endCap, label: s } = route;
+    {
       this.tween(
         1300,
         (k) => {
@@ -418,17 +435,19 @@ export class Corridor {
           (endCap.material as THREE.MeshBasicMaterial).opacity = 1 - 0.75 * e;
           (s.material as THREE.SpriteMaterial).opacity = 1 - e;
         },
-        delay + 2000,
+        delay,
       );
     }
   }
 
   private syncRoute(r: Route, o: Offer) {
     const prevStatus = r.offer.status;
+    const wasRanked = r.offer.rank > 0;
     r.offer = o;
     const { s, key } = this.routeLabel(o);
     if (key !== r.labelKey) {
       s.position.copy(r.label.position);
+      this.fit(s);
       r.group.remove(r.label);
       disposeSprite(r.label);
       r.group.add(s);
@@ -436,6 +455,10 @@ export class Corridor {
       r.labelKey = key;
     } else {
       disposeSprite(s);
+    }
+    if (wasRanked && o.rank === 0) {
+      r.tube.material.color.setHex(SOFT);
+      this.drop(r, 600);
     }
     if (o.status === "booked" && prevStatus !== "booked") {
       r.tube.material.color.setHex(YELLOW);

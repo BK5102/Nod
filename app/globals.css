@@ -66,6 +66,7 @@ body {
   scrollbar-color: var(--panel-rule) var(--sign-black);
 }
 
+@layer components {
 /* A sign panel: square corners, flat, framed by its own edge. */
 .sign {
   background: var(--sign-yellow);
@@ -83,6 +84,7 @@ body {
   background: var(--sign-black);
   color: var(--white);
   flex: none;
+}
 }
 
 /* Split-flap band update: the old message folds away, the new one drops in. */

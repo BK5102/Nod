@@ -14,12 +14,14 @@ const tierWords = { AUTO: "Within your auto-buy limit", ASK: "Needs your approva
 export function OptionPanel({
   offer,
   stamp,
+  voided,
   busy,
   locked,
   onApprove,
 }: {
   offer: Offer;
   stamp?: Stamp;
+  voided?: { priceCents: number; text: string };
   busy: boolean;
   locked: boolean;
   onApprove: (o: Offer) => void;
@@ -30,7 +32,8 @@ export function OptionPanel({
   const arrH = hotel ? null : clockHours(offer.arrives, depH !== null ? depH + 3 : 0);
   const delta = arrH !== null ? deadlineDelta(arrH) : null;
   const booked = offer.status === "booked";
-  const dim = locked && !booked && !hotel;
+  // Once a flight is booked, every other choice closes, the hotel included.
+  const dim = locked && !booked;
 
   if (dim) {
     // Once a flight is booked, the other flights close: they shrink to one board row, not vanish.
@@ -60,11 +63,11 @@ export function OptionPanel({
       <div className="min-w-0 py-4 pr-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-[1.45rem] leading-tight font-extrabold tracking-[-0.01em]">{offer.merchant}</h3>
-            <p className="text-base font-semibold text-yellow-soft">{offer.title}</p>
+            <h3 className="text-[1.45rem] leading-tight font-extrabold tracking-[-0.01em] [text-wrap:balance]">{offer.title}</h3>
           </div>
           <p className="text-right text-[2rem] leading-none font-black tracking-[-0.02em]">
             <span key={offer.priceCents} className="flap inline-block">{offer.priceCents === 0 ? "Free" : money(offer.priceCents)}</span>
+            {voided ? <span className="mt-1 block text-base font-bold text-yellow-soft line-through decoration-2">{money(voided.priceCents)}</span> : null}
           </p>
         </div>
 
@@ -81,6 +84,14 @@ export function OptionPanel({
 
         {offer.claudeReason ? <p className="mt-3 max-w-[48ch] text-base leading-snug">{offer.claudeReason}</p> : null}
 
+        {voided && booked ? (
+          <p className="mt-3 flex items-start gap-3 bg-ink p-3 text-base leading-snug font-bold text-alert">
+            <Pictogram name="closed" size={32} className="bg-alert! text-ink!" />
+            Void: your {money(voided.priceCents)} approval was refused because the price changed. You approved {money(offer.priceCents)} after.
+          </p>
+        ) : null}
+
+        {booked ? null : (
         <div className="mt-3 border-t-2 border-ink/80 pt-2">
           <p className="text-sm font-bold">{tierWords[offer.tier]}</p>
           <ul className="mt-1 space-y-0.5">
@@ -91,6 +102,7 @@ export function OptionPanel({
             ))}
           </ul>
         </div>
+        )}
 
         {stamp ? (
           <div role="alert" className="stamp mt-3 flex items-start gap-3 bg-ink p-3 text-white">

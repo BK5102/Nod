@@ -56,6 +56,8 @@ function RerouteView({ source }: { source: RerouteSource }) {
   const [control, setControl] = useState<string | null>(null);
   const [pulse, setPulse] = useState<{ offerId: string; n: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Approvals the database voided because the price moved. Kept after booking: nothing disappears.
+  const [voids, setVoids] = useState<Record<string, { priceCents: number; text: string }>>({});
 
   const ranked = offers.filter((o) => o.rank > 0).sort((a, b) => a.rank - b.rank);
   const aside = offers.filter((o) => o.rank === 0);
@@ -88,6 +90,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
       try {
         if (name === "reset") {
           setStamps({});
+          setVoids({});
           await actions.reset();
         } else if (name === "cancel") {
           const r = await actions.cancel();
@@ -101,8 +104,15 @@ function RerouteView({ source }: { source: RerouteSource }) {
         } else if (name === "price" && top && top.priceCents !== NEW_PRICE) {
           // Sam taps approve on the quote they saw, at the moment the airline moves the price.
           const seen = top.quoteHash;
+          const was = top.priceCents;
           await actions.setPrice(top.offerId, NEW_PRICE);
-          await approve(top, seen);
+          setBusy(top.offerId);
+          const r = await actions.approve(top.offerId, seen);
+          setBusy(null);
+          if (!r.ok) {
+            stamp(top.offerId, { by: "traveler", text: r.error });
+            setVoids((v) => ({ ...v, [top.offerId]: { priceCents: was, text: r.error } }));
+          }
         }
       } finally {
         setControl(null);
@@ -154,34 +164,35 @@ function RerouteView({ source }: { source: RerouteSource }) {
   ];
 
   return (
-    <div className="min-h-dvh bg-ink pb-28">
+    <div className="min-h-dvh bg-ink pb-10">
       <SignBand trip={trip} offers={offers} />
 
-      {/* Phone order: corridor, choices, board. Desktop: corridor and board left, choices right. */}
+      {/* Phone order: choices, corridor, board. Desktop: corridor and board left, choices right. */}
       <main className="mx-auto grid max-w-[1600px] gap-4 px-4 pt-4 md:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)] lg:grid-rows-[auto_1fr] lg:gap-6">
-          <section aria-labelledby="corridor" className="board min-w-0 lg:col-start-1 lg:row-start-1">
+          <section aria-labelledby="corridor" className="board order-2 min-w-0 lg:order-none lg:col-start-1 lg:row-start-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 pt-3 md:px-6">
               <h2 id="corridor" className="text-xl font-extrabold">
                 Every way home, against your deadline
               </h2>
               <p className="text-sm text-soft">Each arc runs from takeoff to landing. Under the yellow frame means you make it.</p>
             </div>
-            <div className="relative h-[260px] sm:h-[360px] lg:h-[440px]">
+            <div className="relative h-[220px] sm:h-[360px] lg:h-[440px]">
               <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
             </div>
           </section>
-          <div className="min-w-0 lg:col-start-1 lg:row-start-2 lg:self-start max-lg:order-last">
+          <div className="order-3 min-w-0 lg:order-none lg:col-start-1 lg:row-start-2 lg:self-start">
             <Board steps={steps} live={mode === "live"} />
           </div>
 
-        <div className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          {flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={voids} /> : null}
           {ranked.length ? (
             <section aria-labelledby="choices" className="flex flex-col gap-3">
               <h2 id="choices" className="sr-only">
                 Choices ahead
               </h2>
               {ranked.map((o) => (
-                <OptionPanel key={o.offerId} offer={o} stamp={stamps[o.offerId]} busy={busy === o.offerId} locked={flightBooked} onApprove={approve} />
+                <OptionPanel key={o.offerId} offer={o} stamp={stamps[o.offerId]} voided={voids[o.offerId]} busy={busy === o.offerId} locked={flightBooked} onApprove={approve} />
               ))}
             </section>
           ) : (
@@ -197,7 +208,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
             </section>
           )}
 
-          {receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} /> : null}
+          {!flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={voids} /> : null}
           <SetAside offers={aside} />
           {mandate && trip ? <MandateSign mandate={mandate} trip={trip} /> : null}
         </div>
@@ -219,12 +230,10 @@ function RerouteView({ source }: { source: RerouteSource }) {
         </div>
       </footer>
 
-      <nav aria-label="Demo controls" className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-yellow bg-ink/95 md:inset-x-auto md:bottom-4 md:left-4 md:border-2">
-        <div className="flex items-center gap-1 overflow-x-auto px-2 py-2">
-          <p className="mr-2 hidden shrink-0 px-2 text-xs leading-tight text-soft md:block">
-            Demo controls
-            <br />
-            simulated events
+      <nav aria-label="Demo controls" className="mx-auto mt-6 max-w-[1600px] px-4 md:px-8">
+        <div className="flex flex-wrap items-center gap-1 border-2 border-yellow px-2 py-2">
+          <p className="mr-2 px-2 text-sm leading-tight text-soft">
+            Demo controls, simulated events. Keys R, C, A, P work anywhere on the page.
           </p>
           {controls.map((c) => (
             <button
