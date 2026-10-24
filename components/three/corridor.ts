@@ -122,6 +122,12 @@ export class Corridor {
   private disposed = false;
   /** Sprites grow on narrow screens so labels stay readable on a phone. */
   private labelScale = 1;
+  /** Camera framing: the base view, and a one-time push toward the booked route. */
+  private camBase = new THREE.Vector3();
+  private camTarget = new THREE.Vector3(0.8, 0.5, -0.4);
+  private focus: THREE.Vector3 | null = null;
+  private dolly = 0;
+  private sweep: THREE.Mesh | null = null;
 
   constructor(private host: HTMLElement) {
     this.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -215,14 +221,26 @@ export class Corridor {
     // Frame the whole axis: pull back on narrow screens.
     // An oblique view from the front left, so the deadline frame reads as a gate the lanes pass under.
     const k = 1.32 * Math.max(1, 1.75 / aspect);
-    this.camera.position.set(-7.5 * k, 8.2 * k, 15.5 * k);
-    this.camera.lookAt(0.8, 0.5, -0.4);
+    this.camBase.set(-7.5 * k, 8.2 * k, 15.5 * k);
     this.camera.updateProjectionMatrix();
+    this.placeCamera();
     this.labelScale = aspect < 1.4 ? 1.9 : 1;
     this.scene.traverse((o) => {
       if (o instanceof THREE.Sprite) this.fit(o);
     });
     this.render();
+  }
+
+  private placeCamera() {
+    const target = this.camTarget.clone();
+    const pos = this.camBase.clone();
+    if (this.focus && this.dolly > 0) {
+      // Push about a fifth of the way in and lean the view toward the booked route.
+      target.lerp(this.focus, 0.45 * this.dolly);
+      pos.lerp(this.focus, 0.2 * this.dolly);
+    }
+    this.camera.position.copy(pos);
+    this.camera.lookAt(target);
   }
 
   private fit(s: THREE.Sprite) {
@@ -280,9 +298,85 @@ export class Corridor {
     return mesh;
   }
 
-  private drawIn(mesh: THREE.Mesh<THREE.TubeGeometry>, dur: number, delay = 0) {
+  private drawIn(mesh: THREE.Mesh<THREE.TubeGeometry>, dur: number, delay = 0, curve?: THREE.Curve<THREE.Vector3>, headColor = WHITE) {
     const total = mesh.geometry.index!.count;
-    this.tween(dur, (k) => mesh.geometry.setDrawRange(0, Math.floor(total * easeOut(k) / 6) * 6), delay);
+    // A bright tip leads the line as it draws, so the eye follows each route being found.
+    const head = curve ? new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), new THREE.MeshBasicMaterial({ color: headColor, transparent: true })) : null;
+    if (head) {
+      head.visible = false;
+      mesh.parent?.add(head) ?? this.scene.add(head);
+    }
+    this.tween(
+      dur,
+      (k) => {
+        const e = easeOut(k);
+        mesh.geometry.setDrawRange(0, Math.floor((total * e) / 6) * 6);
+        if (head && curve) {
+          head.visible = k > 0 && k < 1;
+          head.position.copy(curve.getPoint(Math.min(0.999, e)));
+          (head.material as THREE.MeshBasicMaterial).opacity = 1 - k * k;
+        }
+      },
+      delay,
+      () => {
+        if (head) {
+          head.parent?.remove(head);
+          head.geometry.dispose();
+          (head.material as THREE.Material).dispose();
+        }
+      },
+    );
+  }
+
+  /** While the agent shops, a scan line crosses the time axis. It stops once options arrive. */
+  private startSweep() {
+    if (!this.sweep) {
+      this.sweep = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.08, 10.4),
+        new THREE.MeshBasicMaterial({ color: YELLOW, transparent: true, opacity: 0.85, depthWrite: false }),
+      );
+      this.sweep.rotation.x = -Math.PI / 2;
+      this.sweep.position.set(xOf(AXIS_FROM), 0.03, -1);
+      this.scene.add(this.sweep);
+    }
+    const sw = this.sweep;
+    sw.visible = true;
+    const pass = (n: number) =>
+      this.tween(
+        1700,
+        (k) => {
+          sw.position.x = xOf(AXIS_FROM) + (xOf(AXIS_TO) - xOf(AXIS_FROM)) * easeOut(k);
+          (sw.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - k * 0.6);
+        },
+        0,
+        () => {
+          if (this.status === "canceled" && n < 5) pass(n + 1);
+          else sw.visible = false;
+        },
+      );
+    pass(1);
+  }
+
+  /** One ring opens where the booked route lands. */
+  private ripple(at: THREE.Vector3) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.28, 48), new THREE.MeshBasicMaterial({ color: YELLOW, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.copy(at).setY(0.04);
+    this.scene.add(ring);
+    this.tween(
+      1400,
+      (k) => {
+        const e = easeOut(k);
+        ring.scale.setScalar(1 + e * 5);
+        (ring.material as THREE.MeshBasicMaterial).opacity = 1 - e;
+      },
+      0,
+      () => {
+        this.scene.remove(ring);
+        ring.geometry.dispose();
+        (ring.material as THREE.Material).dispose();
+      },
+    );
   }
 
   /** Bring the scene in line with the state. Safe to call on every state change. */
@@ -290,7 +384,11 @@ export class Corridor {
     if (!trip) return;
     if (trip.status === "scheduled" && this.status !== "scheduled") this.resetScene();
     if (!this.original) this.buildOriginal(trip);
-    if (trip.status !== "scheduled" && this.original && !this.original.broken) this.breakOriginal();
+    if (trip.status !== "scheduled" && this.original && !this.original.broken) {
+      this.breakOriginal();
+      this.status = trip.status;
+      if (trip.status === "canceled") this.startSweep();
+    }
 
     const ranked = offers.slice().sort((a, b) => (a.rank || 99) - (b.rank || 99));
     ranked.forEach((o, i) => {
@@ -415,7 +513,7 @@ export class Corridor {
     this.routes.set(o.offerId, route);
 
     const delay = (o.rank || 5 + i) * 160;
-    this.drawIn(tube, 900, delay);
+    this.drawIn(tube, 900, delay, curve);
     this.tween(300, (k) => endCap.scale.setScalar(Math.max(0.001, easeOut(k))), delay + 800);
     this.tween(400, (k) => ((s.material as THREE.SpriteMaterial).opacity = easeOut(k)), delay + 500);
 
@@ -501,7 +599,12 @@ export class Corridor {
       p.rotateY(-Math.atan2(tan.y, Math.hypot(tan.x, tan.z)));
     };
     at(0);
-    this.tween(2600, at, 200);
+    this.focus = r.curve.getPoint(0.55);
+    this.tween(2600, at, 200, () => this.ripple(r.curve.getPoint(1)));
+    this.tween(2200, (k) => {
+      this.dolly = easeOut(k);
+      this.placeCamera();
+    }, 100);
   }
 
   private resetScene() {
@@ -518,7 +621,11 @@ export class Corridor {
       this.original = null;
     }
     if (this.plane) this.plane.visible = false;
+    if (this.sweep) this.sweep.visible = false;
     this.flownFor = "";
+    this.focus = null;
+    this.dolly = 0;
+    this.placeCamera();
   }
 
   dispose() {

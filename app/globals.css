@@ -132,7 +132,37 @@ body {
   animation: stamp 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* A route bar grows from its takeoff toward its landing, like the arc above it. */
+@keyframes bar-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.bar-in {
+  animation: bar-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 250ms both;
+}
+
+/* The receipt feeds out of a printer, top first. */
+@keyframes print {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-12px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+.print {
+  animation: print 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .bar-in,
+  .print,
   .flap,
   .row-in,
   .stamp {

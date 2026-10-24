@@ -171,12 +171,12 @@ function RerouteView({ source }: { source: RerouteSource }) {
       <main className="mx-auto grid max-w-[1600px] gap-4 px-4 pt-4 md:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)] lg:grid-rows-[auto_1fr] lg:gap-6">
           <section aria-labelledby="corridor" className="board order-2 min-w-0 lg:order-none lg:col-start-1 lg:row-start-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 pt-3 md:px-6">
-              <h2 id="corridor" className="text-xl font-extrabold">
-                Every way home, against your deadline
+              <h2 id="corridor" className="text-lg font-extrabold">
+                Every way home
               </h2>
-              <p className="text-sm text-soft">Each arc runs from takeoff to landing. Under the yellow frame means you make it.</p>
+              <p className="text-sm text-soft">Takeoff to landing, New York time</p>
             </div>
-            <div className="relative h-[220px] sm:h-[360px] lg:h-[440px]">
+            <div className="relative h-[240px] sm:h-[400px] lg:h-[520px]">
               <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
             </div>
           </section>
@@ -198,13 +198,9 @@ function RerouteView({ source }: { source: RerouteSource }) {
           ) : (
             <section className="sign on-yellow p-5">
               <h2 className="text-[1.75rem] leading-tight font-black tracking-[-0.01em]">
-                {trip?.status === "canceled" ? "Shopping for you now" : "If this flight is canceled, your ways home appear here"}
+                {trip?.status === "canceled" ? "Shopping for you" : "Your ways home appear here"}
               </h2>
-              <p className="mt-2 max-w-[44ch] text-lg text-yellow-soft">
-                {trip?.status === "canceled"
-                  ? "Free rebooking first, then paid flights and a hotel, ranked against 9:00 AM inside your card's rules."
-                  : "Ranked in under 10 seconds. Nothing is bought until you approve it, at the exact price you saw."}
-              </p>
+              <p className="mt-1 text-lg text-yellow-soft">{trip?.status === "canceled" ? "Free rebooking first." : "Nothing is bought until you approve."}</p>
             </section>
           )}
 
@@ -215,15 +211,13 @@ function RerouteView({ source }: { source: RerouteSource }) {
       </main>
 
       <footer className="mx-auto mt-8 max-w-[1600px] px-4 md:px-8">
-        <div className="grid gap-4 border-t border-rule pt-5 text-base text-soft md:grid-cols-[auto_1fr_1fr] md:gap-10">
-          <p className="text-lg font-extrabold text-white">Rerouted is a working prototype.</p>
+        <div className="flex flex-wrap gap-x-8 gap-y-2 border-t border-rule pt-4 text-sm text-soft">
+          <p className="font-bold text-white">Working prototype</p>
           <p>
-            <span className="font-bold text-white">Real:</span> the card&apos;s rules, tiers and ranking, the refusal of the agent, the purchase bound to the exact quote,
-            the hash-chained receipts, and Claude&apos;s reasons and flags.
+            <span className="font-bold text-white">Real:</span> card rules, refusals, quote-bound purchase, receipts, Claude.
           </p>
           <p>
-            <span className="font-bold text-white">Simulated:</span> the cancellation, the flights and hotels (fictional names), the card token and the payment. No Visa API is
-            called and no money moves.{" "}
+            <span className="font-bold text-white">Simulated:</span> the cancellation, flights, hotels, card and payment. No money moves.{" "}
             {mode === "mock" ? `This page is running on mock data${source.fallbackReason ? `: ${source.fallbackReason}` : "."}` : null}
             {source.seatError ? ` Could not take the traveler seat: ${source.seatError}` : null}
           </p>
@@ -233,7 +227,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
       <nav aria-label="Demo controls" className="mx-auto mt-6 max-w-[1600px] px-4 md:px-8">
         <div className="flex flex-wrap items-center gap-1 border-2 border-yellow px-2 py-2">
           <p className="mr-2 px-2 text-sm leading-tight text-soft">
-            Demo controls, simulated events. Keys R, C, A, P work anywhere on the page.
+            Demo controls
           </p>
           {controls.map((c) => (
             <button

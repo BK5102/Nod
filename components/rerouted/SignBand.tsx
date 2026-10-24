@@ -11,15 +11,15 @@ function message(trip: Trip, offers: Offer[]): { picto: PictoName; big: string; 
   const booked = offers.find((o) => o.status === "booked" && o.kind !== "hotel");
   switch (trip.status) {
     case "scheduled":
-      return { picto: "depart", big: `To JFK, ${trip.departs}`, detail: `${trip.flight} from SFO. ${trip.deadlineText}.`, tone: "yellow" };
+      return { picto: "depart", big: `To JFK, ${trip.departs}`, detail: `${trip.flight} from SFO`, tone: "yellow" };
     case "canceled":
-      return { picto: "closed", big: "Canceled", detail: `${trip.flight}. Finding you a way to JFK by 9:00 AM.`, tone: "black" };
+      return { picto: "closed", big: "Canceled", detail: `${trip.flight}. Finding you a way home.`, tone: "black" };
     case "options_ready": {
       const making = open.filter((o) => o.meetsDeadline && o.kind !== "hotel").length;
       return {
         picto: "reroute",
         big: `${making} way${making === 1 ? "" : "s"} home by 9:00 AM`,
-        detail: `${open.length} options ranked against your deadline, inside your card's rules. Nothing is bought until you approve.`,
+        detail: `${open.length} options, ranked inside your card's rules`,
         tone: "yellow",
       };
     }

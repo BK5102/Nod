@@ -1,146 +1,155 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { verifyReceipts } from "@/spacetimedb/src/core/receipt";
 import { clockOf, money } from "./format";
 import { Pictogram } from "./Pictogram";
-import { parseRules, type AgentStep, type Mandate, type Receipt, type Trip } from "./types";
+import type { AgentStep, Mandate, Receipt, Trip } from "./types";
 
 const kindWord: Record<AgentStep["kind"], string> = { info: "INFO", search: "SEARCH", decision: "DECIDED", refusal: "REFUSED", error: "ERROR" };
-const kindColor: Record<AgentStep["kind"], string> = {
-  info: "text-soft",
-  search: "text-white",
-  decision: "text-yellow",
-  refusal: "text-alert",
-  error: "text-alert",
-};
+const kindColor: Record<AgentStep["kind"], string> = { info: "text-soft", search: "text-white", decision: "text-yellow", refusal: "text-alert", error: "text-alert" };
 
-/** The agent's steps as rows on a departures board. */
+const SHOWN = 5;
+
+/** The agent's steps as rows on a departures board. The newest few stay up; older ones fold away. */
 export function Board({ steps, live }: { steps: AgentStep[]; live: boolean }) {
+  const [all, setAll] = useState(false);
+  const rows = all ? steps : steps.slice(-SHOWN);
+  const hidden = steps.length - rows.length;
   return (
     <section aria-labelledby="board" className="board">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule px-4 py-3 md:px-6">
-        <h2 id="board" className="text-xl font-extrabold">
-          What the agent is doing
+        <h2 id="board" className="text-lg font-extrabold">
+          Agent
         </h2>
-        <p className="text-sm text-soft">{live ? "Live, from the database" : "Mock data, backend not connected"}</p>
+        <p className="text-sm text-soft">{live ? "Live" : "Mock data"}</p>
       </div>
       {steps.length === 0 ? (
-        <p className="px-4 py-6 text-lg text-soft md:px-6">Nothing yet. When the flight is canceled, the agent starts here.</p>
+        <p className="px-4 py-5 text-base text-soft md:px-6">Waiting for a cancellation.</p>
       ) : (
-        <ol className="divide-y divide-rule/60" aria-live="polite">
-          {steps.map((s) => (
-            <li key={s.id} className="row-in grid grid-cols-[auto_1fr] items-baseline gap-x-3 px-4 py-2.5 md:grid-cols-[6.5rem_7rem_1fr] md:px-6">
-              <span className="font-mono text-sm font-medium text-soft">{clockOf(s.at)}</span>
-              <span className={`font-mono text-sm font-semibold tracking-[0.06em] ${kindColor[s.kind]}`}>{kindWord[s.kind]}</span>
-              <span className={`col-span-2 text-[1.05rem] leading-snug md:col-span-1 ${s.kind === "refusal" || s.kind === "error" ? "font-bold text-alert" : "text-white"}`}>{s.text}</span>
-            </li>
-          ))}
-        </ol>
+        <>
+          {hidden > 0 ? (
+            <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-2 text-left text-sm font-semibold text-soft hover:text-white md:px-6">
+              {hidden} earlier step{hidden === 1 ? "" : "s"}
+            </button>
+          ) : null}
+          <ol className="divide-y divide-rule/60" aria-live="polite">
+            {rows.map((s) => (
+              <li key={s.id} className="row-in grid grid-cols-[auto_1fr] items-baseline gap-x-3 px-4 py-2.5 md:grid-cols-[6rem_6.5rem_1fr] md:px-6">
+                <span className="font-mono text-sm font-medium text-soft">{clockOf(s.at)}</span>
+                <span className={`font-mono text-sm font-semibold tracking-[0.06em] ${kindColor[s.kind]}`}>{kindWord[s.kind]}</span>
+                <span className={`col-span-2 leading-snug md:col-span-1 ${s.kind === "refusal" || s.kind === "error" ? "font-bold text-alert" : "text-white"}`}>{s.text}</span>
+              </li>
+            ))}
+          </ol>
+        </>
       )}
     </section>
   );
 }
 
-/** The card's rules for this trip, as a sign, with the spend measured against the cap. */
+/** Counts up to a new value once, so the spend visibly lands on the meter. */
+function useCountUp(target: number, ms = 700) {
+  const [v, setV] = useState(target);
+  const from = useRef(target);
+  useEffect(() => {
+    const start = performance.now();
+    const a = from.current;
+    if (a === target || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setV(target);
+      from.current = target;
+      return;
+    }
+    let raf = 0;
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / ms);
+      setV(Math.round((a + (target - a) * (1 - Math.pow(2, -10 * k))) / 100) * 100);
+      if (k < 1) raf = requestAnimationFrame(step);
+      else from.current = target;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return v;
+}
+
+/** The card's rules for this trip: one meter carries the cap and the ask line. */
 export function MandateSign({ mandate, trip }: { mandate: Mandate; trip: Trip }) {
   const cap = mandate.tripCapCents;
-  const spent = trip.spendCents;
-  const pct = Math.min(100, (spent / cap) * 100);
+  const shown = useCountUp(trip.spendCents);
+  const pct = Math.min(100, (trip.spendCents / cap) * 100);
   const askPct = (mandate.askAboveCents / cap) * 100;
   return (
-    <section aria-labelledby="mandate" className="board">
-      <div className="flex items-center gap-3 px-4 pt-4">
-        <Pictogram name="card" size={40} className="bg-yellow! text-ink!" />
-        <div>
-          <h2 id="mandate" className="text-xl leading-tight font-extrabold">
-            Your card&apos;s rules for this trip
-          </h2>
-          <p className="text-sm text-soft">Card ending 4242. Simulated token, no money moves.</p>
-        </div>
+    <section aria-labelledby="mandate" className="board px-4 py-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="mandate" className="flex items-center gap-3 text-lg font-extrabold">
+          <Pictogram name="card" size={32} className="bg-yellow! text-ink!" />
+          Card rules
+        </h2>
+        <p className="text-sm text-soft">•••• 4242, simulated</p>
       </div>
-
-      <div className="px-4 pt-4">
-        <div className="flex items-baseline justify-between">
-          <p className="text-[2rem] leading-none font-black">
-            {money(spent)} <span className="text-lg font-bold text-soft">of {money(cap)}</span>
-          </p>
-          <p className="text-sm text-soft">{spent ? "spent on this trip" : "nothing spent yet"}</p>
-        </div>
-        <div className="relative mt-3 h-4 bg-panel-2" role="meter" aria-valuemin={0} aria-valuemax={cap / 100} aria-valuenow={spent / 100} aria-label="Spent against the trip cap">
-          <div className="absolute inset-y-0 left-0 bg-yellow transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
-          <div className="absolute -top-1 -bottom-1 w-0.5 bg-white" style={{ left: `${askPct}%` }} />
-        </div>
-        <div className="relative mt-1 mb-2 h-5 text-sm text-soft">
-          <span className="absolute -translate-x-1/2 font-semibold text-white" style={{ left: `${askPct}%` }}>
-            asks you above {money(mandate.askAboveCents)}
-          </span>
-          <span className="absolute right-0 font-semibold text-white">trip cap {money(cap)}</span>
-        </div>
-      </div>
-
-      <p className="border-t border-rule px-4 py-3 text-base">
-        <span className="font-bold">Airlines and hotels only.</span> <span className="text-soft">Anything else is refused by the database, whatever the agent says.</span>
+      <p className="mt-3 text-[2rem] leading-none font-black">
+        {money(shown)} <span className="text-lg font-bold text-soft">of {money(cap)}</span>
       </p>
+      <div className="relative mt-3 h-4 bg-panel-2" role="meter" aria-valuemin={0} aria-valuemax={cap / 100} aria-valuenow={trip.spendCents / 100} aria-label="Spent against the trip cap">
+        <div className="absolute inset-y-0 left-0 bg-yellow transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
+        <div className="absolute -top-1 -bottom-1 w-0.5 bg-white" style={{ left: `${askPct}%` }} />
+      </div>
+      <div className="relative mt-1 h-5 text-sm font-semibold">
+        <span className="absolute -translate-x-1/2" style={{ left: `${askPct}%` }}>
+          asks above {money(mandate.askAboveCents)}
+        </span>
+        <span className="absolute right-0">cap</span>
+      </div>
+      <p className="mt-2 text-sm text-soft">Airlines and hotels only.</p>
     </section>
   );
 }
 
-/** The receipt slip, hash-chained: every field a stranger needs to audit the purchase. */
+/**
+ * The receipt as a ticket stub: what was bought, for how much, who approved it. The chain is
+ * recomputed in this browser; the raw hashes fold away behind one control.
+ */
 export function ReceiptSlip({ receipts, trip, voids = {} }: { receipts: Receipt[]; trip: Trip; voids?: Record<string, { priceCents: number; text: string }> }) {
   if (!receipts.length) return null;
-  // Recomputed in this browser from the public rows: any edit to any receipt breaks the chain.
   const chain = verifyReceipts(receipts);
   return (
-    <section aria-labelledby="receipt" className="row-in bg-white text-ink">
-      <div className="flex items-center justify-between gap-3 border-b-4 border-ink px-4 py-3">
-        <h2 id="receipt" className="text-xl font-extrabold">
+    <section aria-labelledby="receipt" className="print bg-white text-ink">
+      <div className="flex items-center justify-between border-b-4 border-ink px-4 py-2.5">
+        <h2 id="receipt" className="text-lg font-extrabold">
           Receipt
         </h2>
         <p className="text-sm font-semibold">Simulated payment</p>
       </div>
-      {receipts.map((r) => {
-        const rules = parseRules(r.rulesJson);
-        return (
-          <dl key={r.seq} className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1.5 border-b border-dashed border-ink/40 px-4 py-4 text-base">
-            <dt className="text-ink/70">Bought</dt>
-            <dd className="font-bold">{r.merchant}</dd>
-            <dt className="text-ink/70">Amount</dt>
-            <dd className="text-2xl leading-none font-black">{money(r.amountCents)}</dd>
-            <dt className="text-ink/70">Approved by</dt>
-            <dd className="font-bold">You, the traveler. The agent cannot approve.</dd>
-            <dt className="text-ink/70">Card rules</dt>
-            <dd>{rules.map((x) => x.reason).join(" ")}</dd>
-            <dt className="text-ink/70">Card</dt>
-            <dd className="font-mono">•••• {r.tokenLast4}</dd>
-            <dt className="text-ink/70">At</dt>
-            <dd className="font-mono">{clockOf(r.at)}</dd>
-            <dt className="text-ink/70">Quote</dt>
-            <dd className="font-mono text-sm break-all">{r.quoteHash}</dd>
-            {voids[r.offerId] ? (
-              <>
-                <dt className="text-ink/70">Voided</dt>
-                <dd className="font-bold">An earlier approval at {money(voids[r.offerId]!.priceCents)} was refused: the price changed.</dd>
-              </>
-            ) : null}
-            <dt className="text-ink/70">Receipt</dt>
-            <dd className="font-mono">#{r.seq}</dd>
-            <dt className="text-ink/70">Previous hash</dt>
-            <dd className="font-mono text-sm break-all">{r.prevHash}</dd>
-            <dt className="text-ink/70">This hash</dt>
-            <dd className="font-mono text-sm break-all">{r.hash}</dd>
-          </dl>
-        );
-      })}
-      <p className={`px-4 py-2 text-sm font-bold ${chain.ok ? "bg-ink text-go" : "bg-ink text-alert"}`}>
-        {chain.ok ? `Chain verified in this browser: ${receipts.length} receipt${receipts.length === 1 ? "" : "s"}, every hash recomputed.` : `Chain broken: ${chain.reason}`}
-      </p>
+      {receipts.map((r) => (
+        <div key={r.seq} className="border-b-2 border-dashed border-ink/30 px-4 py-4">
+          <div className="flex items-end justify-between gap-4">
+            <p className="text-xl leading-tight font-extrabold">{r.merchant}</p>
+            <p className="text-[2.5rem] leading-none font-black tracking-[-0.02em]">{money(r.amountCents)}</p>
+          </div>
+          <p className="mt-2 text-base font-semibold">
+            Approved by you · •••• {r.tokenLast4} · <span className="font-mono text-sm">{clockOf(r.at)}</span>
+          </p>
+          {voids[r.offerId] ? <p className="mt-1 text-sm font-bold text-ink/70">{money(voids[r.offerId]!.priceCents)} approval voided: price changed</p> : null}
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer font-semibold text-ink/70 hover:text-ink">Quote and hashes</summary>
+            <dl className="mt-2 grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 font-mono text-xs break-all">
+              <dt className="font-sans text-ink/60">Quote</dt>
+              <dd>{r.quoteHash}</dd>
+              <dt className="font-sans text-ink/60">Previous</dt>
+              <dd>{r.prevHash}</dd>
+              <dt className="font-sans text-ink/60">This</dt>
+              <dd>{r.hash}</dd>
+            </dl>
+          </details>
+        </div>
+      ))}
+      <p className={`bg-ink px-4 py-2 text-sm font-bold ${chain.ok ? "text-go" : "text-alert"}`}>{chain.ok ? "Receipt chain verified in this browser" : `Chain broken: ${chain.reason}`}</p>
       {trip.refundOwedCents ? (
-        <p className="flex items-start gap-3 px-4 py-4 text-lg leading-snug font-bold">
-          <Pictogram name="refund" size={40} />
-          <span>
-            Your {money(trip.refundOwedCents)} refund for the canceled ticket is owed within 7 business days.
-            <span className="block text-sm font-semibold text-ink/70">Under the US rule on automatic refunds for canceled flights.</span>
-          </span>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-lg font-extrabold">
+          <Pictogram name="refund" size={36} />
+          {money(trip.refundOwedCents)} refund owed
+          <span className="text-sm font-semibold text-ink/70">within 7 business days</span>
         </p>
       ) : null}
     </section>

@@ -9,7 +9,29 @@ export interface Stamp {
   text: string;
 }
 
-const tierWords = { AUTO: "Within your auto-buy limit", ASK: "Needs your approval", BLOCK: "Blocked by your card's rules" } as const;
+// Short chip words for the rules that matter to a decision. The full reason is on hover.
+const chipWord: Record<string, string> = {
+  above_ask_threshold: "Over $250",
+  free_option_exists: "Free option exists",
+  misses_deadline: "Misses 9 AM",
+  over_trip_cap: "Over cap",
+  category_not_allowed: "Not allowed",
+};
+
+const AX_FROM = 8; // 8 PM tonight on the clockHours axis
+const AX_TO = 29; // 5 PM tomorrow
+const pct = (h: number) => Math.max(0, Math.min(100, ((h - AX_FROM) / (AX_TO - AX_FROM)) * 100));
+
+/** The route as a bar on the same axis as the corridor, with the 9:00 AM deadline as a post. */
+function DeadlineBar({ dep, arr, before }: { dep: number; arr: number; before: boolean }) {
+  return (
+    <div className="relative mt-3 h-3" aria-hidden="true">
+      <div className="absolute inset-x-0 top-1/2 h-px bg-ink/30" />
+      <div className={`bar-in absolute top-0 h-3 ${before ? "bg-ink" : "ring-2 ring-ink ring-inset"}`} style={{ left: `${pct(dep)}%`, width: `${pct(arr) - pct(dep)}%` }} />
+      <div className="absolute -top-1.5 -bottom-1.5 w-1 bg-ink" style={{ left: `${pct(21)}%` }} />
+    </div>
+  );
+}
 
 export function OptionPanel({
   offer,
@@ -26,111 +48,96 @@ export function OptionPanel({
   locked: boolean;
   onApprove: (o: Offer) => void;
 }) {
-  const rules = parseRules(offer.rulesJson);
+  const rules = parseRules(offer.rulesJson).filter((r) => chipWord[r.id]);
   const hotel = offer.kind === "hotel";
-  const depH = clockHours(offer.departs);
-  const arrH = hotel ? null : clockHours(offer.arrives, depH !== null ? depH + 3 : 0);
+  const dep = clockHours(offer.departs);
+  const depET = dep !== null ? dep + 3 : null;
+  const arrH = hotel || depET === null ? null : clockHours(offer.arrives, depET);
   const delta = arrH !== null ? deadlineDelta(arrH) : null;
   const booked = offer.status === "booked";
-  // Once a flight is booked, every other choice closes, the hotel included.
-  const dim = locked && !booked;
+  const lead = offer.rank === 1;
 
-  if (dim) {
-    // Once a flight is booked, the other flights close: they shrink to one board row, not vanish.
+  // Once a flight is booked, every other choice closes, the hotel included: one quiet row, not gone.
+  if (locked && !booked) {
     return (
       <article className="row-in board grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-3 px-4 py-3" aria-label={`Option ${offer.rank}, not needed`}>
         <span className="text-2xl font-black text-soft">{offer.rank}</span>
-        <p className="text-lg font-bold text-soft">
-          {offer.title}
-        </p>
-        <p className="text-sm font-semibold text-soft">Not needed now</p>
+        <p className="truncate text-lg font-bold text-soft">{offer.title}</p>
+        <p className="text-sm font-semibold text-soft">Not needed</p>
       </article>
     );
   }
 
+  const times = hotel ? "Tonight, near SFO" : `${timeOnly(offer.departs)} to ${timeOnly(offer.arrives)}`;
+  const price = offer.priceCents === 0 ? "Free" : money(offer.priceCents);
+  const early = delta ? delta.text.replace(/ (before|after) 9:00 AM$/, "") : "";
+
   return (
     <article
-      className={`row-in relative grid grid-cols-[auto_1fr] gap-x-4 transition-opacity duration-500 ${booked ? "sign outline-4 outline-offset-0 outline-white" : "sign"}`}
+      className={`row-in sign relative grid grid-cols-[auto_1fr] gap-x-4 ${booked ? "outline-4 outline-white" : ""}`}
       style={{ animationDelay: `${offer.rank * 90}ms` }}
-      aria-label={`Option ${offer.rank}: ${offer.merchant} ${offer.title}`}
+      aria-label={`Option ${offer.rank}: ${offer.title}`}
     >
-      {/* Rank numeral and pictogram stand where a gate number would. */}
-      <div className="flex flex-col items-start gap-2 py-4 pl-4">
-        <span className="text-[4.5rem] leading-[0.8] font-black tracking-[-0.04em]">{offer.rank}</span>
-        <Pictogram name={hotel ? "bed" : "depart"} size={44} />
+      <div className={`flex flex-col items-start gap-2 pl-4 ${lead ? "py-4" : "py-3"}`}>
+        <span className={`leading-[0.8] font-black tracking-[-0.04em] ${lead ? "text-[4.5rem]" : "text-[3rem]"}`}>{offer.rank}</span>
+        {lead ? <Pictogram name={hotel ? "bed" : "depart"} size={40} /> : null}
       </div>
 
-      <div className="min-w-0 py-4 pr-4">
+      <div className={`min-w-0 pr-4 ${lead ? "py-4" : "py-3"}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-[1.45rem] leading-tight font-extrabold tracking-[-0.01em] [text-wrap:balance]">{offer.title}</h3>
+            <h3 className={`leading-tight font-extrabold tracking-[-0.01em] ${lead ? "text-[1.45rem]" : "text-lg"}`}>{offer.title}</h3>
+            <p className="font-bold text-yellow-soft">{times}</p>
           </div>
-          <p className="text-right text-[2rem] leading-none font-black tracking-[-0.02em]">
-            <span key={offer.priceCents} className="flap inline-block">{offer.priceCents === 0 ? "Free" : money(offer.priceCents)}</span>
+          <p className={`text-right leading-none font-black tracking-[-0.02em] ${lead ? "text-[2.25rem]" : "text-[1.6rem]"}`}>
+            <span key={offer.priceCents} className="flap inline-block">{price}</span>
             {voided ? <span className="mt-1 block text-base font-bold text-yellow-soft line-through decoration-2">{money(voided.priceCents)}</span> : null}
           </p>
         </div>
 
-        <p className="mt-2 text-lg font-bold">
-          {hotel
-            ? [offer.departs, offer.arrives].filter(Boolean).join(" · ") || "Tonight, near SFO"
-            : `${offer.departs.replace(/^tomorrow /, "Tomorrow ")} SFO  ·  lands ${timeOnly(offer.arrives)} JFK`}
-        </p>
-        {delta ? (
-          <p className={`mt-1 inline-flex items-center gap-2 px-2 py-0.5 text-base font-bold ${delta.before ? "bg-ink text-yellow" : "bg-transparent text-ink ring-2 ring-ink ring-inset"}`}>
-            {delta.text}
-          </p>
+        {delta && arrH !== null && depET !== null ? (
+          <>
+            <DeadlineBar dep={depET} arr={arrH} before={delta.before} />
+            <p className="mt-1.5 text-sm font-bold">{delta.before ? `Lands ${early} early` : `Lands ${early} late`}</p>
+          </>
         ) : null}
 
-        {offer.claudeReason ? <p className="mt-3 max-w-[48ch] text-base leading-snug">{offer.claudeReason}</p> : null}
+        {lead && offer.claudeReason && !booked ? <p className="mt-2 line-clamp-2 max-w-[46ch] text-base leading-snug">{offer.claudeReason}</p> : null}
 
-        {voided && booked ? (
-          <p className="mt-3 flex items-start gap-3 bg-ink p-3 text-base leading-snug font-bold text-alert">
-            <Pictogram name="closed" size={32} className="bg-alert! text-ink!" />
-            Void: your {money(voided.priceCents)} approval was refused because the price changed. You approved {money(offer.priceCents)} after.
-          </p>
-        ) : null}
-
-        {booked ? null : (
-        <div className="mt-3 border-t-2 border-ink/80 pt-2">
-          <p className="text-sm font-bold">{tierWords[offer.tier]}</p>
-          <ul className="mt-1 space-y-0.5">
+        {!booked && rules.length ? (
+          <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Card rules that apply">
             {rules.map((r) => (
-              <li key={r.id} className="text-sm leading-snug text-yellow-soft">
-                {r.reason}
+              <li key={r.id} title={r.reason} className="px-1.5 py-0.5 text-xs font-bold ring-2 ring-ink ring-inset">
+                {chipWord[r.id]}
               </li>
             ))}
           </ul>
-        </div>
-        )}
+        ) : null}
 
         {stamp ? (
-          <div role="alert" className="stamp mt-3 flex items-start gap-3 bg-ink p-3 text-white">
-            <Pictogram name={stamp.by === "agent" ? "agent" : "closed"} size={36} className="bg-alert! text-ink!" />
-            <div>
-              <p className="text-sm font-semibold text-soft">{stamp.by === "agent" ? "The agent tried to buy this itself" : "Your approval was not accepted"}</p>
-              <p className="text-base leading-snug font-bold text-alert">{stamp.text}</p>
-            </div>
-          </div>
+          <p role="alert" className="stamp mt-3 flex items-center gap-3 bg-ink p-2.5 text-base leading-snug font-bold text-alert">
+            <Pictogram name={stamp.by === "agent" ? "agent" : "closed"} size={32} className="bg-alert! text-ink!" />
+            {stamp.text}
+          </p>
         ) : null}
 
         {booked ? (
-          <p className="mt-3 flex items-center gap-3 bg-ink px-3 py-3 text-lg font-extrabold text-yellow">
-            <Pictogram name="arrive" size={36} className="bg-yellow! text-ink!" />
-            Booked and paid. Receipt below.
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="flex items-center gap-2 bg-ink px-3 py-2 text-lg font-extrabold text-yellow">
+              <Pictogram name="arrive" size={28} className="bg-yellow! text-ink!" />
+              Booked
+            </p>
+            {voided ? <p className="text-sm font-bold">{money(voided.priceCents)} approval voided: price changed</p> : null}
+          </div>
         ) : (
           <button
             type="button"
             disabled={busy}
             onClick={() => onApprove(offer)}
-            className="mt-3 flex w-full items-center justify-between gap-3 bg-ink py-3 pr-4 pl-3 text-left text-xl font-extrabold text-white transition-[transform,background-color] duration-150 hover:bg-panel-2 active:scale-[0.985] disabled:cursor-wait disabled:opacity-60"
+            className={`mt-3 flex w-full items-center gap-3 bg-ink pl-2.5 text-left font-extrabold text-white transition-[transform,background-color] duration-150 hover:bg-panel-2 active:scale-[0.985] disabled:cursor-wait ${lead ? "py-3 text-xl" : "py-2 text-lg"}`}
           >
-            <span className="flex items-center gap-3">
-              <Pictogram name="card" size={36} className="bg-yellow! text-ink!" />
-              {busy ? "Checking your card's rules" : `Approve ${offer.priceCents === 0 ? "free rebooking" : money(offer.priceCents)}`}
-            </span>
-            <span className="text-sm font-semibold text-soft">one tap</span>
+            <Pictogram name="card" size={lead ? 36 : 30} className="bg-yellow! text-ink!" />
+            {busy ? "Checking your card" : `Approve ${offer.priceCents === 0 ? "free rebooking" : price}`}
           </button>
         )}
       </div>
@@ -142,9 +149,9 @@ export function SetAside({ offers }: { offers: Offer[] }) {
   if (!offers.length) return null;
   return (
     <section aria-labelledby="set-aside" className="board border-t-4 border-alert">
-      <h2 id="set-aside" className="flex items-center gap-3 px-4 pt-4 text-xl font-extrabold">
-        <Pictogram name="closed" size={36} className="bg-alert! text-ink!" />
-        Set aside: your card would not allow these
+      <h2 id="set-aside" className="flex items-center gap-3 px-4 pt-3 text-lg font-extrabold">
+        <Pictogram name="closed" size={28} className="bg-alert! text-ink!" />
+        Set aside
       </h2>
       <ul className="divide-y divide-rule px-4 pb-2">
         {offers.map((o) => {
@@ -155,8 +162,7 @@ export function SetAside({ offers }: { offers: Offer[] }) {
                 {o.title}
               </p>
               <p className="font-mono text-lg font-semibold text-soft line-through decoration-alert decoration-2">{money(o.priceCents)}</p>
-              <p className="col-span-2 text-base leading-snug text-alert">{o.flagged ? o.flagReason : block?.reason}</p>
-              {o.flagged ? <p className="col-span-2 text-sm text-soft">Flagged by Claude from the listing text. A flag can only raise the tier.</p> : null}
+              <p className="col-span-2 text-base leading-snug text-alert">{o.flagged ? "Its listing tried to instruct the agent" : block?.reason}</p>
             </li>
           );
         })}
