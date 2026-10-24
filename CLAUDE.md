@@ -4,56 +4,75 @@ Tagline: A robot bookkeeper that won't send your money to a scammer's new bank a
 
 ## One-line explanation
 
-Scammers pretend to be a company you pay and say "we changed our bank account." Nod is a robot bookkeeper that stops and asks a person before sending money to a new account.
+Scammers pretend to be a company you pay and say "we changed our bank account." Nod is a robot bookkeeper that stops and asks a person before sending money to a new account, and makes sure that person's yes is one you can trust.
 
-## Domain
+## Audience and scope
 
-Accounts payable (paying vendor invoices) for small organizations, with AI agents that can move money.
+Audience: anyone who pays vendors with a small team and limited controls, such as small nonprofits, clubs, family businesses and small offices.
 
-## The problem
+Scope: one thing only, trusting the human "yes" on a risky payment. We do not build a full accounts payable system, a fraud-detection engine, or a brain-computer interface.
 
-A common invoice scam is a fake "we changed our bank account" message from someone posing as a vendor. In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud, 63% cited business email compromise, and 45% cited vendor impersonation ([AFP press release, April 15, 2025](https://www.financialprofessionals.org/about/learn-more/press-releases/Details/survey-79-percent-of-organizations-were-victims-of-attempted-or-actual-payments-fraud-activity-in-2024); 521 respondents, surveyed January 2025). Standard advice is to verify bank changes through a second channel, and small, busy teams skip it.
+## The seat
 
-We scope to one thing: vendor invoices where the bank details changed or something else is off. We do not try to be a full accounting system, general fraud detection, or a real brain-computer interface.
+An accounts payable clerk with limited access (it cannot approve its own payments and cannot edit vendor bank details), a clean record (a receipt for every decision), and clear rules for when to ask a person.
 
 ## Why now
 
-As AI agents start releasing payments, the human yes becomes the weak point: people click yes out of habit, and a shaky or accidental yes is treated the same as a careful one. Money lost to these scams is hard to recover, small teams lack controls, and agents that pay need an approval step people can trust. The approval step is where this fails, not the detection.
+- In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud, 63% cited business email compromise, and 45% cited vendor impersonation ([AFP press release, April 15, 2025](https://www.financialprofessionals.org/about/learn-more/press-releases/Details/survey-79-percent-of-organizations-were-victims-of-attempted-or-actual-payments-fraud-activity-in-2024)).
+- Under Nacha's rules, since June 19, 2026 all non-consumer ACH originators, with no volume threshold, must have risk-based processes to identify payments made under "False Pretenses", which Nacha defines to include vendor impersonation and business email compromise ([Nacha, fraud monitoring phase 1](https://www.nacha.org/rules/risk-management-topics-fraud-monitoring-phase-1); [phase 2](https://www.nacha.org/rules/risk-management-topics-fraud-monitoring-phase-2); June 19 was a federal holiday, so the practical date was June 22, 2026). Nod is a prototype that produces the kind of record such a process needs. It does not make anyone compliant.
 
 ## What Nod adds
 
-Detecting a changed bank account is not new. Mainstream accounts payable tools already do it. What Nod adds is the layer after the flag, in four parts:
+Detecting a changed bank account is already offered by mainstream accounts payable tools, and finance platforms already route exceptions to a person. Nod focuses on the step after the flag, the human yes:
 
-1. The agent can never approve its own payment or edit vendor bank details. Roles are enforced in code (in the database, on the caller's identity), not in the UI.
-2. A shaky approval is treated as evidence, not a final yes. Ambiguous signals trigger one re-confirm, and uncertainty defaults to no.
+1. The agent can never approve its own payment or edit vendor bank details. This is enforced in code (SpacetimeDB reducers checking ctx.sender), not in the UI.
+2. A shaky yes is treated as evidence. Ambiguous means one re-confirm, and uncertainty defaults to no.
 3. Rules set the risk tier. Claude explains and can only raise a tier, never lower it.
-4. Every decision writes a tamper-evident receipt with the rule that fired, who approved, and how reliable that approval was. A "why did you do this?" box answers only from those receipts and says "not in the record" otherwise.
+4. Every decision writes a tamper-evident receipt: rule fired, tier, who approved, and how reliable that approval was. A "why did you do this?" box answers only from receipts and says "not in the record" otherwise.
 
-To our knowledge, other products do not record how reliable an approval was. We have not checked exhaustively.
+SpacetimeDB holds the ledger, role checks, receipts and live dashboard in reducers and tables, so the rules cannot be bypassed by any client.
+
+To our knowledge, recording how reliable an approval was is uncommon in payment tools. We have not checked exhaustively.
 
 ## What is real and what is simulated
 
 | Component | Real or simulated | How we know |
 | --- | --- | --- |
-| Policy engine, tiers, mandate | Real, runs inside the database | Unit tests; segregation-of-duties checks against the live database |
+| Policy engine, tiers, auto-pay limit | Real, runs inside the database | Unit tests; segregation-of-duties checks against the live database |
 | Claude extraction and explanation | Real when ANTHROPIC_API_KEY is set; errors are shown, never faked | Five messy test invoices in scripts/intake-check.ts |
-| Segregation of duties | Real, enforced by SpacetimeDB on the caller's identity | scripts/sod-check.ts |
+| Segregation of duties | Real, enforced by SpacetimeDB reducers on the caller's identity | scripts/sod-check.ts |
 | Ledger and reconciliation | Real double entry, checked in a database view | Bank vs ledger difference shown live on Books |
 | Receipts | Real, append-only and hash-chained | Chain verified in a database view on every change |
-| Bank | Simulated: MockBank (Increase sandbox adapter written, not used in the demo) | Adapter logs and idempotency keys |
-| Vendors and seeded invoices | Simulated: SEEDED fictional company, vendors and history | Marked SEEDED in the app; scripts/seed.ts |
-| Baseline agent | A simple pay-everything agent we wrote | lib/naive.ts |
+| Organization | Simulated: Eastbay Community Pantry is fictional | Labeled in the app |
+| Vendor amounts | Modeled on public data: routine amounts follow the San Francisco Controller's Vendor Payments (Vouchers) dataset, FY2025, public domain license | scripts/seed-public.ts and data/public-model.json; SEEDED label in the app |
+| Vendor names, dates, invoices, bank details, scam email | Simulated: generated by us. No real organization's name is put on a generated invoice. The public dataset has no payment dates | SEEDED label in the app; scripts/seed.ts |
+| Baseline agent | A simple pay-everything baseline we wrote | lib/naive.ts |
 | Approval signal | Simulated: synthetic signal with a noise slider | SIMULATED badge; no real brain-computer interface, no accuracy claim |
+| Bank | Simulated: MockBank (an Increase sandbox adapter is written but not active) | Adapter logs and idempotency keys |
+
+Public data source: [https://data.sfgov.org/d/n9pm-xkyq](https://data.sfgov.org/d/n9pm-xkyq), published by the City and County of San Francisco under the Open Data Commons Public Domain Dedication and License.
 
 ## Known limits
 
-- Eastbay Community Pantry is fictional. Its vendors, invoices and history are SEEDED.
+- The organization is fictional and its history is SEEDED. Vendor names are invented on purpose.
 - The approval signal is SIMULATED. It is not a model of any real device, and we make no accuracy claim.
 - The bank is MockBank. No real money moves.
-- Seats are demo seats: any visitor can sit as the approver or the controller. Only the agent and operator seats are locked. Production needs real sign-in.
-- The planted errors and their answer key were written by us, so passing them shows the system does what we designed, not that it catches unseen fraud.
-- Claude's extraction and explanations need an API key and a network connection. When Claude fails, the app shows the error and pays nothing.
-- One organization, one currency (USD), no partial payments, no credit notes.
+- Real sign-in is not built: any visitor can sit as the approver or the controller. Only the agent and operator seats are locked.
+- The planted errors and their answer key were written by us, so passing them shows the system does what we designed, not that it catches fraud it has never seen.
+- Claude needs an API key and a network connection. When Claude fails, the app shows the error and pays nothing.
+- One organization, US dollars only, no partial payments or credit notes.
+
+## Questions a judge may ask
+
+**Why not just rules?** Rules decide. The policy engine sets the risk tier inside the database. Claude reads messy invoices, explains the decision in plain English, and can flag what rules cannot see, like "we changed banks" in the body of an email or an instruction hidden in the invoice. Claude can only raise a tier, never lower it. If Claude fails, the app shows the error and nothing is paid.
+
+**What is real?** The policy engine, the role checks, the double-entry ledger, the hash-chained receipts and the Claude calls. The organization, vendor names, invoices and scam email are generated by us; routine amounts are modeled on San Francisco's public vendor payments; the approval signal is SIMULATED; the bank is MockBank. The What is real button in the app shows this table.
+
+**How do you know it works?** 43 unit tests, 11 segregation-of-duties checks against the live database, scripts that replay the bank-change hold and the bank-failure recovery, five messy test invoices (scripts/intake-check.ts), and planted errors with an answer key. We wrote the test invoices, the planted errors and the answer key ourselves, so they show the system does what we designed, not that it catches fraud it has never seen.
+
+**Is catching a changed bank account new?** No. Mainstream accounts payable tools already do it, and finance platforms already route exceptions to a person. Nod focuses on whether the person's yes can be trusted, and on keeping a record of it.
+
+**What did you not build?** Real sign-in, a real bank connection, a real brain-computer interface, an earned-autonomy ladder (behind a flag, off), a replay clock, an evaluation curve, an identity check, multiple currencies, credit notes, and a full accounting system.
 
 ## Context
 

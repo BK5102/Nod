@@ -9,7 +9,9 @@ describe("proof table", () => {
     const byName = Object.fromEntries(rows.map((r) => [r.component, r.status]));
     expect(byName["Approval signal"]).toMatch(/^Simulated/);
     expect(byName["Bank"]).toMatch(/^Simulated/);
-    expect(byName["Vendors and seeded invoices"]).toMatch(/SEEDED/);
+    expect(byName["Organization"]).toMatch(/^Simulated/);
+    expect(byName["Vendor names, dates, invoices, bank details, scam email"]).toMatch(/^Simulated/);
+    expect(byName["Vendor amounts"]).toMatch(/public/);
     expect(byName["Receipts"]).toMatch(/^Real/);
   });
 });
