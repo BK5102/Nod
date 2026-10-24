@@ -47,7 +47,7 @@ export function Moment() {
         <div>
           <h1 className="text-2xl font-bold">The same invoice, two agents</h1>
           <p className="mt-1 max-w-[70ch]">
-            A vendor emails a large invoice due tomorrow and asks to be paid into a new bank account. This is how most invoice scams work.
+            A vendor emails a large invoice due tomorrow and asks to be paid into a new bank account. This is a common invoice scam.
           </p>
         </div>
         <div className="flex gap-2">

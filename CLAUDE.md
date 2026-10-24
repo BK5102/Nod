@@ -13,7 +13,9 @@ Tagline: An AI that pays vendor invoices and catches the fake bank-detail change
 
 Scammers email small organizations posing as a vendor and say "we changed our bank account." Busy staff approve out of habit and the money is gone. In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud and 45% cited vendor imposter fraud (AFP press release, April 15, 2025). Most tools either block too much or approve everything, and none record how reliable an approval was. These are the only statistics we cite.
 
-Positioning: lead with catching a fake vendor bank-detail change on an invoice a judge hands us. The simulated single-signal approver is a short segment, a stress test of the safety design, not the market.
+Description (use verbatim): "Nod is an AI bookkeeper for small organizations. It reads vendor invoices and flags a common scam: a vendor suddenly changing its bank account. Routine invoices go through. Risky ones stop and wait for a person, and a changed bank account always needs a second check. Every decision gets a receipt showing what Nod saw, who approved, and why."
+
+Positioning: lead with catching a fake vendor bank-detail change on an invoice a judge hands us. Nod automates the callback check small teams skip when busy. Bank-change detection exists in other AP tools; do not claim it is new. What is new is the measured approval and the receipts. The simulated single-signal approver is a short segment and an untested accessibility idea, not a claim about the market. Do not say "most invoice scams", do not say nonprofits are the main target, do not claim organizations want an AI to release payments unattended.
 
 ## What we build
 

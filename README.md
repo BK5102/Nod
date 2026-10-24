@@ -2,7 +2,7 @@
 
 An AI that pays vendor invoices and catches the fake bank-detail change before the money leaves.
 
-Nod is an AI bookkeeper for small nonprofits. It pays routine vendor invoices on its own and stops to ask a person when something looks off, like a vendor suddenly changing its bank account, which is how most invoice scams work. Even if the person approving can only send one shaky signal, like a single button press, Nod does not treat one yes as enough on a risky payment. Every decision gets a receipt showing what Nod saw, who approved, and why.
+Nod is an AI bookkeeper for small organizations. It reads vendor invoices and flags a common scam: a vendor suddenly changing its bank account. Routine invoices go through. Risky ones stop and wait for a person, and a changed bank account always needs a second check. Every decision gets a receipt showing what Nod saw, who approved, and why.
 
 ## The problem
 
@@ -10,7 +10,13 @@ Scammers email small organizations posing as a vendor and say "we changed our ba
 
 ## The seat it fills
 
-Accounts payable clerk and payments specialist at a small nonprofit.
+Accounts payable clerk and payments specialist at a small organization.
+
+## What is new, and what is not
+
+Detecting vendor bank-change fraud already exists in other accounts payable tools, so we do not claim it is new. Nod automates the out-of-band callback check that busy small teams skip, and it keeps the person who changes vendor data apart from the person who releases payment. What is new is the measured approval (how sure each yes was, stored on the receipt) and the hash-chained receipts.
+
+The single shaky signal approver is a short demo segment and an untested accessibility idea, not a claim about who has this problem.
 
 ## What is real and what is simulated
 

@@ -30,7 +30,7 @@ export function ApproveQueue() {
         </h1>
         <p className="mt-1 text-ink-soft">
           {rows.length === 0
-            ? "Nothing waits for a person right now. Nod pays routine bills inside its mandate."
+            ? "Nothing waits for a person right now. Routine invoices inside the $2,500 limit go through."
             : `${rows.length} ${rows.length === 1 ? "bill" : "bills"}, oldest first. Nod paid everything else on its own.`}
         </p>
         <table className="mt-6 w-full text-sm">
