@@ -1,7 +1,7 @@
 import type { ClaudeCheck, ClaudeFlag, Contract, Invoice, PurchaseOrder, RuleResult, SourceRow, Vendor } from "@/spacetimedb/src/core/types";
 import { formatCents } from "@/spacetimedb/src/core/money";
 import { matchRate } from "@/spacetimedb/src/core/engine";
-import { askJson, claudeAvailable, untrusted } from "./client";
+import { askJson, untrusted } from "./client";
 import { ClaudeCheckSchema } from "./schemas";
 
 const SYSTEM = `You are the second reviewer on an accounts payable team at a small food-bank nonprofit.
@@ -30,8 +30,12 @@ export interface CheckInput {
   sources: SourceRow[];
 }
 
-export async function claudeCheck(i: CheckInput): Promise<ClaudeCheck> {
-  if (!claudeAvailable()) return heuristicCheck(i);
+/**
+ * The second review. Claude reads the invoice against the records and explains the decision in
+ * plain English. The built-in checks always run too and are merged in, labeled as such. Flags
+ * can only raise the tier. Throws ClaudeError if Claude fails: no canned explanation is used.
+ */
+export async function claudeReview(i: CheckInput): Promise<ClaudeCheck> {
   const context = {
     vendor_master: i.vendor
       ? { name: i.vendor.name, category: i.vendor.category, bank_last4: i.vendor.bank_last4, email_domain: i.vendor.email_domain }
@@ -45,29 +49,22 @@ export async function claudeCheck(i: CheckInput): Promise<ClaudeCheck> {
     source_check: i.sources.map((s) => ({ field: s.field, agree: s.agree, trusted: s.trusted_value })),
     extracted_fields: i.invoice.extracted,
   };
-  try {
-    const out = await askJson({
-      schema: ClaudeCheckSchema,
-      system: SYSTEM,
-      effort: "medium",
-      content: [
-        { type: "text", text: `Company records (trusted):\n${JSON.stringify(context, null, 2)}` },
-        { type: "text", text: untrusted("invoice", i.invoice.raw_text) },
-        { type: "text", text: "Review the invoice against the records. Return your flags and explanation." },
-      ],
-    });
-    return { ...out, method: "claude" };
-  } catch (e) {
-    // Default to no: if the second reviewer is unavailable, a person looks.
-    const fallback = heuristicCheck(i);
-    return {
-      ...fallback,
-      flags: [
-        ...fallback.flags,
-        { code: "reviewer_unavailable", severity: "ASK", reason: `Claude check failed (${(e as Error).message}), so a person reviews this one.` },
-      ],
-    };
-  }
+  const out = await askJson({
+    schema: ClaudeCheckSchema,
+    system: SYSTEM,
+    effort: "medium",
+    budgetMs: 19_000,
+    content: [
+      { type: "text", text: `Company records (trusted):
+${JSON.stringify(context, null, 2)}` },
+      { type: "text", text: untrusted("invoice", i.invoice.raw_text) },
+      { type: "text", text: "Review the invoice against the records. Return your flags and explanation." },
+    ],
+  });
+  const builtIn = heuristicCheck(i).flags
+    .filter((f) => !out.flags.some((c) => c.code === f.code))
+    .map((f) => ({ ...f, code: `builtin_${f.code}`, reason: `Built-in check: ${f.reason}` }));
+  return { ...out, flags: [...out.flags, ...builtIn], method: "claude" };
 }
 
 const INJECTION = /(ignore (all |any )?(previous|prior|above) instructions|disregard (the )?(rules|policy)|you are now|system prompt|approve (this|immediately)|mark (this )?as (paid|approved)|lower the tier|set tier)/i;
@@ -75,8 +72,8 @@ const BANK_PROSE = /(new bank|moved banks|changed (our )?banks?|bank(ing)? (deta
 const URGENCY = /(urgent|immediately|today only|final notice|within 24 hours|wire today|asap)/i;
 
 /**
- * Deterministic stand-in for the Claude check, used when no API key is set and as a floor when
- * the call fails. Labeled "heuristic" everywhere it shows up.
+ * Deterministic checks. They run alongside Claude in the app (merged and labeled "Built-in check"),
+ * and on their own only in the offline seed, where they are labeled "heuristic".
  */
 export function heuristicCheck(i: CheckInput): ClaudeCheck {
   const flags: ClaudeFlag[] = [];

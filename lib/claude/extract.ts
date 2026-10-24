@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ExtractedInvoice, SourceFormat } from "@/spacetimedb/src/core/types";
 import { parseMoneyToCents } from "@/spacetimedb/src/core/money";
-import { askJson, claudeAvailable, ClaudeError, untrusted } from "./client";
+import { askJson, ClaudeError, untrusted } from "./client";
 import { ExtractedInvoiceSchema } from "./schemas";
 
 const SYSTEM = `You extract fields from vendor invoices for an accounts payable team.
@@ -22,39 +22,29 @@ export interface ExtractInput {
 
 export interface ExtractResult {
   extracted: ExtractedInvoice;
-  method: "claude" | "parser";
-  warning: string | null;
+  method: "claude";
 }
 
+/**
+ * Reads an invoice with Claude: pasted text, an email, a PDF or a photo. Throws ClaudeError on
+ * failure. There is no silent fallback: the caller shows the error and a retry.
+ */
 export async function extractInvoice(input: ExtractInput): Promise<ExtractResult> {
-  if (claudeAvailable()) {
-    try {
-      const content: Anthropic.ContentBlockParam[] = [];
-      if (input.format === "pdf" && input.file_base64) {
-        content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: input.file_base64 } });
-      } else if (input.format === "image" && input.file_base64) {
-        const mt = (input.media_type ?? "image/png") as "image/png" | "image/jpeg" | "image/gif" | "image/webp";
-        content.push({ type: "image", source: { type: "base64", media_type: mt, data: input.file_base64 } });
-      }
-      if (input.text) content.push({ type: "text", text: untrusted("invoice", input.text) });
-      content.push({ type: "text", text: "Extract the invoice fields from the untrusted document above." });
-      const out = await askJson({ schema: ExtractedInvoiceSchema, system: SYSTEM, content, effort: "low" });
-      return { extracted: out, method: "claude", warning: null };
-    } catch (e) {
-      if (!input.text) throw e;
-      return {
-        extracted: parseInvoiceText(input.text),
-        method: "parser",
-        warning: `Claude extraction failed (${(e as ClaudeError).message}); used the text parser.`,
-      };
-    }
+  const content: Anthropic.ContentBlockParam[] = [];
+  if (input.format === "pdf" && input.file_base64) {
+    content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: input.file_base64 } });
+  } else if (input.format === "image" && input.file_base64) {
+    const mt = (input.media_type ?? "image/png") as "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+    content.push({ type: "image", source: { type: "base64", media_type: mt, data: input.file_base64 } });
   }
-  if (!input.text) {
-    throw new ClaudeError("Reading PDFs and images needs ANTHROPIC_API_KEY. Paste the invoice text instead.");
-  }
-  return { extracted: parseInvoiceText(input.text), method: "parser", warning: "No ANTHROPIC_API_KEY: used the text parser." };
+  if (input.text) content.push({ type: "text", text: untrusted("invoice", input.text) });
+  if (content.length === 0) throw new ClaudeError("There is no invoice to read.");
+  content.push({ type: "text", text: "Extract the invoice fields from the untrusted document above." });
+  const out = await askJson({ schema: ExtractedInvoiceSchema, system: SYSTEM, content, effort: "low", budgetMs: 19_000 });
+  return { extracted: out, method: "claude" };
 }
 
+/** Deterministic text parser. Used by tests and offline tools only, never as a silent fallback in the app. */
 const grab = (text: string, re: RegExp) => text.match(re)?.[1]?.trim() ?? null;
 
 function toIsoDate(s: string | null): string | null {
@@ -63,10 +53,6 @@ function toIsoDate(s: string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
-/**
- * Deterministic fallback for pasted text. Handles the layouts in the seed data and most plain
- * invoices: labeled fields, a "Total" line, and "description qty x $price = $amount" lines.
- */
 export function parseInvoiceText(text: string): ExtractedInvoice {
   const from = grab(text, /^from:\s*(.+)$/im);
   const sender_email = from?.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0]?.toLowerCase() ?? null;

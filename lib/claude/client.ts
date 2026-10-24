@@ -5,13 +5,14 @@ import type { z } from "zod";
 export const MODEL = "claude-sonnet-5-5";
 
 let client: Anthropic | null = null;
+let fallbacksSupported = true;
 
 export function claudeAvailable(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-function getClient(): Anthropic {
-  if (!client) client = new Anthropic({ timeout: 45_000, maxRetries: 1 });
+export function getClient(): Anthropic {
+  if (!client) client = new Anthropic({ maxRetries: 0 });
   return client;
 }
 
@@ -23,50 +24,74 @@ export interface AskOptions<S extends z.ZodType> {
   content: Anthropic.ContentBlockParam[];
   effort?: "low" | "medium" | "high";
   max_tokens?: number;
+  /** Total time budget for this call, retries included. */
+  budgetMs?: number;
 }
 
 /**
- * One structured call. Output is validated against the zod schema; one retry on invalid output
- * or a refusal, then ClaudeError. Callers decide what failure means, and every caller treats it
- * as "escalate", never as "approve".
+ * One structured call, validated against the zod schema, with one retry on invalid output or a
+ * refusal, all inside a hard time budget. Throws ClaudeError on failure. Callers never substitute
+ * canned output: a failed call is shown to the user with a retry.
  */
 export async function askJson<S extends z.ZodType>(opts: AskOptions<S>): Promise<z.infer<S>> {
+  if (!claudeAvailable()) throw new ClaudeError("Claude is not configured on this server (ANTHROPIC_API_KEY is not set).");
   const c = getClient();
+  const deadline = Date.now() + (opts.budgetMs ?? 19_000);
   let lastError = "no attempt";
   for (let attempt = 0; attempt < 2; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining < 2_000) break;
     try {
-      const res = await c.messages.parse(
-        {
-          model: MODEL,
-          max_tokens: opts.max_tokens ?? 4000,
-          system: opts.system,
-          messages: [{ role: "user", content: opts.content }],
-          output_config: { effort: opts.effort ?? "low", format: zodOutputFormat(opts.schema) },
-          // Server-side fallback on a policy decline (Claude API only).
-          fallbacks: "default",
-        } as Parameters<typeof c.messages.parse>[0],
-        { headers: { "anthropic-beta": "server-side-fallback-2026-07-01" } },
-      );
+      const params = {
+        model: MODEL,
+        max_tokens: opts.max_tokens ?? 4000,
+        system: opts.system,
+        messages: [{ role: "user" as const, content: opts.content }],
+        output_config: { effort: opts.effort ?? "low", format: zodOutputFormat(opts.schema) },
+        // Server-side fallback on a policy decline (Claude API only).
+        ...(fallbacksSupported ? { fallbacks: "default" } : {}),
+      } as Parameters<typeof c.messages.parse>[0];
+      const res = await c.messages.parse(params, {
+        timeout: remaining,
+        headers: fallbacksSupported ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {},
+      });
       if (res.stop_reason === "refusal") {
-        lastError = "model declined";
+        lastError = "the model declined";
         continue;
       }
       if (res.stop_reason === "max_tokens") {
-        lastError = "output cut off at max_tokens";
+        lastError = "the answer was cut off";
         continue;
       }
       const parsed = opts.schema.safeParse(res.parsed_output);
       if (parsed.success) return parsed.data;
-      lastError = `invalid output: ${parsed.error.message.slice(0, 200)}`;
+      lastError = `the answer did not match the expected fields (${parsed.error.issues[0]?.message ?? "invalid"})`;
     } catch (e) {
-      if (e instanceof Anthropic.AuthenticationError) throw new ClaudeError("Anthropic API key rejected");
-      if (e instanceof Anthropic.BadRequestError) throw new ClaudeError(`Bad request: ${e.message}`);
-      if (e instanceof Anthropic.RateLimitError) lastError = "rate limited";
-      else if (e instanceof Anthropic.APIError) lastError = `API error ${e.status}`;
+      if (e instanceof Anthropic.AuthenticationError) throw new ClaudeError("The Anthropic API key was rejected.");
+      if (e instanceof Anthropic.BadRequestError && fallbacksSupported && /fallback/i.test(e.message)) {
+        fallbacksSupported = false; // this account does not take the fallback beta; retry without it
+        continue;
+      }
+      if (e instanceof Anthropic.BadRequestError) throw new ClaudeError(`Claude rejected the request: ${e.message}`);
+      if (e instanceof Anthropic.APIConnectionTimeoutError) lastError = "Claude did not answer in time";
+      else if (e instanceof Anthropic.RateLimitError) lastError = "Claude is rate limited right now";
+      else if (e instanceof Anthropic.APIError) lastError = `Claude returned an error (${e.status})`;
       else lastError = (e as Error).message;
     }
   }
-  throw new ClaudeError(lastError);
+  throw new ClaudeError(lastError === "no attempt" ? "Claude did not answer in time" : lastError);
+}
+
+/** Cheap reachability check: retrieves the model record, which costs no tokens. */
+export async function pingClaude(): Promise<{ ok: boolean; ms: number; detail: string }> {
+  const t = Date.now();
+  if (!claudeAvailable()) return { ok: false, ms: 0, detail: "ANTHROPIC_API_KEY is not set" };
+  try {
+    await getClient().models.retrieve(MODEL, {}, { timeout: 8_000 });
+    return { ok: true, ms: Date.now() - t, detail: MODEL };
+  } catch (e) {
+    return { ok: false, ms: Date.now() - t, detail: e instanceof Anthropic.APIError ? `error ${e.status}` : (e as Error).message };
+  }
 }
 
 /** Wraps untrusted document text so the model can tell data from instructions. */

@@ -137,7 +137,7 @@ export function Books() {
             <ul className="mt-3 divide-y divide-rule">
               {waiting.slice(0, 6).map((i) => (
                 <li key={i.invoiceId} className="flex items-baseline justify-between gap-3 py-2">
-                  <Link href={`/?invoice=${i.invoiceId}`} className="min-w-0 truncate hover:underline">
+                  <Link href={`/invoice?id=${i.invoiceId}`} className="min-w-0 truncate hover:underline">
                     {i.number}
                     <span className="block text-sm text-ink-soft">{STATUS_WORDS[i.status]}</span>
                   </Link>
@@ -173,7 +173,7 @@ export function Books() {
                     <td className="py-2 pr-2 text-right tabular-nums text-ink-soft">{r.seq}</td>
                     <td className="py-2 pr-2 whitespace-nowrap">{dayTime(r.asOf)}</td>
                     <td className="py-2 pr-2">
-                      <Link href={`/?invoice=${r.invoiceId}`} className="hover:underline">
+                      <Link href={`/invoice?id=${r.invoiceId}`} className="hover:underline">
                         {r.vendorName}
                       </Link>
                     </td>
@@ -259,54 +259,16 @@ export function Books() {
 }
 
 function IngestForm() {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; msg: string; id?: string } | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setResult(null);
-    try {
-      const res = await fetch("/api/agent/ingest", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
-      const b = (await res.json()) as { ok: boolean; error?: string; result?: { invoiceId: string; tier: string; status: string; extraction: string } };
-      if (!b.ok || !b.result) setResult({ ok: false, msg: b.error ?? "Nod could not take that bill." });
-      else setResult({ ok: true, id: b.result.invoiceId, msg: `Tier ${b.result.tier}. ${STATUS_WORDS[b.result.status] ?? b.result.status}. Read by ${b.result.extraction === "claude" ? "Claude" : "the text parser"}.` });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <form onSubmit={submit} className="bg-white p-5" aria-labelledby="ingest-h">
+    <section aria-labelledby="ingest-h" className="bg-white p-5">
       <h2 id="ingest-h" className="text-lg font-bold">
         Hand Nod a bill
       </h2>
-      <label htmlFor="ingest-text" className="mt-1 block text-sm text-ink-soft">
-        Paste an invoice or an email. Try your own.
-      </label>
-      <textarea
-        id="ingest-text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={6}
-        className="mt-2 w-full border border-rule bg-paper-raised p-2 text-sm"
-        placeholder={"Vendor: Harbor Produce Co.\nInvoice No: HP-9100\nPO Number: PO-2026-H06\nMixed produce case 20 x $28.50 = $570.00\nTotal: $570.00\nDue Date: 2026-07-08"}
-      />
-      <Button type="submit" className="mt-2 w-full" disabled={busy || !text.trim()}>
-        {busy ? "Nod is reading it..." : "Send to Nod"}
-      </Button>
-      {result && (
-        <p role="status" className={cn("mt-2 text-sm", result.ok ? "" : "text-no")}>
-          {result.msg}{" "}
-          {result.id && (
-            <Link href={`/?invoice=${result.id}`} className="font-bold underline">
-              Open it
-            </Link>
-          )}
-        </p>
-      )}
-    </form>
+      <p className="mt-1 text-sm text-ink-soft">Paste text or attach a photo or PDF. Claude reads it, the books decide.</p>
+      <Link href="/" className="mt-3 inline-block font-bold underline">
+        Open the intake
+      </Link>
+    </section>
   );
 }
 

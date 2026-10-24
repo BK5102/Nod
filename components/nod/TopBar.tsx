@@ -8,7 +8,8 @@ import { longDate } from "@/lib/ui/format";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Floor" },
+  { href: "/", label: "Hand Nod an invoice" },
+  { href: "/moment", label: "Baseline vs Nod" },
   { href: "/approve", label: "Approve" },
   { href: "/books", label: "Books" },
 ];
