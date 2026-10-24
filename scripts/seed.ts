@@ -1,4 +1,6 @@
-// Seeds Eastbay Community Pantry and replays six months of history through the real reducers.
+// Seeds Eastbay Community Pantry (4 vendors, 12 invoices over three weeks of June) through the real reducers.
+// This is also the one-command demo reset (pnpm demo:reset): it resets the data through reducers and never
+// republishes or deletes the database.
 // Every row in the database, every receipt and every ledger line is produced by the same code paths
 // a live invoice takes: submit_invoice, escalate_invoice, approve, controller_decision, settle_payment.
 //
@@ -71,7 +73,7 @@ function timeline(until: string): Event[] {
     }
   }
   for (const c of PERIOD_CLOSES) ev.push({ at: iso(c.date, 17), kind: "close", period: c.period });
-  for (let d = "2026-01-02"; iso(d, 8) <= until; d = plusDays(d, 1)) ev.push({ at: iso(d, 8), kind: "tick" });
+  for (let d = COMPANY.history_start.slice(0, 10); iso(d, 8) <= until; d = plusDays(d, 1)) ev.push({ at: iso(d, 8), kind: "tick" });
   return ev.filter((e) => e.at <= until).sort((a, b) => a.at.localeCompare(b.at));
 }
 
