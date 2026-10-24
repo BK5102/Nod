@@ -70,3 +70,24 @@ export function classify(samples: readonly number[]): number | null {
   const p = 1 / (1 + Math.exp(-(score - 1.4) * 2.2));
   return Math.round(p * 1000) / 1000;
 }
+
+/**
+ * Builds a SIMULATED signal window that the classifier scores at `p` (to three decimals). Used to
+ * replay scripted history through the real classifier inside the database, so seeded approvals
+ * take the same path as live ones.
+ */
+export function samplesFor(p: number): number[] {
+  const clamped = Math.min(0.999, Math.max(0.001, p));
+  const score = 1.4 + Math.log(clamped / (1 - clamped)) / 2.2;
+  const a = 0.5;
+  const n = Math.round(3 * SAMPLE_RATE_HZ);
+  const promptIdx = Math.round(PROMPT_AT_S * SAMPLE_RATE_HZ);
+  const [w0, w1] = RESPONSE_WINDOW_S.map((s) => Math.round(s * SAMPLE_RATE_HZ)) as [number, number];
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (i < promptIdx) out.push(i % 2 === 0 ? a : -a);
+    else if (i >= w0 && i < w1) out.push(score * a);
+    else out.push(0);
+  }
+  return out;
+}

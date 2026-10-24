@@ -123,3 +123,12 @@ describe("sha256", () => {
     expect(sha256Hex("é ✓")).toBe("f5b0a8e8d3a4a2b2a9d3d1b0f1c7b4c3e6f2a1d0c9b8a7f6e5d4c3b2a1f0e9d8".length === 64 ? sha256Hex("é ✓") : "");
   });
 });
+
+describe("samplesFor", () => {
+  it("produces a window the classifier scores at the requested confidence", async () => {
+    const { samplesFor } = await import("@/spacetimedb/src/core/classifier");
+    for (const p of [0.05, 0.3, 0.62, 0.7, 0.88, 0.912, 0.97]) {
+      expect(Math.abs(classify(samplesFor(p))! - p)).toBeLessThanOrEqual(0.001);
+    }
+  });
+});

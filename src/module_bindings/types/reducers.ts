@@ -6,13 +6,41 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
-import AddNoteReducer from "../add_note_reducer";
-import ApproveNoteReducer from "../approve_note_reducer";
-import BoomReducer from "../boom_reducer";
-import ClaimRoleReducer from "../claim_role_reducer";
+import ApproveReducer from "../approve_reducer";
+import AssignSeatReducer from "../assign_seat_reducer";
+import CloseBooksReducer from "../close_books_reducer";
+import ControllerDecisionReducer from "../controller_decision_reducer";
+import EscalateInvoiceReducer from "../escalate_invoice_reducer";
+import InjectCanaryReducer from "../inject_canary_reducer";
+import LeaveSeatReducer from "../leave_seat_reducer";
+import LogDeniedReducer from "../log_denied_reducer";
+import PaymentFailedReducer from "../payment_failed_reducer";
+import SeedCompanyReducer from "../seed_company_reducer";
+import SetAnswerKeyReducer from "../set_answer_key_reducer";
+import SetBankOutageReducer from "../set_bank_outage_reducer";
+import SetClockReducer from "../set_clock_reducer";
+import SettlePaymentReducer from "../settle_payment_reducer";
+import SubmitInvoiceReducer from "../submit_invoice_reducer";
+import SweepReducer from "../sweep_reducer";
+import TakeSeatReducer from "../take_seat_reducer";
+import UpdateVendorBankReducer from "../update_vendor_bank_reducer";
 
-export type AddNoteParams = __Infer<typeof AddNoteReducer>;
-export type ApproveNoteParams = __Infer<typeof ApproveNoteReducer>;
-export type BoomParams = __Infer<typeof BoomReducer>;
-export type ClaimRoleParams = __Infer<typeof ClaimRoleReducer>;
+export type ApproveParams = __Infer<typeof ApproveReducer>;
+export type AssignSeatParams = __Infer<typeof AssignSeatReducer>;
+export type CloseBooksParams = __Infer<typeof CloseBooksReducer>;
+export type ControllerDecisionParams = __Infer<typeof ControllerDecisionReducer>;
+export type EscalateInvoiceParams = __Infer<typeof EscalateInvoiceReducer>;
+export type InjectCanaryParams = __Infer<typeof InjectCanaryReducer>;
+export type LeaveSeatParams = __Infer<typeof LeaveSeatReducer>;
+export type LogDeniedParams = __Infer<typeof LogDeniedReducer>;
+export type PaymentFailedParams = __Infer<typeof PaymentFailedReducer>;
+export type SeedCompanyParams = __Infer<typeof SeedCompanyReducer>;
+export type SetAnswerKeyParams = __Infer<typeof SetAnswerKeyReducer>;
+export type SetBankOutageParams = __Infer<typeof SetBankOutageReducer>;
+export type SetClockParams = __Infer<typeof SetClockReducer>;
+export type SettlePaymentParams = __Infer<typeof SettlePaymentReducer>;
+export type SubmitInvoiceParams = __Infer<typeof SubmitInvoiceReducer>;
+export type SweepParams = __Infer<typeof SweepReducer>;
+export type TakeSeatParams = __Infer<typeof TakeSeatReducer>;
+export type UpdateVendorBankParams = __Infer<typeof UpdateVendorBankReducer>;
 

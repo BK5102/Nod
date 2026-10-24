@@ -11,8 +11,6 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64().primaryKey(),
-  text: __t.string(),
-  approved: __t.bool(),
-  author: __t.identity(),
+  identity: __t.identity().primaryKey(),
+  actorId: __t.string().name("actor_id"),
 });

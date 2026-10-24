@@ -1,6 +1,6 @@
 // Core domain types. Mirrors supabase/migrations/0001_schema.sql.
 
-export type Role = "agent" | "approver" | "controller" | "auditor";
+export type Role = "agent" | "approver" | "controller" | "auditor" | "operator";
 export type Tier = "AUTO" | "ASK" | "HOLD";
 export type SourceFormat = "pdf" | "email" | "image" | "text";
 

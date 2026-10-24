@@ -11,5 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
-  text: __t.string(),
+  invoiceId: __t.string(),
+  samples: __t.array(__t.f64()),
+  latencyMs: __t.u32(),
 };
