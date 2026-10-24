@@ -1,6 +1,6 @@
 /**
  * SIMULATED signal. This is a synthetic two-class signal used to stand in for a single slow,
- * noisy input such as a switch or a BCI. It is not a model of any real device and makes no
+ * noisy input such as a single switch. It is not a model of any real device and makes no
  * medical or accuracy claim.
  *
  * The approver's "yes" shows up as a bump in a known response window after the prompt.

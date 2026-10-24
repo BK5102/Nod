@@ -12,7 +12,7 @@ Next.js (App Router), TypeScript strict, Tailwind, shadcn/ui, Supabase, Anthropi
 
 ## Users
 
-Primary: the finance lead at Eastbay Community Pantry (fictional), a small food-bank nonprofit. They have limited motor control and approve payments with a single switch or BCI, which gives one slow, noisy signal. Their job is to sign off on the few payments that actually matter without being buried in clicks, and without an accidental "yes" moving money.
+Primary: the finance lead at Eastbay Community Pantry (fictional), a small food-bank nonprofit. In the demo's stress test they can approve only with one slow, shaky signal, such as a single button press (SIMULATED). Their job is to sign off on the few payments that actually matter without being buried in clicks, and without an accidental "yes" moving money.
 
 Secondary: a controller who does out-of-band callbacks on HOLD payments, and an auditor who asks why a payment happened months later.
 
@@ -41,7 +41,7 @@ Invoices arrive as PDF, email text and images. Vendors, purchase orders and a ba
 
 ## Brand Commitments
 
-Name: Nod. Tagline: "Sign-off you can trust, even from one small signal." Copy is plain and specific. No em dashes, no emojis.
+Name: Nod. Tagline: "An AI that pays vendor invoices and catches the fake bank-detail change before the money leaves." Copy is plain and specific. No em dashes, no emojis.
 
 ## Evidence on Hand
 
@@ -56,4 +56,4 @@ Seeded fictional data with an answer key. No real customers, quotes or statistic
 
 ## Accessibility & Inclusion
 
-The primary user approves with one switch or a BCI. The approver surface must be fully operable by a single input (one key, one switch), with large targets, no timing that punishes slowness beyond the protocol's explicit confirm windows, visible focus, and WCAG AA contrast.
+The approver surface must work with a single input. The approver surface must be fully operable by a single input (one key, one switch), with large targets, no timing that punishes slowness beyond the protocol's explicit confirm windows, visible focus, and WCAG AA contrast.

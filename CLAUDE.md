@@ -1,6 +1,6 @@
 # Nod: project guide for Claude Code
 
-Tagline: Sign-off you can trust, even from one small signal.
+Tagline: An AI that pays vendor invoices and catches the fake bank-detail change before the money leaves.
 
 ## Context
 
@@ -9,9 +9,11 @@ Tagline: Sign-off you can trust, even from one small signal.
 - The project must be started during the event. Start from an empty repo. Do not import code written before the event.
 - Primary tracks: Hyphenate (autonomous finance), Microsoft Grand Prize (production-minded agent). Secondary: Capital One Nessie, Best People-First. Anthropic's track only if the team gets a real conversation with the community.
 
-## The problem (one sentence)
+## The problem
 
-An autonomous finance agent needs a human sign-off before risky payments, but when the approver can give only one slow, noisy signal (a BCI or a switch), that sign-off is either unsafe (accidental approvals) or a rubber stamp. No finance system records how trustworthy an approval was.
+Scammers email small organizations posing as a vendor and say "we changed our bank account." Busy staff approve out of habit and the money is gone. In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud and 45% cited vendor imposter fraud (AFP press release, April 15, 2025). Most tools either block too much or approve everything, and none record how reliable an approval was. These are the only statistics we cite.
+
+Positioning: lead with catching a fake vendor bank-detail change on an invoice a judge hands us. The simulated single-signal approver is a short segment, a stress test of the safety design, not the market.
 
 ## What we build
 
