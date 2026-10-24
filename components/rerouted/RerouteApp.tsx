@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
+import { AgentTrack } from "./AgentTrack";
 import { OptionPanel, SetAside, type Stamp } from "./OptionPanel";
 import { Board, MandateSign, ReceiptSlip } from "./Panels";
 import { SignBand } from "./SignBand";
@@ -168,7 +169,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
       <SignBand trip={trip} offers={offers} />
 
       {/* Phone order: choices, corridor, board. Desktop: corridor and board left, choices right. */}
-      <main className="mx-auto grid max-w-[1600px] gap-4 px-4 pt-4 md:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)] lg:grid-rows-[auto_1fr] lg:gap-6">
+      <main className="mx-auto grid max-w-[1600px] gap-8 px-4 pt-8 md:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-10 lg:gap-y-8 lg:pt-10">
           <section aria-labelledby="corridor" className="board order-2 min-w-0 lg:order-none lg:col-start-1 lg:row-start-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 pt-3 md:px-6">
               <h2 id="corridor" className="text-lg font-extrabold">
@@ -180,14 +181,15 @@ function RerouteView({ source }: { source: RerouteSource }) {
               <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
             </div>
           </section>
-          <div className="order-3 min-w-0 lg:order-none lg:col-start-1 lg:row-start-2 lg:self-start">
+          <div className="order-3 flex min-w-0 flex-col gap-8 lg:order-none lg:col-start-1 lg:row-start-2 lg:self-start">
+            <AgentTrack trip={trip} offers={offers} steps={steps} />
             <Board steps={steps} live={mode === "live"} />
           </div>
 
-        <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <div className="order-1 flex min-w-0 flex-col gap-8 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1">
           {flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={voids} /> : null}
           {ranked.length ? (
-            <section aria-labelledby="choices" className="flex flex-col gap-3">
+            <section aria-labelledby="choices" className="flex flex-col gap-4">
               <h2 id="choices" className="sr-only">
                 Choices ahead
               </h2>
@@ -197,7 +199,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
             </section>
           ) : (
             <section className="sign on-yellow p-5">
-              <h2 className="text-[1.75rem] leading-tight font-black tracking-[-0.01em]">
+              <h2 className="text-[2rem] leading-tight font-black tracking-[-0.01em]">
                 {trip?.status === "canceled" ? "Shopping for you" : "Your ways home appear here"}
               </h2>
               <p className="mt-1 text-lg text-yellow-soft">{trip?.status === "canceled" ? "Free rebooking first." : "Nothing is bought until you approve."}</p>
@@ -210,7 +212,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
         </div>
       </main>
 
-      <footer className="mx-auto mt-8 max-w-[1600px] px-4 md:px-8">
+      <footer className="mx-auto mt-16 max-w-[1600px] px-4 md:px-8">
         <div className="flex flex-wrap gap-x-8 gap-y-2 border-t border-rule pt-4 text-sm text-soft">
           <p className="font-bold text-white">Working prototype</p>
           <p>

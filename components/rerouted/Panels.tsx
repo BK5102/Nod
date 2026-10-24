@@ -9,7 +9,7 @@ import type { AgentStep, Mandate, Receipt, Trip } from "./types";
 const kindWord: Record<AgentStep["kind"], string> = { info: "INFO", search: "SEARCH", decision: "DECIDED", refusal: "REFUSED", error: "ERROR" };
 const kindColor: Record<AgentStep["kind"], string> = { info: "text-soft", search: "text-white", decision: "text-yellow", refusal: "text-alert", error: "text-alert" };
 
-const SHOWN = 5;
+const SHOWN = 2;
 
 /** The agent's steps as rows on a departures board. The newest few stay up; older ones fold away. */
 export function Board({ steps, live }: { steps: AgentStep[]; live: boolean }) {
@@ -20,7 +20,7 @@ export function Board({ steps, live }: { steps: AgentStep[]; live: boolean }) {
     <section aria-labelledby="board" className="board">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule px-4 py-3 md:px-6">
         <h2 id="board" className="text-lg font-extrabold">
-          Agent
+          Latest
         </h2>
         <p className="text-sm text-soft">{live ? "Live" : "Mock data"}</p>
       </div>
@@ -30,7 +30,7 @@ export function Board({ steps, live }: { steps: AgentStep[]; live: boolean }) {
         <>
           {hidden > 0 ? (
             <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-2 text-left text-sm font-semibold text-soft hover:text-white md:px-6">
-              {hidden} earlier step{hidden === 1 ? "" : "s"}
+              Full log ({steps.length})
             </button>
           ) : null}
           <ol className="divide-y divide-rule/60" aria-live="polite">
@@ -125,7 +125,7 @@ export function ReceiptSlip({ receipts, trip, voids = {} }: { receipts: Receipt[
         <div key={r.seq} className="border-b-2 border-dashed border-ink/30 px-4 py-4">
           <div className="flex items-end justify-between gap-4">
             <p className="text-xl leading-tight font-extrabold">{r.merchant}</p>
-            <p className="text-[2.5rem] leading-none font-black tracking-[-0.02em]">{money(r.amountCents)}</p>
+            <p className="text-[2.4rem] leading-none font-black tracking-[-0.02em]">{money(r.amountCents)}</p>
           </div>
           <p className="mt-2 text-base font-semibold">
             Approved by you · •••• {r.tokenLast4} · <span className="font-mono text-sm">{clockOf(r.at)}</span>

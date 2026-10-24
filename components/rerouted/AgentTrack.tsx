@@ -1,0 +1,55 @@
+"use client";
+
+import { Pictogram, type PictoName } from "./Pictogram";
+import type { AgentStep, Offer, Trip } from "./types";
+
+interface Stop {
+  id: string;
+  word: string;
+  picto: PictoName;
+  done: boolean;
+  alert?: boolean;
+}
+
+/**
+ * The agent's run as a line of stops, like a route map on a train door: each stop lights when the
+ * database records it. Derived only from real rows; nothing lights on a timer.
+ */
+export function AgentTrack({ trip, offers, steps }: { trip: Trip | null; offers: Offer[]; steps: AgentStep[] }) {
+  const has = (re: RegExp, kind?: AgentStep["kind"]) => steps.some((s) => (!kind || s.kind === kind) && re.test(s.text));
+  const stops: Stop[] = [
+    { id: "cancel", word: "Canceled", picto: "closed", done: !!trip?.canceledAt, alert: true },
+    { id: "free", word: "Free check", picto: "refund", done: has(/free rebooking/i) },
+    { id: "search", word: "Searched", picto: "depart", done: has(/^searched/i) },
+    { id: "listings", word: "Listings", picto: "agent", done: has(/listing/i) },
+    { id: "ranked", word: "Ranked", picto: "reroute", done: offers.length > 0 },
+    { id: "blocked", word: "Agent blocked", picto: "closed", done: has(/agent tried/i, "refusal"), alert: true },
+    { id: "booked", word: "Booked", picto: "arrive", done: !!trip?.bookedAt },
+  ];
+  const reached = stops.reduce((n, s, i) => (s.done ? i : n), -1);
+  const fill = reached <= 0 ? 0 : (reached / (stops.length - 1)) * 100;
+
+  return (
+    <section aria-label="Agent progress" className="board px-4 py-5 md:px-6">
+      <ol className="relative grid grid-cols-7 gap-1">
+        {/* The line between stops fills as the run advances. */}
+        <div className="absolute top-[18px] right-[7%] left-[7%] h-1 bg-panel-2" aria-hidden="true">
+          <div className="h-full bg-yellow transition-[width] duration-700 ease-out" style={{ width: `${fill}%` }} />
+        </div>
+        {stops.map((s) => (
+          <li key={s.id} className="relative flex flex-col items-center gap-2 text-center">
+            <span key={`${s.id}-${s.done}`} className={s.done ? "stamp" : ""}>
+              <Pictogram
+                name={s.picto}
+                size={40}
+                label={`${s.word}${s.done ? ", done" : ", not yet"}`}
+                className={s.done ? (s.alert ? "bg-alert! text-ink!" : "bg-yellow! text-ink!") : "bg-panel-2! text-white/30!"}
+              />
+            </span>
+            <span className={`text-xs leading-tight font-bold md:text-sm ${s.done ? "text-white" : "text-white/35"}`}>{s.word}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}

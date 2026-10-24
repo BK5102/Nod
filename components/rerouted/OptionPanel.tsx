@@ -23,12 +23,12 @@ const AX_TO = 29; // 5 PM tomorrow
 const pct = (h: number) => Math.max(0, Math.min(100, ((h - AX_FROM) / (AX_TO - AX_FROM)) * 100));
 
 /** The route as a bar on the same axis as the corridor, with the 9:00 AM deadline as a post. */
-function DeadlineBar({ dep, arr, before }: { dep: number; arr: number; before: boolean }) {
+function DeadlineBar({ dep, arr, before, onBlack = false }: { dep: number; arr: number; before: boolean; onBlack?: boolean }) {
   return (
     <div className="relative mt-3 h-3" aria-hidden="true">
-      <div className="absolute inset-x-0 top-1/2 h-px bg-ink/30" />
-      <div className={`bar-in absolute top-0 h-3 ${before ? "bg-ink" : "ring-2 ring-ink ring-inset"}`} style={{ left: `${pct(dep)}%`, width: `${pct(arr) - pct(dep)}%` }} />
-      <div className="absolute -top-1.5 -bottom-1.5 w-1 bg-ink" style={{ left: `${pct(21)}%` }} />
+      <div className={`absolute inset-x-0 top-1/2 h-px ${onBlack ? "bg-white/30" : "bg-ink/30"}`} />
+      <div className={`bar-in absolute top-0 h-3 ${before ? (onBlack ? "bg-yellow" : "bg-ink") : onBlack ? "ring-2 ring-yellow ring-inset" : "ring-2 ring-ink ring-inset"}`} style={{ left: `${pct(dep)}%`, width: `${pct(arr) - pct(dep)}%` }} />
+      <div className={`absolute -top-1.5 -bottom-1.5 w-1 ${onBlack ? "bg-white" : "bg-ink"}`} style={{ left: `${pct(21)}%` }} />
     </div>
   );
 }
@@ -56,6 +56,7 @@ export function OptionPanel({
   const delta = arrH !== null ? deadlineDelta(arrH) : null;
   const booked = offer.status === "booked";
   const lead = offer.rank === 1;
+  const free = offer.kind === "free_rebooking";
 
   // Once a flight is booked, every other choice closes, the hotel included: one quiet row, not gone.
   if (locked && !booked) {
@@ -74,22 +75,23 @@ export function OptionPanel({
 
   return (
     <article
-      className={`row-in sign relative grid grid-cols-[auto_1fr] gap-x-4 ${booked ? "outline-4 outline-white" : ""}`}
+      className={`row-in relative grid grid-cols-[auto_1fr] gap-x-4 ${free ? "free board border-4 border-yellow" : "sign"} ${booked ? "outline-4 outline-white" : ""}`}
       style={{ animationDelay: `${offer.rank * 90}ms` }}
       aria-label={`Option ${offer.rank}: ${offer.title}`}
     >
       <div className={`flex flex-col items-start gap-2 pl-4 ${lead ? "py-4" : "py-3"}`}>
-        <span className={`leading-[0.8] font-black tracking-[-0.04em] ${lead ? "text-[4.5rem]" : "text-[3rem]"}`}>{offer.rank}</span>
-        {lead ? <Pictogram name={hotel ? "bed" : "depart"} size={40} /> : null}
+        <span className={`leading-[0.8] font-black tracking-[-0.04em] ${lead ? "text-[4.5rem]" : "text-[2rem]"}`}>{offer.rank}</span>
+        {lead || free ? <Pictogram name={free ? "refund" : hotel ? "bed" : "depart"} size={40} className={free ? "bg-yellow! text-ink!" : ""} /> : null}
       </div>
 
       <div className={`min-w-0 pr-4 ${lead ? "py-4" : "py-3"}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className={`leading-tight font-extrabold tracking-[-0.01em] ${lead ? "text-[1.45rem]" : "text-lg"}`}>{offer.title}</h3>
-            <p className="font-bold text-yellow-soft">{times}</p>
+            {free ? <p className="text-[2.4rem] leading-[0.95] font-black tracking-[-0.03em] text-yellow">Free rebooking</p> : null}
+            <h3 className={`leading-tight font-extrabold tracking-[-0.01em] ${free ? "mt-1 text-base text-white" : lead ? "text-[1.45rem]" : "text-lg"}`}>{free ? offer.merchant : offer.title}</h3>
+            <p className={`font-bold ${free ? "text-soft" : "text-yellow-soft"}`}>{times}</p>
           </div>
-          <p className={`text-right leading-none font-black tracking-[-0.02em] ${lead ? "text-[2.25rem]" : "text-[1.6rem]"}`}>
+          <p className={`text-right leading-none font-black tracking-[-0.02em] ${free ? "hidden" : lead ? "text-[2rem]" : "text-[1.45rem]"}`}>
             <span key={offer.priceCents} className="flap inline-block">{price}</span>
             {voided ? <span className="mt-1 block text-base font-bold text-yellow-soft line-through decoration-2">{money(voided.priceCents)}</span> : null}
           </p>
@@ -97,17 +99,17 @@ export function OptionPanel({
 
         {delta && arrH !== null && depET !== null ? (
           <>
-            <DeadlineBar dep={depET} arr={arrH} before={delta.before} />
-            <p className="mt-1.5 text-sm font-bold">{delta.before ? `Lands ${early} early` : `Lands ${early} late`}</p>
+            <DeadlineBar dep={depET} arr={arrH} before={delta.before} onBlack={free} />
+            <p className={`mt-1.5 text-sm font-bold ${free ? "text-white" : ""}`}>{delta.before ? `Lands ${early} early` : `Lands ${early} late`}</p>
           </>
         ) : null}
 
         {lead && offer.claudeReason && !booked ? <p className="mt-2 line-clamp-2 max-w-[46ch] text-base leading-snug">{offer.claudeReason}</p> : null}
 
-        {!booked && rules.length ? (
+        {!booked && (lead || free) && rules.length ? (
           <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Card rules that apply">
             {rules.map((r) => (
-              <li key={r.id} title={r.reason} className="px-1.5 py-0.5 text-xs font-bold ring-2 ring-ink ring-inset">
+              <li key={r.id} title={r.reason} className={`px-1.5 py-0.5 text-xs font-bold ring-2 ring-inset ${free ? "ring-yellow text-yellow" : "ring-ink"}`}>
                 {chipWord[r.id]}
               </li>
             ))}
@@ -134,9 +136,9 @@ export function OptionPanel({
             type="button"
             disabled={busy}
             onClick={() => onApprove(offer)}
-            className={`mt-3 flex w-full items-center gap-3 bg-ink pl-2.5 text-left font-extrabold text-white transition-[transform,background-color] duration-150 hover:bg-panel-2 active:scale-[0.985] disabled:cursor-wait ${lead ? "py-3 text-xl" : "py-2 text-lg"}`}
+            className={`mt-3 flex w-full items-center gap-3 pl-2.5 ${free ? "bg-yellow text-ink! hover:bg-yellow-deep" : "bg-ink"} text-left font-extrabold text-white transition-[transform,background-color] duration-150 hover:bg-panel-2 active:scale-[0.985] disabled:cursor-wait ${lead ? "py-3 text-xl" : "py-2 text-lg"}`}
           >
-            <Pictogram name="card" size={lead ? 36 : 30} className="bg-yellow! text-ink!" />
+            <Pictogram name="card" size={lead ? 36 : 30} className={free ? "" : "bg-yellow! text-ink!"} />
             {busy ? "Checking your card" : `Approve ${offer.priceCents === 0 ? "free rebooking" : price}`}
           </button>
         )}
