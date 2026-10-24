@@ -35,7 +35,6 @@ export function VoteCard({ invoiceId, compact = false }: { invoiceId: string; co
   const [approvals] = useTable(tables.approval.where((r) => r.invoiceId.eq(invoiceId)));
   const inv = invoices[0];
   const [noise, setNoise] = useState(0.8);
-  const [fatigue, setFatigue] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [pressed, setPressed] = useState(false);
@@ -49,7 +48,7 @@ export function VoteCard({ invoiceId, compact = false }: { invoiceId: string; co
   );
   const attempt = round.length + 1;
   const windowMs = confirmWindowFor(Math.min(attempt, MAX_ATTEMPTS));
-  const traces = useMemo(() => tracesFor(invoiceId, attempt, noise, fatigue ? 0.6 : 0), [invoiceId, attempt, noise, fatigue]);
+  const traces = useMemo(() => tracesFor(invoiceId, attempt, noise, 0), [invoiceId, attempt, noise]);
   const shown = pressed ? traces.yes : traces.no;
   const last = round[round.length - 1];
   const open = inv?.status === "awaiting_approval";
@@ -127,7 +126,7 @@ export function VoteCard({ invoiceId, compact = false }: { invoiceId: string; co
         <span className="bg-tabled px-2 py-0.5 text-xs font-bold text-ink">SIMULATED signal</span>
       </div>
       <p className="mt-1 text-sm text-ink-soft">
-        One slow switch. Hold Space, or hold the button, during the window for yes. Do nothing for no.
+        A synthetic signal stands in for one slow, shaky input, like a single button press. It is not a real device and makes no accuracy claim. Hold Space, or the button, during the window for yes; do nothing for no.
       </p>
 
       <div className="mt-4">
@@ -152,16 +151,10 @@ export function VoteCard({ invoiceId, compact = false }: { invoiceId: string; co
       </dl>
 
       {!compact && (
-        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <label className="block">
-            <span className="text-ink-soft">Signal noise {noise.toFixed(1)}</span>
-            <input type="range" min={0.2} max={1.4} step={0.1} value={noise} onChange={(e) => setNoise(Number(e.target.value))} className="mt-1 w-full accent-[var(--ink)]" disabled={phase !== "idle"} />
-          </label>
-          <label className="flex items-center gap-2 self-end">
-            <input type="checkbox" checked={fatigue} onChange={(e) => setFatigue(e.target.checked)} disabled={phase !== "idle"} className="h-4 w-4 accent-[var(--ink)]" />
-            <span>Late in the day (fatigue)</span>
-          </label>
-        </div>
+        <label className="mt-4 block text-sm">
+          <span className="text-ink-soft">Signal noise {noise.toFixed(1)}</span>
+          <input type="range" min={0.2} max={1.4} step={0.1} value={noise} onChange={(e) => setNoise(Number(e.target.value))} className="mt-1 w-full accent-[var(--ink)]" disabled={phase !== "idle"} />
+        </label>
       )}
 
       <div className="mt-4">
