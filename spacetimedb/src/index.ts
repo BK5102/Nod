@@ -20,6 +20,7 @@ import {
   type Ctx,
 } from './ops';
 import { openingEntry, ACCOUNTS } from './core/ledger';
+import { AUTO_PAY_MANDATE_CENTS, EARNED_AUTONOMY } from './core/autonomy';
 import { verifyChain } from './core/chain';
 import type { Receipt, RuleResult, Tier } from './core/types';
 
@@ -201,7 +202,7 @@ export const seedCompany = spacetimedb.reducer({ json: t.string() }, (ctx, { jso
     ctx.db.purchaseOrder.insert({ poId: p.id, vendorId: p.vendor_id, number: p.number, amountCents: p.amount_cents, description: p.description, status: p.status, createdAt: p.created_at });
   }
   ctx.db.simClock.insert({ id: 1, asOf: c.as_of, closedThrough: '', bankOutage: false, openingBalanceCents: c.opening_balance_cents });
-  ctx.db.autonomyState.insert({ id: 1, cleanStreak: 0, rung: 0, ceilingCents: 0, updatedAt: c.as_of });
+  ctx.db.autonomyState.insert({ id: 1, cleanStreak: 0, rung: 0, ceilingCents: EARNED_AUTONOMY ? 0 : AUTO_PAY_MANDATE_CENTS, updatedAt: c.as_of });
   ctx.db.canaryStats.insert({ id: 1, presented: 0, caught: 0, missed: 0 });
   const open = openingEntry(c.opening_balance_cents, '2026-01-01T00:00:00.000Z');
   const row = ctx.db.journalEntry.insert({ id: 0n, invoiceId: '', memo: open.memo, postedAt: open.posted_at });

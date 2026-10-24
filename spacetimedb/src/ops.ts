@@ -6,7 +6,7 @@ import { checkSources } from './core/sources';
 import { decideApproval, confirmWindowFor } from './core/protocol';
 import { classify } from './core/classifier';
 import { assertBalanced, paymentEntries } from './core/ledger';
-import { applyAutonomyEvent, LADDER } from './core/autonomy';
+import { applyAutonomyEvent, EARNED_AUTONOMY, LADDER } from './core/autonomy';
 import { hashReceipt, GENESIS_HASH } from './core/chain';
 import { addDays, daysBetween, formatCents } from './core/money';
 import type {
@@ -427,6 +427,7 @@ function autonomyOnly(d: { finalTier: string; rulesJson: string; claudeJson: str
 }
 
 function bumpAutonomy(ctx: Ctx, event: 'clean_approval' | 'overturned') {
+  if (!EARNED_AUTONOMY) return; // fixed mandate for the demo
   const a = ctx.db.autonomyState.id.find(1)!;
   const next = applyAutonomyEvent(
     { clean_streak: a.cleanStreak, rung: a.rung, auto_pay_ceiling_cents: a.ceilingCents, updated_at: a.updatedAt },

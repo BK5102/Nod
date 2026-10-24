@@ -246,16 +246,17 @@ const heightened: Rule = ({ vendor, as_of }) => {
 
 const autonomy: Rule = ({ invoice, autonomy }) => {
   const fired = invoice.amount_cents > autonomy.auto_pay_ceiling_cents;
+  const limit = formatCents(autonomy.auto_pay_ceiling_cents);
   return {
     id: "autonomy",
-    label: "Autonomy",
+    label: "Auto-pay limit",
     fired,
     tier: fired ? "ASK" : "AUTO",
     reason: fired
       ? autonomy.auto_pay_ceiling_cents === 0
-        ? "Nod has not earned auto-pay yet. Every payment needs a person."
-        : `${formatCents(invoice.amount_cents)} is over the earned auto-pay ceiling of ${formatCents(autonomy.auto_pay_ceiling_cents)}.`
-      : `Within the earned auto-pay ceiling of ${formatCents(autonomy.auto_pay_ceiling_cents)}.`,
+        ? "Nod has no auto-pay limit yet. Every payment needs a person."
+        : `${formatCents(invoice.amount_cents)} is over Nod's auto-pay limit of ${limit}.`
+      : `Within Nod's auto-pay limit of ${limit}.`,
   };
 };
 

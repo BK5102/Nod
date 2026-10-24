@@ -17,7 +17,7 @@ const DECISION: Record<string, { word: string; cls: string }> = {
 };
 
 const PERMISSIONS: { role: string; may: string; never: string }[] = [
-  { role: "Nod (agent)", may: "Take in bills, request payment, pay bills inside its earned ceiling, settle with the bank", never: "Approve, change bank details, close the books, take a human seat" },
+  { role: "Nod (agent)", may: "Take in bills, request payment, pay bills inside its $2,500 auto-pay limit, settle with the bank", never: "Approve, change bank details, close the books, take a human seat" },
   { role: "Approver (Maya, Rosa)", may: "Give or withhold a yes", never: "Move money, change bank details" },
   { role: "Controller (Luis)", may: "Call vendors back, change bank details, close a month", never: "Approve a payment" },
   { role: "Auditor", may: "Read everything, ask why", never: "Change anything" },
@@ -112,16 +112,6 @@ export function Books() {
             <div className="flex items-baseline justify-between gap-4">
               <dt className="text-ink-soft">Asked again on a weak signal</dt>
               <dd className="font-bold tabular-nums">{reconfirms}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-ink-soft">Refused or held</dt>
-              <dd className="font-bold tabular-nums">
-                {refusals} of {finals.length}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-ink-soft">Median time to answer</dt>
-              <dd className="font-bold tabular-nums">{latency === null ? "-" : `${(latency / 1000).toFixed(1)} s`}</dd>
             </div>
           </dl>
           <p className="mt-3 text-sm text-ink-soft">Planted bills never pay, even when approved. History is simulated.</p>
@@ -292,16 +282,10 @@ function SimControls({ outage, asOf }: { outage: boolean; asOf: string }) {
       <h2 id="sim-h" className="text-lg font-bold">
         Simulation controls
       </h2>
-      <p className="mt-1 text-sm text-ink-soft">Run as the demo operator. Today is {longDate(asOf)}.</p>
+      <p className="mt-1 text-sm text-ink-soft">SIMULATED. Run as the demo operator. Shows that a bank failure never pays twice and never posts to the ledger.</p>
       <div className="mt-3 grid gap-2">
-        <Button variant="outline" disabled={busy} onClick={() => act({ action: "advance_days", days: 3 }, "Three days passed. Stalled approvals were chased.")}>
-          Let three days pass
-        </Button>
         <Button variant="outline" disabled={busy} onClick={() => act({ action: "outage", on: !outage }, outage ? "The bank is back." : "The bank is down. Payments will fail and wait.")}>
           {outage ? "End the bank outage" : "Take the bank down"}
-        </Button>
-        <Button variant="outline" disabled={busy} onClick={() => act({ action: "inject_canary" }, "A planted bad bill is in Maya's queue.")}>
-          Plant an attention check
         </Button>
       </div>
       {note && <p className="mt-2 text-sm">{note}</p>}

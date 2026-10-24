@@ -63,7 +63,7 @@ export function ApproveQueue() {
                   </td>
                   <td className="py-3 pr-3">
                     <span className={cn("px-1.5 py-0.5 text-xs font-bold", d?.finalTier === "HOLD" ? "bg-tabled" : "bg-paper-raised")}>{TIER_WORDS[d?.finalTier ?? "ASK"]}</span>
-                    <span className="mt-1 block text-ink-soft">{fired.map((x) => x.label).join(", ") || "Over the earned auto-pay ceiling"}</span>
+                    <span className="mt-1 block text-ink-soft">{fired.map((x) => x.label).join(", ") || "Over the auto-pay limit"}</span>
                   </td>
                   <td className="py-3 pr-3 tabular-nums">
                     {waited === 0 ? "Today" : `${waited} ${waited === 1 ? "day" : "days"}`}

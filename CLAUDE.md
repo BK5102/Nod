@@ -102,7 +102,8 @@ Classifier confidence p(approve): at least 0.85 is accepted after the confirm wi
 - Every Claude call returns JSON validated by a zod schema, with one retry on invalid output.
 - Prose, UI copy and comments: plain and specific. No em dashes, no emojis.
 - Commit to `main` in small commits. Do not create branches unless asked.
-- Commands: `pnpm dev`, `pnpm test`, `pnpm seed`, `pnpm eval`.
+- Commands: `pnpm dev`, `pnpm test`, `pnpm seed` (also `pnpm demo:reset`).
+- Cut for the demo: the earned-autonomy ladder (behind EARNED_AUTONOMY, off; Nod uses a fixed $2,500 auto-pay limit), the replay clock (NOD_SIM_CLOCK), the CRS identity check, and the eval curve.
 
 ## Proof table (goes at the top of the README; the app's "What is real" panel reads this table)
 

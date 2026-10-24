@@ -1,7 +1,14 @@
 import type { AutonomyState } from "./types";
 
 /**
- * The earned-autonomy ladder. Rung 0: every payment needs a person.
+ * Off for the demo: Nod works inside a fixed auto-pay mandate. The ladder below is kept behind this
+ * flag and is not shown in the app.
+ */
+export const EARNED_AUTONOMY = false;
+export const AUTO_PAY_MANDATE_CENTS = 250_000; // $2,500
+
+/**
+ * The earned-autonomy ladder (behind EARNED_AUTONOMY). Rung 0: every payment needs a person.
  * A rung is earned by a streak of clean outcomes: payments Nod would have auto-paid at the next
  * rung, which a person then approved. One overturned payment resets the streak and drops a rung.
  * HOLD cases never auto-pay at any rung; that is enforced by the tier, not here.

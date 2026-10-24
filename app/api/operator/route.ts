@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic";
 
 type In = { action: "advance_days"; days: number } | { action: "outage"; on: boolean } | { action: "inject_canary" };
 
+// The replay clock and extra canaries are off for the demo (scope cut). Set NOD_SIM_CLOCK=1 to allow them.
+const EXTRAS = process.env.NOD_SIM_CLOCK === "1";
+
 /** Simulation controls, run as the operator identity. Labeled SIMULATED in the UI. */
 export async function POST(req: Request) {
   try {
@@ -16,6 +19,7 @@ export async function POST(req: Request) {
     const op = await connection("operator");
     const c = op.db.simClock.id.find(1);
     if (!c) throw new Error("The database has not been seeded");
+    if ((b.action === "advance_days" || b.action === "inject_canary") && !EXTRAS) throw new Error("That simulation control is turned off for this demo.");
     if (b.action === "advance_days") {
       const days = Math.max(1, Math.min(60, Math.round(b.days)));
       await op.reducers.setClock({ asOf: addDays(c.asOf, days) });
