@@ -65,7 +65,7 @@ function textSprite(lines: { text: string; weight: number; size: number; color: 
     w = Math.max(w, ctx.measureText(l.text).width);
     h += l.size * scale * 1.15;
   }
-  c.width = Math.ceil(w + pad * 2);
+  c.width = Math.ceil(w * 1.06 + pad * 2 + 4);
   c.height = Math.ceil(h + pad * 2);
   if (opts.bg) {
     ctx.fillStyle = opts.bg;
@@ -416,7 +416,7 @@ export class Corridor {
           group.position.y = -3.2 * e;
           tube.material.opacity = 1 - 0.75 * e;
           (endCap.material as THREE.MeshBasicMaterial).opacity = 1 - 0.75 * e;
-          (s.material as THREE.SpriteMaterial).opacity = 1 - 0.55 * e;
+          (s.material as THREE.SpriteMaterial).opacity = 1 - e;
         },
         delay + 2000,
       );

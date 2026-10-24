@@ -109,6 +109,9 @@ export interface RerouteSource {
   actions: RerouteActions;
   mode: "mock" | "live";
   connected: boolean;
+  seatError?: string | null;
+  /** Why the page fell back to mock data, when it did. */
+  fallbackReason?: string;
 }
 
 export function parseRules(json: string): RuleHit[] {

@@ -5,13 +5,51 @@ import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { OptionPanel, SetAside, type Stamp } from "./OptionPanel";
 import { Board, MandateSign, ReceiptSlip } from "./Panels";
 import { SignBand } from "./SignBand";
-import type { Offer } from "./types";
-import { useRerouted } from "./useRerouted";
+import { LiveProvider, STDB_DB, useLive } from "./live";
+import type { Offer, RerouteSource } from "./types";
+import { useMock } from "./useRerouted";
 
 const NEW_PRICE = 41200;
 
+/**
+ * Live when the browser has a database name, unless ?mock=1. If the live database sends no trip
+ * within 8 seconds (not published yet, wrong name, offline), the page says so and runs the mock.
+ */
 export function RerouteApp() {
-  const { state, actions, mode } = useRerouted();
+  const [choice, setChoice] = useState<{ mode: "live" | "mock"; reason?: string } | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("mock") === "1") setChoice({ mode: "mock" });
+    else if (!STDB_DB) setChoice({ mode: "mock", reason: "No database is configured for this page." });
+    else setChoice({ mode: "live" });
+  }, []);
+  const fallBack = useCallback((reason: string) => setChoice({ mode: "mock", reason }), []);
+  if (!choice) return <div className="min-h-dvh bg-ink" />;
+  if (choice.mode === "mock") return <MockApp reason={choice.reason} />;
+  return (
+    <LiveProvider>
+      <LiveApp onFail={fallBack} />
+    </LiveProvider>
+  );
+}
+
+function MockApp({ reason }: { reason?: string }) {
+  return <RerouteView source={useMock(reason)} />;
+}
+
+function LiveApp({ onFail }: { onFail: (reason: string) => void }) {
+  const source = useLive();
+  const hasTrip = !!source.state.trip;
+  useEffect(() => {
+    if (hasTrip) return;
+    const id = setTimeout(() => onFail("The live database did not answer within 8 seconds."), 8000);
+    return () => clearTimeout(id);
+  }, [hasTrip, onFail]);
+  return <RerouteView source={source} />;
+}
+
+function RerouteView({ source }: { source: RerouteSource }) {
+  const { state, actions, mode } = source;
   const { trip, mandate, offers, steps, receipts } = state;
   const [stamps, setStamps] = useState<Record<string, Stamp>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -174,7 +212,9 @@ export function RerouteApp() {
           </p>
           <p>
             <span className="font-bold text-white">Simulated:</span> the cancellation, the flights and hotels (fictional names), the card token and the payment. No Visa API is
-            called and no money moves. {mode === "mock" ? "This page is running on mock data until the backend is connected." : null}
+            called and no money moves.{" "}
+            {mode === "mock" ? `This page is running on mock data${source.fallbackReason ? `: ${source.fallbackReason}` : "."}` : null}
+            {source.seatError ? ` Could not take the traveler seat: ${source.seatError}` : null}
           </p>
         </div>
       </footer>

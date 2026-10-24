@@ -1,6 +1,6 @@
 "use client";
 
-import { clockHours, deadlineDelta, money } from "./format";
+import { clockHours, deadlineDelta, money, timeOnly } from "./format";
 import { Pictogram } from "./Pictogram";
 import { parseRules, type Offer } from "./types";
 
@@ -38,7 +38,7 @@ export function OptionPanel({
       <article className="row-in board grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-3 px-4 py-3" aria-label={`Option ${offer.rank}, not needed`}>
         <span className="text-2xl font-black text-soft">{offer.rank}</span>
         <p className="text-lg font-bold text-soft">
-          {offer.merchant} <span className="font-semibold">{offer.title}</span>
+          {offer.title}
         </p>
         <p className="text-sm font-semibold text-soft">Not needed now</p>
       </article>
@@ -69,7 +69,9 @@ export function OptionPanel({
         </div>
 
         <p className="mt-2 text-lg font-bold">
-          {hotel ? `${offer.departs} · ${offer.arrives}` : `${offer.departs.replace("tomorrow ", "Tomorrow ")} SFO  ·  lands ${offer.arrives} JFK`}
+          {hotel
+            ? [offer.departs, offer.arrives].filter(Boolean).join(" · ") || "Tonight, near SFO"
+            : `${offer.departs.replace(/^tomorrow /, "Tomorrow ")} SFO  ·  lands ${timeOnly(offer.arrives)} JFK`}
         </p>
         {delta ? (
           <p className={`mt-1 inline-flex items-center gap-2 px-2 py-0.5 text-base font-bold ${delta.before ? "bg-ink text-yellow" : "bg-transparent text-ink ring-2 ring-ink ring-inset"}`}>
@@ -138,7 +140,7 @@ export function SetAside({ offers }: { offers: Offer[] }) {
           return (
             <li key={o.offerId} className="row-in grid grid-cols-[1fr_auto] gap-x-4 py-3">
               <p className="text-lg font-bold">
-                {o.merchant} <span className="font-semibold text-soft">{o.title}</span>
+                {o.title}
               </p>
               <p className="font-mono text-lg font-semibold text-soft line-through decoration-alert decoration-2">{money(o.priceCents)}</p>
               <p className="col-span-2 text-base leading-snug text-alert">{o.flagged ? o.flagReason : block?.reason}</p>

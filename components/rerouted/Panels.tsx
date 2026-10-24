@@ -1,5 +1,6 @@
 "use client";
 
+import { verifyReceipts } from "@/spacetimedb/src/core/receipt";
 import { clockOf, money } from "./format";
 import { Pictogram } from "./Pictogram";
 import { parseRules, type AgentStep, type Mandate, type Receipt, type Trip } from "./types";
@@ -100,6 +101,8 @@ const short = (h: string) => `${h.slice(0, 8)}…${h.slice(-6)}`;
 /** The receipt slip, hash-chained: every field a stranger needs to audit the purchase. */
 export function ReceiptSlip({ receipts, trip }: { receipts: Receipt[]; trip: Trip }) {
   if (!receipts.length) return null;
+  // Recomputed in this browser from the public rows: any edit to any receipt breaks the chain.
+  const chain = verifyReceipts(receipts);
   return (
     <section aria-labelledby="receipt" className="row-in bg-white text-ink">
       <div className="flex items-center justify-between gap-3 border-b-4 border-ink px-4 py-3">
@@ -133,6 +136,9 @@ export function ReceiptSlip({ receipts, trip }: { receipts: Receipt[]; trip: Tri
           </dl>
         );
       })}
+      <p className={`px-4 py-2 text-sm font-bold ${chain.ok ? "bg-ink text-go" : "bg-ink text-alert"}`}>
+        {chain.ok ? `Chain verified in this browser: ${receipts.length} receipt${receipts.length === 1 ? "" : "s"}, every hash recomputed.` : `Chain broken: ${chain.reason}`}
+      </p>
       {trip.refundOwedCents ? (
         <p className="flex items-start gap-3 px-4 py-4 text-lg leading-snug font-bold">
           <Pictogram name="refund" size={40} />

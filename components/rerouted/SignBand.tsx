@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { deadlineDelta, clockHours, elapsed } from "./format";
+import { deadlineDelta, clockHours, elapsed, timeOnly } from "./format";
 import { Pictogram, type PictoName } from "./Pictogram";
 import type { Offer, Trip } from "./types";
 
@@ -26,8 +26,8 @@ function message(trip: Trip, offers: Offer[]): { picto: PictoName; lead: string;
       const arr = booked ? clockHours(booked.arrives, 0) : null;
       return {
         picto: "arrive",
-        lead: booked ? `Booked: ${booked.merchant} ${booked.title.toLowerCase()}` : "Booked",
-        big: booked ? `Lands ${booked.arrives}${arr !== null && deadlineDelta(arr).before ? ", before 9:00 AM" : ""}` : "",
+        lead: booked ? `Booked: ${booked.title}` : "Booked",
+        big: booked ? `Lands ${timeOnly(booked.arrives)}${arr !== null && deadlineDelta(arr).before ? ", before 9:00 AM" : ""}` : "",
         tone: "yellow",
       };
     }

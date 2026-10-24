@@ -38,3 +38,6 @@ export function elapsed(fromIso: string, toMs: number): string {
 export function clockOf(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
+
+/** "Tomorrow 6:45 AM" -> "6:45 AM": the day is already clear from the deadline line beside it. */
+export const timeOnly = (text: string) => text.replace(/^(tonight|tomorrow|today)\s+/i, "");
