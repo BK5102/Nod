@@ -225,7 +225,7 @@ const rush: Rule = ({ invoice }, c) => {
     fired,
     tier: fired ? "ASK" : "AUTO",
     reason: fired
-      ? `Due ${fmtDate(invoice.due_date)}, ${Math.max(0, Math.floor(lead))} day(s) after it arrived. Rush requests get a person.`
+      ? `Due ${fmtDate(invoice.due_date)}, ${lead < 1 ? "less than a day" : lead < 2 ? "one day" : `${Math.floor(lead)} days`} after it arrived. Rush requests get a person.`
       : `Due ${fmtDate(invoice.due_date)}.`,
   };
 };

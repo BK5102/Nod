@@ -1,53 +1,43 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
-import { SpacetimeDBProvider } from 'spacetimedb/react';
-import { DbConnection, ErrorContext } from '../src/module_bindings';
-import { Identity } from 'spacetimedb';
+import { useMemo } from "react";
+import { SpacetimeDBProvider } from "spacetimedb/react";
+import { DbConnection } from "@/src/module_bindings";
 
-const HOST =
-  process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'wss://maincloud.spacetimedb.com';
-const DB_NAME = process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME ?? 'nextjs-ts';
-const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
+export const STDB_HOST = process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? "wss://maincloud.spacetimedb.com";
+export const STDB_DB = process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME ?? "";
 
-const onConnect = (_conn: DbConnection, identity: Identity, token: string) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(TOKEN_KEY, token);
+/** Each browser keeps its own identity per role, so the approver and the controller are different callers. */
+export function tokenKey(role: string) {
+  return `nod:${STDB_HOST}/${STDB_DB}/${role}`;
+}
+
+export function readToken(role: string): string | undefined {
+  try {
+    return localStorage.getItem(tokenKey(role)) ?? undefined;
+  } catch {
+    return undefined;
   }
-  console.log(
-    'Connected to SpacetimeDB with identity:',
-    identity.toHexString()
-  );
-};
+}
 
-const onDisconnect = () => {
-  console.log('Disconnected from SpacetimeDB');
-};
+export function saveToken(role: string, token: string) {
+  try {
+    localStorage.setItem(tokenKey(role), token);
+  } catch {
+    // Private mode: the identity lasts for this tab only.
+  }
+}
 
-const onConnectError = (_ctx: ErrorContext, err: Error) => {
-  console.log('Error connecting to SpacetimeDB:', err);
-};
-
-export function Providers({ children }: { children: React.ReactNode }) {
-  const connectionBuilder = useMemo(
+export function Providers({ children, role = "viewer" }: { children: React.ReactNode; role?: string }) {
+  const builder = useMemo(
     () =>
       DbConnection.builder()
-        .withUri(HOST)
-        .withDatabaseName(DB_NAME)
-        .withToken(
-          typeof window !== 'undefined'
-            ? localStorage.getItem(TOKEN_KEY) || undefined
-            : undefined
-        )
-        .onConnect(onConnect)
-        .onDisconnect(onDisconnect)
-        .onConnectError(onConnectError),
-    []
+        .withUri(STDB_HOST)
+        .withDatabaseName(STDB_DB)
+        .withToken(typeof window !== "undefined" ? readToken(role) : undefined)
+        .withAutomaticReconnect()
+        .onConnect((_c, _id, token) => saveToken(role, token)),
+    [role],
   );
-
-  return (
-    <SpacetimeDBProvider connectionBuilder={connectionBuilder}>
-      {children}
-    </SpacetimeDBProvider>
-  );
+  return <SpacetimeDBProvider connectionBuilder={builder}>{children}</SpacetimeDBProvider>;
 }
