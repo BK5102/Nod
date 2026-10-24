@@ -1,0 +1,34 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# next.js
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+
+# env: never commit real keys
+.env
+.env*
+!.env.example
+
+# spacetimedb build output
+spacetimedb/target
+spacetimedb/dist
+spacetimedb/node_modules
+**/spacetime.local.json
+
+# vercel
+.vercel
+
+# local runtime data
+data/runtime-*.json
+
+# design tool scratch
+.impeccable/live
+.impeccable/review
+
+# os
+.DS_Store
+Thumbs.db
