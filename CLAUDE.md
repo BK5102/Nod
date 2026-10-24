@@ -104,16 +104,19 @@ Classifier confidence p(approve): at least 0.85 is accepted after the confirm wi
 - Commit to `main` in small commits. Do not create branches unless asked.
 - Commands: `pnpm dev`, `pnpm test`, `pnpm seed`, `pnpm eval`.
 
-## Proof table (goes at the top of the README)
+## Proof table (goes at the top of the README; the app's "What is real" panel reads this table)
 
 | Component | Real or simulated | How we know |
 | --- | --- | --- |
-| Policy engine, tiers, mandate | Real | Unit tests and the answer-key eval |
-| Claude checks and explanations | Real | Eval against planted errors, baseline comparison |
-| Bank | Sandbox (Nessie) or mock | Adapter logs |
-| Invoices and vendor history | Simulated | Seed script, answer key |
-| Approval signal | Simulated | SIMULATED badge, noise controls |
-| Ledger and reconciliation | Real | Constraint tests and reconcile check |
+| Policy engine, tiers, mandate | Real, runs inside the database | Unit tests; segregation-of-duties checks against the live database |
+| Claude extraction and explanation | Real when ANTHROPIC_API_KEY is set; errors are shown, never faked | Five messy test invoices in scripts/intake-check.ts |
+| Segregation of duties | Real, enforced by SpacetimeDB on the caller's identity | scripts/sod-check.ts |
+| Ledger and reconciliation | Real double entry, checked in a database view | Bank vs ledger difference shown live on Books |
+| Receipts | Real, append-only and hash-chained | Chain verified in a database view on every change |
+| Bank | Simulated: MockBank | Adapter logs and idempotency keys |
+| Vendors and seeded invoices | Simulated: SEEDED fictional data | Marked SEEDED in the app; scripts/seed.ts |
+| Baseline agent | A simple pay-everything agent we wrote | lib/naive.ts |
+| Approval signal | Simulated: synthetic signal with a noise slider | SIMULATED badge; no real device, no accuracy claim |
 
 ## Demo script (about 90 seconds, opens on the moment)
 

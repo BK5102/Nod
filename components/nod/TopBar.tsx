@@ -6,6 +6,7 @@ import { useTable } from "spacetimedb/react";
 import { tables } from "@/src/module_bindings";
 import { longDate } from "@/lib/ui/format";
 import { cn } from "@/lib/utils";
+import { ProofPanel } from "./ProofPanel";
 
 const NAV = [
   { href: "/", label: "Hand Nod an invoice" },
@@ -56,6 +57,7 @@ export function TopBar() {
         <span className="ml-auto text-sm text-ink-soft" title="Simulated company clock">
           {asOf ? `Books as of ${longDate(asOf)}` : "Connecting..."}
         </span>
+        <ProofPanel />
       </div>
     </header>
   );

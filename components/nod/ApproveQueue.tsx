@@ -58,6 +58,7 @@ export function ApproveQueue() {
                     </button>
                     <span className="block text-ink-soft">
                       {r.number}, due {r.dueDate ? day(r.dueDate) : "on receipt"}
+                      {r.extractionMethod === "seed" && <span className="ml-2 text-xs font-bold">SEEDED</span>}
                     </span>
                   </td>
                   <td className="py-3 pr-3">

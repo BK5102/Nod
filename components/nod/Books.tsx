@@ -176,6 +176,7 @@ export function Books() {
                       <Link href={`/invoice?id=${r.invoiceId}`} className="hover:underline">
                         {r.vendorName}
                       </Link>
+                      {invoices.find((i) => i.invoiceId === r.invoiceId)?.extractionMethod === "seed" && <span className="ml-2 text-xs font-bold text-ink-soft">SEEDED</span>}
                     </td>
                     <td className="py-2 pr-2">
                       <span className={cn("px-1.5 py-0.5 text-xs font-bold", DECISION[r.decision]?.cls)}>{DECISION[r.decision]?.word ?? r.decision}</span>
