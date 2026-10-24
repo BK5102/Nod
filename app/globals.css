@@ -1,54 +1,139 @@
 @import "tailwindcss";
 
+/* The terminal sign system. Yellow is the path home and nothing else; black carries information. */
 :root {
-  /* Agenda bond: cool paper the minutes are printed on */
-  --paper: #edf0f3;
-  --paper-raised: #f7f8fa;
-  --ink: #1d2733;
-  --ink-soft: #4a5868;
-  --rule: #c9d0d8;
-  /* Voting card stock */
-  --card-yes: #1e7a52;
-  --card-no: #c23a6b;
-  --card-tabled: #e2a82b;
-  --focus: #1e7a52;
+  --sign-yellow: #ffcc00;
+  --sign-yellow-deep: #f2bf00; /* pressed panels */
+  --sign-black: #0b0b0b;
+  --panel: #1a1a1a;
+  --panel-2: #262626;
+  --panel-rule: #3a3a3a;
+  --surface: #e6e6e6;
+  --white: #ffffff;
+  --on-panel-soft: #b8b8b8; /* secondary text on black, 9:1 */
+  --on-yellow-soft: #3d3300; /* secondary text on yellow, 9:1 */
+  --alert: #ff5a4e; /* only on black */
+  --go: #3ddc84; /* booked, only on black */
 }
 
 @theme inline {
-  --color-paper: var(--paper);
-  --color-paper-raised: var(--paper-raised);
-  --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
-  --color-rule: var(--rule);
-  --color-yes: var(--card-yes);
-  --color-no: var(--card-no);
-  --color-tabled: var(--card-tabled);
-  --font-sans: var(--font-atkinson), system-ui, sans-serif;
+  --color-yellow: var(--sign-yellow);
+  --color-yellow-deep: var(--sign-yellow-deep);
+  --color-ink: var(--sign-black);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-rule: var(--panel-rule);
+  --color-surface: var(--surface);
+  --color-soft: var(--on-panel-soft);
+  --color-yellow-soft: var(--on-yellow-soft);
+  --color-alert: var(--alert);
+  --color-go: var(--go);
+  --font-sans: var(--font-sign), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-board), ui-monospace, monospace;
 }
 
 html {
-  background: var(--paper);
-  color: var(--ink);
-  font-feature-settings: "tnum" 1;
+  background: var(--sign-black);
+  color: var(--white);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--paper);
-  color: var(--ink);
+  margin: 0;
+  background: var(--sign-black);
   font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--card-tabled);
-  color: var(--ink);
+  background: var(--sign-yellow);
+  color: var(--sign-black);
 }
 
 :focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 3px solid var(--sign-yellow);
   outline-offset: 3px;
 }
+.on-yellow :focus-visible,
+.on-yellow:focus-visible {
+  outline-color: var(--sign-black);
+}
 
-a {
-  text-underline-offset: 0.2em;
+* {
+  scrollbar-color: var(--panel-rule) var(--sign-black);
+}
+
+/* A sign panel: square corners, flat, framed by its own edge. */
+.sign {
+  background: var(--sign-yellow);
+  color: var(--sign-black);
+}
+.board {
+  background: var(--panel);
+  color: var(--white);
+}
+
+/* Pictogram in a black inset square, the sign system's signature. */
+.picto {
+  display: inline-grid;
+  place-items: center;
+  background: var(--sign-black);
+  color: var(--white);
+  flex: none;
+}
+
+/* Split-flap band update: the old message folds away, the new one drops in. */
+@keyframes flap-in {
+  from {
+    transform: perspective(600px) rotateX(-80deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.flap {
+  transform-origin: 50% 0;
+  animation: flap-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes row-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.row-in {
+  animation: row-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes stamp {
+  0% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.98);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+.stamp {
+  animation: stamp 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flap,
+  .row-in,
+  .stamp {
+    animation: none;
+  }
 }
