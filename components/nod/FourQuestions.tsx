@@ -33,10 +33,11 @@ export function FourQuestions() {
     <div className="space-y-6">
       <header className="bg-ink p-6 text-paper sm:p-10">
         <p className="max-w-[46ch] text-2xl leading-snug font-bold sm:text-3xl">
-          An accounts payable clerk for a five-person nonprofit that never approves its own payments, knows when to ask, and can defend every decision.
+          A robot bookkeeper that won&apos;t send your money to a scammer&apos;s new bank account.
         </p>
         <p className="mt-4 max-w-[70ch] text-paper/80">
-          Nod at Eastbay Community Pantry, a fictional organization. Every payment carries a receipt of what Nod saw and how reliable the approval was.
+          The seat: an accounts payable clerk with limited access (it cannot approve its own payments or edit vendor bank details), a clean record (a receipt for every decision), and
+          clear rules for when to ask a person. Shown at Eastbay Community Pantry, a fictional organization.
         </p>
       </header>
 
