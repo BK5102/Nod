@@ -1,38 +1,63 @@
 # Nod
 
-An AI that pays vendor invoices and catches the fake bank-detail change before the money leaves.
+A robot bookkeeper that won't send your money to a scammer's new bank account.
 
-Nod is an AI bookkeeper for small organizations. It reads vendor invoices and flags a common scam: a vendor suddenly changing its bank account. Routine invoices go through. Risky ones stop and wait for a person, and a changed bank account always needs a second check. Every decision gets a receipt showing what Nod saw, who approved, and why.
+## One-line explanation
+
+Scammers pretend to be a company you pay and say "we changed our bank account." Nod is a robot bookkeeper that stops and asks a person before sending money to a new account.
+
+## Domain
+
+Accounts payable (paying vendor invoices) for small organizations, with AI agents that can move money.
 
 ## The problem
 
-Scammers email small organizations posing as a vendor and say "we changed our bank account." Busy staff approve out of habit and the money is gone. In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud and 45% cited vendor imposter fraud ([AFP press release, April 15, 2025](https://www.financialprofessionals.org/about/learn-more/press-releases/Details/survey-79-percent-of-organizations-were-victims-of-attempted-or-actual-payments-fraud-activity-in-2024); 521 respondents, surveyed January 2025). Most tools either block too much or approve everything, and none record how reliable an approval was.
+A common invoice scam is a fake "we changed our bank account" message from someone posing as a vendor. In the Association for Financial Professionals' 2025 survey, 79% of organizations faced attempted or actual payments fraud, 63% cited business email compromise, and 45% cited vendor impersonation ([AFP press release, April 15, 2025](https://www.financialprofessionals.org/about/learn-more/press-releases/Details/survey-79-percent-of-organizations-were-victims-of-attempted-or-actual-payments-fraud-activity-in-2024); 521 respondents, surveyed January 2025). Standard advice is to verify bank changes through a second channel, and small, busy teams skip it.
 
-## The seat it fills
+We scope to one thing: vendor invoices where the bank details changed or something else is off. We do not try to be a full accounting system, general fraud detection, or a real brain-computer interface.
 
-Accounts payable clerk and payments specialist at a small organization.
+## Why now
 
-## What is new, and what is not
+As AI agents start releasing payments, the human yes becomes the weak point: people click yes out of habit, and a shaky or accidental yes is treated the same as a careful one. Money lost to these scams is hard to recover, small teams lack controls, and agents that pay need an approval step people can trust. The approval step is where this fails, not the detection.
 
-Detecting vendor bank-change fraud already exists in other accounts payable tools, so we do not claim it is new. Nod automates the out-of-band callback check that busy small teams skip, and it keeps the person who changes vendor data apart from the person who releases payment. What is new is the measured approval (how sure each yes was, stored on the receipt) and the hash-chained receipts.
+## What Nod adds
 
-The single shaky signal approver is a short demo segment and an untested accessibility idea, not a claim about who has this problem.
+Detecting a changed bank account is not new. Mainstream accounts payable tools already do it. What Nod adds is the layer after the flag, in four parts:
+
+1. The agent can never approve its own payment or edit vendor bank details. Roles are enforced in code (in the database, on the caller's identity), not in the UI.
+2. A shaky approval is treated as evidence, not a final yes. Ambiguous signals trigger one re-confirm, and uncertainty defaults to no.
+3. Rules set the risk tier. Claude explains and can only raise a tier, never lower it.
+4. Every decision writes a tamper-evident receipt with the rule that fired, who approved, and how reliable that approval was. A "why did you do this?" box answers only from those receipts and says "not in the record" otherwise.
+
+To our knowledge, other products do not record how reliable an approval was. We have not checked exhaustively.
 
 ## What is real and what is simulated
 
-| Part | Real or simulated | How we know |
+| Component | Real or simulated | How we know |
 | --- | --- | --- |
 | Policy engine, tiers, mandate | Real, runs inside the database | Unit tests; segregation-of-duties checks against the live database |
-| Claude extraction and explanation | Real (needs ANTHROPIC_API_KEY) | Five messy test invoices in `scripts/intake-check.ts` |
-| Segregation of duties | Real, enforced by SpacetimeDB on the caller's identity | `scripts/sod-check.ts` |
-| Ledger and reconciliation | Real double entry, checked in a database view | Bank vs ledger difference shown live |
+| Claude extraction and explanation | Real when ANTHROPIC_API_KEY is set; errors are shown, never faked | Five messy test invoices in scripts/intake-check.ts |
+| Segregation of duties | Real, enforced by SpacetimeDB on the caller's identity | scripts/sod-check.ts |
+| Ledger and reconciliation | Real double entry, checked in a database view | Bank vs ledger difference shown live on Books |
 | Receipts | Real, append-only and hash-chained | Chain verified in a database view on every change |
-| Bank | MockBank (Increase sandbox adapter written, not used in the demo) | Adapter logs, idempotency keys |
-| Vendors and seeded invoices | Seeded, marked SEEDED in the app | `scripts/seed.ts` |
-| The baseline agent | A simple pay-everything agent we wrote | `lib/naive.ts` |
-| Approval signal | SIMULATED, a synthetic signal with a noise slider | SIMULATED badge on screen. No real device, no accuracy claim |
+| Bank | Simulated: MockBank (Increase sandbox adapter written, not used in the demo) | Adapter logs and idempotency keys |
+| Vendors and seeded invoices | Simulated: SEEDED fictional company, vendors and history | Marked SEEDED in the app; scripts/seed.ts |
+| Baseline agent | A simple pay-everything agent we wrote | lib/naive.ts |
+| Approval signal | Simulated: synthetic signal with a noise slider | SIMULATED badge; no real brain-computer interface, no accuracy claim |
 
-Eastbay Community Pantry is a fictional organization. Nod is a prototype.
+## Known limits
+
+- Eastbay Community Pantry is fictional. Its vendors, invoices and history are SEEDED.
+- The approval signal is SIMULATED. It is not a model of any real device, and we make no accuracy claim.
+- The bank is MockBank. No real money moves.
+- Seats are demo seats: any visitor can sit as the approver or the controller. Only the agent and operator seats are locked. Production needs real sign-in.
+- The planted errors and their answer key were written by us, so passing them shows the system does what we designed, not that it catches unseen fraud.
+- Claude's extraction and explanations need an API key and a network connection. When Claude fails, the app shows the error and pays nothing.
+- One organization, one currency (USD), no partial payments, no credit notes.
+
+## The seat it fills
+
+An accounts payable clerk for a five-person nonprofit that never approves its own payments, knows when to ask, and can defend every decision.
 
 ## Run it
 

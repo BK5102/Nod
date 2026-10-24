@@ -41,7 +41,7 @@ Invoices arrive as PDF, email text and images. Vendors, purchase orders and a ba
 
 ## Brand Commitments
 
-Name: Nod. Tagline: "An AI that pays vendor invoices and catches the fake bank-detail change before the money leaves." Copy is plain and specific. No em dashes, no emojis.
+Name: Nod. Tagline: "A robot bookkeeper that won't send your money to a scammer's new bank account." Copy is plain and specific. No em dashes, no emojis.
 
 ## Evidence on Hand
 

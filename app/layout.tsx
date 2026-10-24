@@ -10,7 +10,7 @@ const atkinson = Atkinson_Hyperlegible({
 
 export const metadata: Metadata = {
   title: "Nod",
-  description: "An AI that pays vendor invoices and catches the fake bank-detail change before the money leaves.",
+  description: "A robot bookkeeper that won't send your money to a scammer's new bank account.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
