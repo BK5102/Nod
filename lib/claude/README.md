@@ -1,1 +1,1 @@
-Claude calls (extraction, escalation check, auditor), zod-validated, server-side only.
+Claude calls (extraction, review and explanation, why box auditor, simulated controller call). zod-validated, 19 second budget, server-side only, no canned fallback in the app.

@@ -1,1 +1,1 @@
-Offline scripts: seed data, eval runs, invoice file rendering.
+seed.ts (demo reset through reducers), seed-public.ts (SF public data model), sod-check.ts, moment-check.ts, intake-check.ts (needs the Anthropic key), inspect.ts, shot.ts (live screenshots), secret-check.sh, render_samples.py (phone-photo sample).

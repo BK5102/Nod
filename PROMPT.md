@@ -1,5 +1,7 @@
 # PROMPT.md: kickoff prompt and follow-ups for Claude Code
 
+> Status (Oct 24, 2026): this is the original kickoff prompt, kept for history. The build followed it in spirit but changed in places: SpacetimeDB replaced Supabase, the scope narrowed to trusting the human yes, and the earned-autonomy ladder, replay clock, CRS check and eval curve were cut. CLAUDE.md and README.md describe what was actually built.
+
 Put `CLAUDE.md` in the repo root first. Then paste the master prompt below as your first message.
 
 ## Master prompt

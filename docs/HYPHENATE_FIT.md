@@ -1,66 +1,46 @@
-# Hyphenate track fit: line-by-line
+# Hyphenate track fit
 
-Source: CalHacks_Hyphenate_Track.pdf. Each line of the brief, what Nod had in the original plan, and what we added so the answer is "yes, and here is the proof on screen".
-
-Legend: HAVE = in the original CLAUDE.md plan. ADD = gap, now built. BEYOND = past what the line asks.
+Source: CalHacks_Hyphenate_Track.pdf. How each part of the brief is answered by what is built today (Oct 24, 2026). Where something was cut, it says so.
 
 ## Framing
 
-| Brief says | Nod | Status |
-| --- | --- | --- |
-| "Systems that pick up work on their own" | Nod watches the intake (email, PDF, scans, a volunteer's half-entered bills) and works the queue without being prompted: ingest, match, tier, pay, chase stalled approvals. | HAVE + ADD (stall chasing) |
-| "Explainable when someone asks and accountable whenever someone looks back" | Why-box answers only from the hash-chained receipt record; every receipt names the rule, data and person behind the call. | HAVE |
-| "A single refund changes revenue, cash... every number has to agree" | Every payment posts two balanced entries (bill, payment); bank vs ledger reconciles live; AP subledger rolls up to the GL control account. | HAVE + ADD (subledger tie-out) |
-| "Nothing moves without the right person's sign-off" | Tiers, approval protocol, controller callback on HOLD, SoD enforced in API and in SQL. | HAVE |
-| "Pick a company and one corner... a few seats that work closely together" | Eastbay Community Pantry. Seats: **AP clerk** (intake, 3-way match, coding) and **payments specialist** (pay run, bank reconciliation, chasing approvals). Plural seats, one system. | ADD (second seat made explicit) |
-| "The software it uses, the people it answers to, the mistakes hiding in its data" | Bank adapter (Nessie or mock), ledger, vendor master, POs, vendor contracts; approver, controller, backup approver, auditor; 12 planted errors with an answer key. | HAVE + ADD (contracts, backup approver) |
-| "Imaginative about who the company is, strict about how it works underneath" | Food bank whose finance lead approves with one switch. Strict: SQL constraints, append-only receipts, period locks. | HAVE |
+| Brief says | Nod |
+| --- | --- |
+| Systems that pick up work on their own | Nod takes in an invoice, matches vendor, PO and contract, tiers it, pays routine bills inside its limit, and stops for a person on anything risky. |
+| Explainable when asked, accountable when someone looks back | Every decision writes a hash-chained receipt (rule, tier, who approved, approval reliability). The why box answers only from receipts. |
+| Every number has to agree | Two balanced journal entries per payment; bank vs ledger reconciliation and receipt-chain verification run in database views. |
+| Nothing moves without the right sign-off | Tiers, the approval protocol, and a controller callback on HOLD, all enforced in SpacetimeDB reducers. |
+| Pick a company and a corner of its finance team | Eastbay Community Pantry (fictional), the accounts payable seat: a clerk with limited access, a clean record, and clear rules for when to ask. |
+| Strict about how it works underneath | Roles checked on the caller's identity in the database; append-only receipts; default to no. |
 
 ## What makes it hard
 
-| Brief says | Nod | Status |
-| --- | --- | --- |
-| **Sources that disagree** "bank, ledger and contract each tell a different story... know which to trust, and say why" | New **source check** on every invoice: invoice vs PO vs vendor contract (rate card) vs vendor master vs bank history. A fixed system-of-record table decides who wins each field (vendor master for bank details, contract for price, PO for authorization, bank for what was actually paid) and the reason is printed. Claude adds a "trusted source and why" line. | ADD (big) |
-| **Time** "What happened in March should change what the system does in June" | Simulated clock and replay. A vendor stopped in March sits under stricter review until a set date; June invoices from it get a person. Period close locks past months; a late March bill arriving in June posts to June with a note. | HAVE + ADD (period close) |
-| **Working with others** "Approvers are busy" | Approvals that sit past the nudge window get a reminder, then escalate to the backup approver. Both are logged. | ADD |
-| "Colleagues hand work over half done" | A volunteer intake path delivers bills with missing PO, missing coding or no due date. Nod finishes them and records which field it filled from which source. | ADD |
-| "The controller sometimes says no" | Controller callback can return "mismatch" (or a model-played controller calls the vendor's number on file). Nod holds, puts the vendor under stricter review, and drafts the verification note. | HAVE + ADD (model-played controller) |
-| "Ask at the right moment and handle the answer" | Tiers decide when; the approval protocol handles noisy answers; default to no. | HAVE |
-| **Limits** "No one gets access to everything" | Explicit permission matrix per role, enforced server-side and shown on screen. Agent cannot approve, cannot change bank details, cannot close a period. Every denied attempt is written to the audit trail. | HAVE + ADD (matrix, denied-attempt log) |
-| "Whoever requests a payment can't be the one who approves it" | API 403 + SQL trigger + test. | HAVE |
-| **Explainable and accountable** "trace back to the data, rule or person... no matter how long ago" | Receipts cite rule ids, source fields and actor ids. Why-box works on a March payment from June. | HAVE |
-
-## Sample workflow: Accounts Payable
-
-"Bills arrive in every format" = PDF, email, scanned image, pasted text, volunteer handoff. HAVE.
-"Approvals stall" = nudge then escalate. ADD.
-"A vendor's bank details change the day before a large payment" = the demo's opening moment. HAVE.
+| Brief says | Nod |
+| --- | --- |
+| Sources that disagree: know which to trust, and say why | A source check on every invoice compares invoice, PO, contract, vendor record and bank history against a fixed system-of-record table, with the reason printed. |
+| Time: March should change June | A vendor stopped by the controller is under stricter review for 120 days. The replay clock UI is cut. |
+| Working with others: approvers are busy, the controller says no | Stalled approvals are nudged and escalated in the module (sweep). The controller can say no on a callback, which holds the bill and tightens review. |
+| Limits: whoever requests a payment cannot approve it | The database refuses the agent's approval; the app shows "Agent cannot approve" live. |
+| Explainable and accountable | Receipts plus the why box; "not in the record" when there is nothing to cite. |
 
 ## How they judge
 
-| Question | What they will see |
+| Question | What they see |
 | --- | --- |
-| Is it real enough? | Messy invoices in four formats; vendor contracts; 6 months of history; a ledger that reconciles; 12 planted errors with an answer key; live eval chart. |
-| Would you hire it? For which seats? | One line: "AP clerk and payments specialist at a small nonprofit." Permission matrix on screen; receipt chain verified live; interruption rate vs wrong payments chart (knowing when to ask). |
-| Did we see something new? | Measuring the approver: canary invoices, signal confidence stored on every receipt, approval that stays safe on a noisy single-switch signal. Earned autonomy ladder. |
-| The moment: "catches what others missed" | Changed bank details: naive agent pays, Nod holds. Line items that do not sum, look-alike email domain: rules miss, Claude catches. |
-| "recovers from something going wrong" | ADD: bank outage mid-payment. No double payment (idempotency key), ledger posts only after the bank confirms, invoice returns to the pay queue, reconcile stays green. |
-| "defends a decision when questioned" | Why-box on any receipt, answered from the record only, with "not in the record" otherwise. |
+| Is it real enough? | Their own invoice through the live intake; seeded data labeled SEEDED, amounts modeled on SF public vendor payments; the What is real panel. |
+| Would you hire it? | The seat line; the database refusing self-approval; counts of bills paid alone versus asked; receipts. |
+| Did we see something new? | Approval reliability on every receipt; the SIMULATED single-switch segment with re-confirm and default to no; one canary with a catch counter. Bank-change detection is not claimed as new. |
+| The moment | Catches (baseline pays, Nod holds, 3D money route), recovers (bank fails once, paid exactly once), defends (why box from receipts). |
 
 ## What to submit
 
 | Ask | Where |
 | --- | --- |
-| Demo video that opens with the moment | Demo script in CLAUDE.md, step 1 is the moment. |
-| Live demo, "we may ask you to try a scenario of our own" | Scenario panel: paste or upload any invoice, change a vendor's bank, make the approver busy, make the controller say no, cause a bank outage. All at runtime. |
-| One line on the seats | README first line and the app header. |
-| Proof it works | Proof table at the top of the README and on the Proof screen; `pnpm test`, `pnpm eval`. |
+| Demo video opening with the moment | Not recorded yet. Follow the pitch script in README.md. |
+| Live demo, possibly with their scenario | `/intake` takes any invoice at runtime. |
+| One line on the seats | README "The seat". |
+| Proof it works | README "What is real and what is simulated" and "Questions a judge may ask"; tests and scripts listed in CLAUDE.md. |
 
-## Key concepts checklist
+## Cut on purpose
 
-Double entry (HAVE), general ledger (HAVE), chart of accounts (ADD: shown on Ledger screen), journal entry (HAVE), subledger (ADD: AP subledger by vendor, tied to GL 2000), system of record (ADD: source check table), reconciliation (HAVE), period close (ADD), materiality (ADD: PO tolerance is named the materiality threshold and shown), internal controls (ADD: controls list with live pass/fail), segregation of duties (HAVE), audit trail (HAVE, plus denied attempts), controller (HAVE).
-
-## Things only you can do
-
-- Go to the Hyphenate workshop tonight, Oct 23, 7 pm. Ask which AP exceptions they see most; we can plant one more error that matches.
-- Talk to the Hyphenate team at the booth about the seat line, and ask whether they prefer a sandbox (Increase is on their list) over Nessie.
+Earned-autonomy ladder (flag, off), replay clock (flag, off), CRS identity check, evaluation curve, real sign-in.

@@ -8,52 +8,50 @@ web
 
 ## Stack
 
-Next.js (App Router), TypeScript strict, Tailwind, shadcn/ui, Supabase, Anthropic API, Vercel. Decided in CLAUDE.md before the build.
+Next.js (App Router), TypeScript strict, Tailwind, hand-installed shadcn/ui, SpacetimeDB (TypeScript module, Maincloud), Anthropic API, three.js, Vercel. Decided before the build; SpacetimeDB replaced Supabase on Oct 23, 2026.
 
 ## Users
 
-Primary: the finance lead at Eastbay Community Pantry (fictional), a small food-bank nonprofit. In the demo's stress test they can approve only with one slow, shaky signal, such as a single button press (SIMULATED). Their job is to sign off on the few payments that actually matter without being buried in clicks, and without an accidental "yes" moving money.
+Primary: anyone who pays vendors with a small team and limited controls, such as small nonprofits, clubs, family businesses and small offices. The demo shows Eastbay Community Pantry, a fictional organization, with a finance lead who approves and a controller who calls vendors back.
 
-Secondary: a controller who does out-of-band callbacks on HOLD payments, and an auditor who asks why a payment happened months later.
-
-Evaluating audience: Cal Hacks 13.0 judges (Hyphenate, Microsoft, Capital One) watching a 90-second live demo, who may paste their own invoice.
+Evaluating audience: Cal Hacks 13.0 judges (Hyphenate, Spacetime, Microsoft) watching a live demo, who may hand over their own invoice.
 
 ## Product Purpose
 
-Nod is an accounts payable agent. It pays vendor invoices within a mandate, asks a human only when deterministic rules say it matters, treats a noisy approval as evidence rather than a click, and writes a hash-chained receipt for every decision. Success: zero wrong payments on the planted-error set with fewer interruptions than a rules-only agent, and approvals whose trustworthiness is measured, not assumed.
+Nod is a robot bookkeeper that won't send your money to a scammer's new bank account. It reads vendor invoices, lets rules set the risk tier, pays routine bills inside a fixed limit, and stops for a person before paying a new account. Success: the changed-bank-details invoice is held, a shaky yes never moves money, and every decision can be defended from its receipt.
 
 ## Positioning
 
-No finance system records how trustworthy an approval was. Nod stores signal confidence next to every decision and uses canary invoices to measure whether the approver is actually paying attention.
+Detecting a changed bank account is already offered by mainstream accounts payable tools, and finance platforms already route exceptions to a person. Nod focuses on the step after the flag, the human yes: the agent cannot approve itself, a shaky yes is evidence, and each receipt records how reliable the approval was. To our knowledge, recording approval reliability is uncommon. Never claim otherwise without checking.
 
 ## Operating Context
 
-Invoices arrive as PDF, email text and images. Vendors, purchase orders and a bank sandbox (Nessie or mock) sit behind them. A double-entry ledger must reconcile with the bank. A simulated clock replays months of history.
+Invoices arrive as pasted text, email, photos and PDFs. Vendors, purchase orders and contracts sit behind them. A double-entry ledger reconciles with the bank (MockBank). Nacha's False Pretenses rule (phase 2, June 2026) is the regulatory backdrop; Nod does not make anyone compliant.
 
 ## Capabilities and Constraints
 
-- Policy engine sets the tier (AUTO, ASK, HOLD). Claude can only escalate, never lower.
-- The agent can request but never approve, and cannot edit bank details. Enforced server-side.
+- Rules in the database set the tier (AUTO, ASK, HOLD). Claude can only raise it.
+- The agent cannot approve or edit bank details, enforced in SpacetimeDB reducers on the caller's identity.
 - Default to no: timeouts, errors and ambiguity never move money.
 - Invoice content is untrusted input.
-- The approval signal is SIMULATED and must be labeled so on screen. No medical claims. Prototype.
-- Undecided: Nessie vs Increase for vendor payments; CRS identity check on or off.
+- The approval signal is SIMULATED and labeled. No brain-computer interface or accuracy claims.
+- Real sign-in is not built; human seats are open in the demo.
 
 ## Brand Commitments
 
-Name: Nod. Tagline: "A robot bookkeeper that won't send your money to a scammer's new bank account." Copy is plain and specific. No em dashes, no emojis.
+Name: Nod. Tagline: "A robot bookkeeper that won't send your money to a scammer's new bank account." Plain, specific copy. No em dashes, no emojis. Visual world: board minutes and voting cards (agenda paper, ink, green, cerise and goldenrod card stock, Atkinson Hyperlegible).
 
 ## Evidence on Hand
 
-Seeded fictional data with an answer key. No real customers, quotes or statistics exist; never invent them. Quote no accuracy figure that cannot be reproduced live.
+Seeded fictional data with an answer key we wrote. Routine amounts modeled on San Francisco's public Vendor Payments (Vouchers), FY2025, public domain. Cited figures: the AFP 2025 survey (79%, 63%, 45%) and the Nacha rule only. No customers, quotes or other statistics exist; never invent them.
 
 ## Product Principles
 
-1. Ask less, but never skip a question that matters.
+1. The human yes is the weak point; design for it.
 2. A yes must be earned by the signal, not assumed from it.
 3. Every decision leaves a receipt a stranger can audit.
-4. Autonomy is earned by a clean record and never extends to HOLD cases.
+4. Say plainly what is real and what is simulated.
 
 ## Accessibility & Inclusion
 
-The approver surface must work with a single input. The approver surface must be fully operable by a single input (one key, one switch), with large targets, no timing that punishes slowness beyond the protocol's explicit confirm windows, visible focus, and WCAG AA contrast.
+The approver surface works with a single input (Space or one held button), with large targets, visible focus and WCAG AA contrast. The single-switch approver is an untested accessibility idea, shown as a short SIMULATED segment.

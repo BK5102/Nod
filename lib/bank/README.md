@@ -1,1 +1,1 @@
-BankAdapter interface with MockBank, Increase and Nessie; called only from Next.js server routes.
+BankAdapter with MockBank (default), Increase sandbox (written, not active) and Nessie (unverified). Called only from server routes; idempotency key per invoice.

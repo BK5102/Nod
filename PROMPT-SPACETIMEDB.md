@@ -1,5 +1,7 @@
 # PROMPT-SPACETIMEDB.md: Nod on SpacetimeDB instead of Supabase
 
+> Status (Oct 24, 2026): this is the original kickoff prompt, kept for history. The build followed it in spirit but changed in places: SpacetimeDB replaced Supabase, the scope narrowed to trusting the human yes, and the earned-autonomy ladder, replay clock, CRS check and eval curve were cut. CLAUDE.md and README.md describe what was actually built.
+
 Use this instead of the Supabase parts of `CLAUDE.md` and `PROMPT.md`. Everything else (policy tiers, approval protocol, rules, demo) stays the same.
 
 ## Step 1: replace these sections in CLAUDE.md
