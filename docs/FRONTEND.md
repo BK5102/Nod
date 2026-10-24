@@ -61,25 +61,26 @@ Phone (390): the sign band shrinks to the single next decision with the key numb
 
 Every refusal message from PLAN.md section 9 is shown exactly as the reducer throws it.
 
-## 5. Data layer
+## 5. Data layer (built)
 
-- `components/rerouted/types.ts`: the section 9 tables as TypeScript types.
-- `components/rerouted/mock.ts`: a local engine that replays the locked demo with the same tables, the same tiers and ranks, and the exact refusal strings. The page shows "Mock data. Backend not connected" while it is in use.
-- `components/rerouted/live.ts` (after B1): reads the generated bindings with `useTable`, calls `take_seat` and `approve_offer`, and posts to `/api/demo` and `/api/agent/try-approve`. Same state shape, so the components do not change.
-- Mode: live when `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` is set and the bindings are Rerouted's; `?mock=1` forces the mock.
+- `components/rerouted/types.ts`: the section 9 tables as the components read them.
+- `components/rerouted/live.tsx`: subscribes to `trip`, `mandate`, `offer`, `agent_step`, `receipt`, `seat`; takes the traveler seat (`act_traveler`); calls `approve_offer` from the browser and shows its error as is; posts to `/api/demo` and `/api/agent/try-approve`.
+- `components/rerouted/mock.ts`: replays `data/fixtures/demo.json` through the backend's own pure core (`evaluateOffer`, `rankOffers`, `quoteHash`, `hashReceipt`), so tiers, ranks, hashes and refusal strings match the module. No Claude in mock: reasons stay empty.
+- Mode: live when `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` is set. `?mock=1` forces the mock. If the live database sends no trip within 8 seconds, the page says why in the footer and runs the mock.
+- The receipt chain is recomputed in the browser with `verifyReceipts` and the result is printed under the receipt.
+- Rehearsal: `?to=options|agent|price|booked` plays the demo up to that beat. Presenter keys: R reset, C cancel, A agent tries to buy, P price moves as Sam taps approve.
+
+Contract note for the backend: PLAN.md section 9 says `take_seat(actorId: "traveler")`; the module seeds `act_traveler`. The frontend uses `act_traveler`.
+
+Verified on Oct 24 against the module published to a local SpacetimeDB (`rerouted-local`): cancel, steps, Claude reasons, Skyport flag, agent refused, price $389 to $412, booked at $412, receipt chain verified, $318 refund, 7 seconds from cancel to booked.
 
 ## 6. Work list
 
-Long tasks (started first):
-1. The deadline corridor scene (three.js): arcs from offer data, deadline frame, break and fall, drop off, booked fly-through, reduced motion, render on demand.
-2. Tokens, fonts and pictograms for the sign system.
-3. The page and its components against the mock engine.
-4. Remove Nod's pages and components (they import Nod's bindings and will break the build once B1 lands).
+Done: plan, sign system tokens and pictograms, the deadline corridor, the page and its components, Nod pages removed, live adapter, mock on the real fixture.
 
 Loop tasks (repeatable, good for `/loop`):
-1. Pull and check for the backend's B1 commit (new `src/module_bindings` with `trip`, `offer`, `agent_step`; `data/fixtures/demo.json`). When it lands: write `live.ts`, compare the fixture to the mock, typecheck, build, push.
-2. After each backend milestone (B2 to B4): run the demo against Maincloud, screenshot desktop and phone, fix what broke, push.
-3. Run the design detector and fix findings.
-4. Rehearse the 90 second demo with the demo controls and time each beat.
+1. Pull. If the backend changed `spacetimedb/` or `src/module_bindings/`, republish to the local server, run `pnpm db:setup` against it, play `?to=booked`, screenshot desktop and phone, fix what broke, push.
+2. Once the backend publishes to Maincloud: point `.env.local` at it, play the demo live, time each beat.
+3. Run the design detector on `components/` and `app/` and fix findings.
 
-Needs the user: the Anthropic key and Maincloud login on the backend side; nothing on the frontend side.
+Needs the user: `spacetime login` for Maincloud (backend side).
