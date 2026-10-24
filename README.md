@@ -59,6 +59,20 @@ To our knowledge, other products do not record how reliable an approval was. We 
 
 An accounts payable clerk for a five-person nonprofit that never approves its own payments, knows when to ask, and can defend every decision.
 
+## Questions a judge may ask
+
+**Why not just rules?** Rules decide. The policy engine sets the risk tier inside the database. Claude reads messy invoices, explains the decision in plain English, and can flag what rules cannot see, like "we changed banks" in the body of an email or an instruction hidden in the invoice. Claude can only raise a tier, never lower it. If Claude fails, the app shows the error and nothing is paid.
+
+**Is catching a bank change new?** No. Mainstream accounts payable tools already do it. Nod adds the layer after the flag: the agent cannot approve itself, a shaky yes is treated as evidence, and every decision leaves a receipt that records how reliable the approval was.
+
+**What is real?** The policy engine, the role checks, the double-entry ledger, the hash-chained receipts and the Claude calls are real. The company, vendors and history are SEEDED, the approval signal is SIMULATED, and the bank is MockBank. The table above and the What is real button in the app list every part.
+
+**How do you know it works?** 43 unit tests, 11 segregation-of-duties checks run against the live database, scripts that replay the bank-change moment and the bank-failure recovery, five messy test invoices (`scripts/intake-check.ts`), and planted errors with an answer key. We wrote the test invoices, the planted errors and the answer key ourselves, so they show the system does what we designed, not that it catches fraud it has never seen. The five-invoice test needs an Anthropic API key and has not been run yet.
+
+**Can the agent approve its own payment?** No. Roles live in the database and are checked on the caller's identity. Press "Let Nod try to approve its own payment" in the app and the database refuses it.
+
+**What did you not build?** Real sign-in (demo seats anyone can take, except the agent and operator seats), a real bank connection (an Increase sandbox adapter is written but not used), a real brain-computer interface, an earned-autonomy ladder (behind a flag, off), an evaluation curve, an identity check, multiple currencies, credit notes, and a full accounting system.
+
 ## Run it
 
 ```bash
