@@ -129,7 +129,54 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 6. Booked, with a receipt, and $412 of $600 spent.
 7. The $318 refund owed on the canceled ticket.
 
-## Run it (backend)
+## Run the live demo (teammate quickstart)
+
+The backend is already live on Maincloud as the database `rerouted-calhacks13`. Seats are assigned and the demo is seeded. You do not publish, run `db:setup`, or log in to SpacetimeDB. You only need the env file and the dev server.
+
+1. Pull and install:
+   ```bash
+   git pull
+   pnpm install
+   ```
+2. Create `.env.local` in the repo root with these 7 values. The first four are not secret and are shown here. Get the last three from the backend teammate through a private channel. Never commit them or paste them in a public chat.
+   ```bash
+   SPACETIMEDB_HOST=wss://maincloud.spacetimedb.com
+   SPACETIMEDB_DB_NAME=rerouted-calhacks13
+   NEXT_PUBLIC_SPACETIMEDB_HOST=wss://maincloud.spacetimedb.com
+   NEXT_PUBLIC_SPACETIMEDB_DB_NAME=rerouted-calhacks13
+   SPACETIMEDB_AGENT_TOKEN=<from backend teammate>
+   SPACETIMEDB_OPERATOR_TOKEN=<from backend teammate>
+   ANTHROPIC_API_KEY=<from backend teammate, or your own key>
+   ```
+3. Start the app on http://localhost:3001:
+   ```bash
+   pnpm dev
+   ```
+4. Optional: prove the backend works end to end with no UI. Run this in a second terminal while `pnpm dev` is running. It ends with "All checks passed." It also leaves the trip booked, so reset afterwards.
+   ```bash
+   pnpm demo:check
+   pnpm demo:reset
+   ```
+
+**What a working end-to-end run looks like.** Each step is driven by the backend:
+
+| Step | What happens | Backend call |
+| --- | --- | --- |
+| 1. Reset | Bayline Air 412, SFO to JFK, 6:40 PM, is scheduled | `POST /api/demo {"action":"reset"}` |
+| 2. Cancel | The flight is canceled, and about 7 agent steps stream in over 6 to 10 seconds | `POST /api/demo {"action":"cancel"}` |
+| 3. Options appear | Ranks 1 to 4: Harbor Air red-eye $389, Bayline free rebooking, Coastal 6:00 AM, Airport Inn. Set aside: business class ($1,140, over cap) and Skyport Suites (flagged by Claude for instructing the agent) | `offer` rows |
+| 4. Agent tries to buy | The red-eye purchase is refused: "Refused: the agent cannot approve its own purchase." | `POST /api/agent/try-approve {"offerId":"off_harbor_redeye"}` |
+| 5. Price change | The red-eye goes to $412. Approving the old quote is refused with "The price changed to $412. Approve the new price to continue." | `POST /api/demo {"action":"price","offerId":"off_harbor_redeye","priceCents":41200}` |
+| 6. Approve | The traveler approves $412 and it books. One receipt; spend is $412 of $600 | `approve_offer(offerId, quoteHash)` from the browser, as the traveler seat |
+| 7. Refund | $318 refund owed, plus the canceled and booked times | `trip` row |
+
+**Notes:**
+- **Who changes the data:** both laptops connect to the same live database, so a reset or cancel on one laptop changes what the other sees. During judging, only one person should drive the demo.
+- **Mock fallback:** if the page falls back to the mock, `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` is missing or the dev server was started before `.env.local` existed. Restart `pnpm dev`.
+- **Claude missing or out of credits:** cancel still works. You get an `error` step and no Claude reasons, and Skyport is not flagged. The rules still tier everything, and nothing is bought without a tap.
+- **Routes:** every route returns `{ ok: true, result }` or `{ ok: false, error, refused }`. Show `error` as is. The full contract is in [docs/PLAN.md](docs/PLAN.md) section 9.
+
+## Run it (backend, one-time setup, already done)
 
 ```bash
 pnpm install
