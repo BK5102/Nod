@@ -82,9 +82,9 @@ export function MandateSign({ mandate, trip }: { mandate: Mandate; trip: Trip })
   const pct = Math.min(100, (trip.spendCents / cap) * 100);
   const askPct = (mandate.askAboveCents / cap) * 100;
   return (
-    <section aria-labelledby="mandate" className="board px-4 py-4">
+    <section id="mandate" aria-labelledby="mandate-h" className="scroll-mt-40 board px-4 py-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="mandate" className="flex items-center gap-3 text-lg font-extrabold">
+        <h2 id="mandate-h" className="flex items-center gap-3 text-lg font-extrabold">
           <Pictogram name="card" size={32} className="bg-yellow! text-ink!" />
           Card rules
         </h2>
@@ -134,19 +134,22 @@ export function ReceiptSlip({ receipts, trip, voids = {} }: { receipts: Receipt[
           </p>
           {voids[r.offerId] ? <p className="mt-1 text-sm font-bold text-ink/70">{money(voids[r.offerId]!.priceCents)} {voids[r.offerId]!.text === "quote" ? "quote" : "approval"} voided: price changed</p> : null}
           <details className="mt-3 text-sm">
-            <summary className="cursor-pointer font-semibold text-ink/70 hover:text-ink">Quote and hashes</summary>
-            <dl className="mt-2 grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 font-mono text-xs break-all">
-              <dt className="font-sans text-ink/60">Quote</dt>
-              <dd>{r.quoteHash}</dd>
-              <dt className="font-sans text-ink/60">Previous</dt>
-              <dd>{r.prevHash}</dd>
-              <dt className="font-sans text-ink/60">This</dt>
-              <dd>{r.hash}</dd>
+            <summary className="cursor-pointer font-semibold text-ink/70 hover:text-ink">How do I know this receipt is real?</summary>
+            <p className="mt-2 max-w-[44ch] leading-snug">
+              Each receipt carries a fingerprint of its contents and of the receipt before it. Change any detail and the fingerprints stop matching.
+            </p>
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+              <dt className="text-ink/60">Price you approved</dt>
+              <dd className="font-mono text-xs" title={r.quoteHash}>{r.quoteHash.slice(0, 12)}</dd>
+              <dt className="text-ink/60">This receipt</dt>
+              <dd className="font-mono text-xs" title={r.hash}>{r.hash.slice(0, 12)}</dd>
+              <dt className="text-ink/60">Previous receipt</dt>
+              <dd className="font-mono text-xs" title={r.prevHash}>{/^0+$/.test(r.prevHash) ? "None, this is the first" : r.prevHash.slice(0, 12)}</dd>
             </dl>
           </details>
         </div>
       ))}
-      <p className={`bg-ink px-4 py-2 text-sm font-bold ${chain.ok ? "text-go" : "text-alert"}`}>{chain.ok ? "Receipt chain verified in this browser" : `Chain broken: ${chain.reason}`}</p>
+      <p className={`bg-ink px-4 py-2 text-sm font-bold ${chain.ok ? "text-go" : "text-alert"}`}>{chain.ok ? "Fingerprints match: this receipt has not been changed" : `Fingerprints do not match: ${chain.reason}`}</p>
       {trip.refundOwedCents ? (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-lg font-extrabold">
           <Pictogram name="refund" size={36} />

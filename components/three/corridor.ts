@@ -160,7 +160,7 @@ export class Corridor {
       tick.rotation.x = -Math.PI / 2;
       tick.position.set(xOf(h), 0, major ? -1 : 4.1);
       this.scene.add(tick);
-      if (major) {
+      if (major && h > AXIS_FROM) {
         // The axis counts hours after noon tonight, so h = 8 is 8 PM and h = 20 is 8 AM.
         const hh = (h + 12) % 24;
         const label = hh === 0 ? "12 AM" : hh === 12 ? "12 PM" : hh > 12 ? `${hh - 12} PM` : `${hh} AM`;
@@ -170,10 +170,6 @@ export class Corridor {
         this.scene.add(s);
       }
     }
-    const axis = textSprite([{ text: "New York time", weight: 600, size: 22, color: "#9a9a9a" }], { height: 0.5 });
-    axis.center.set(0, 1);
-    axis.position.set(xOf(AXIS_FROM), 0.02, 5.5);
-    this.scene.add(axis);
 
     // The deadline: an overhead sign frame in yellow, standing across every lane.
     const x = xOf(DEADLINE_ET);

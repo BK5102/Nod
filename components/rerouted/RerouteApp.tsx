@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { AgentTrack } from "./AgentTrack";
 import { OptionPanel, SetAside, type Stamp } from "./OptionPanel";
@@ -16,7 +16,7 @@ const NEW_PRICE = 41200;
  * Live when the browser has a database name, unless ?mock=1. If the live database sends no trip
  * within 8 seconds (not published yet, wrong name, offline), the page says so and runs the mock.
  */
-export function RerouteApp() {
+export function RerouteApp({ account }: { account?: ReactNode }) {
   const [choice, setChoice] = useState<{ mode: "live" | "mock"; reason?: string } | null>(null);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -26,19 +26,19 @@ export function RerouteApp() {
   }, []);
   const fallBack = useCallback((reason: string) => setChoice({ mode: "mock", reason }), []);
   if (!choice) return <div className="min-h-dvh bg-ink" />;
-  if (choice.mode === "mock") return <MockApp reason={choice.reason} />;
+  if (choice.mode === "mock") return <MockApp reason={choice.reason} account={account} />;
   return (
     <LiveProvider>
-      <LiveApp onFail={fallBack} />
+      <LiveApp onFail={fallBack} account={account} />
     </LiveProvider>
   );
 }
 
-function MockApp({ reason }: { reason?: string }) {
-  return <RerouteView source={useMock(reason)} />;
+function MockApp({ reason, account }: { reason?: string; account?: ReactNode }) {
+  return <RerouteView source={useMock(reason)} account={account} />;
 }
 
-function LiveApp({ onFail }: { onFail: (reason: string) => void }) {
+function LiveApp({ onFail, account }: { onFail: (reason: string) => void; account?: ReactNode }) {
   const source = useLive();
   const hasTrip = !!source.state.trip;
   useEffect(() => {
@@ -46,10 +46,10 @@ function LiveApp({ onFail }: { onFail: (reason: string) => void }) {
     const id = setTimeout(() => onFail("The live database did not answer within 8 seconds."), 8000);
     return () => clearTimeout(id);
   }, [hasTrip, onFail]);
-  return <RerouteView source={source} />;
+  return <RerouteView source={source} account={account} />;
 }
 
-function RerouteView({ source }: { source: RerouteSource }) {
+function RerouteView({ source, account }: { source: RerouteSource; account?: ReactNode }) {
   const { state, actions, mode } = source;
   const { trip, mandate, offers, steps, receipts } = state;
   const [stamps, setStamps] = useState<Record<string, Stamp>>({});
@@ -113,7 +113,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
             setPulse({ offerId: top.offerId, n: Date.now() });
           }
         } else if (name === "price" && top && top.priceCents !== NEW_PRICE) {
-          // Sam taps approve on the quote they saw, at the moment the airline moves the price.
+          // The traveler taps approve on the quote they saw, at the moment the airline moves the price.
           const seen = top.quoteHash;
           const was = top.priceCents;
           const moved = await actions.setPrice(top.offerId, NEW_PRICE);
@@ -175,16 +175,17 @@ function RerouteView({ source }: { source: RerouteSource }) {
     { id: "reset", key: "R", label: "Reset", enabled: true },
     { id: "cancel", key: "C", label: "Cancel the flight", enabled: trip?.status === "scheduled" },
     { id: "agent", key: "A", label: "Agent tries to buy", enabled: !!top && !flightBooked },
-    { id: "price", key: "P", label: "Price moves as Sam taps approve", enabled: !!top && !flightBooked && top.priceCents !== NEW_PRICE },
+    { id: "price", key: "P", label: "Price moves as you tap approve", enabled: !!top && !flightBooked && top.priceCents !== NEW_PRICE },
   ];
 
   return (
     <div className="min-h-dvh bg-ink pb-10">
+      <DashBar trip={trip} live={mode === "live"} account={account} />
       <SignBand trip={trip} offers={offers} />
 
       {/* Phone order: choices, corridor, board. Desktop: corridor and board left, choices right. */}
       <main className="mx-auto grid max-w-[1600px] gap-8 px-4 pt-8 md:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-10 lg:gap-y-8 lg:pt-10">
-          <section aria-labelledby="corridor" className="board order-2 min-w-0 lg:order-none lg:col-start-1 lg:row-start-1">
+          <section id="trip" aria-labelledby="corridor" className="scroll-mt-40 board order-2 min-w-0 lg:order-none lg:col-start-1 lg:row-start-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 pt-3 md:px-6">
               <h2 id="corridor" className="text-lg font-extrabold">
                 Every way home
@@ -203,7 +204,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
         <div className="order-1 flex min-w-0 flex-col gap-8 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1">
           {flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={shownVoids} /> : null}
           {ranked.length ? (
-            <section aria-labelledby="choices" className="flex flex-col gap-4">
+            <section id="options" aria-labelledby="choices" className="scroll-mt-40 flex flex-col gap-4">
               <h2 id="choices" className="sr-only">
                 Choices ahead
               </h2>
@@ -226,19 +227,12 @@ function RerouteView({ source }: { source: RerouteSource }) {
         </div>
       </main>
 
-      <footer className="mx-auto mt-16 max-w-[1600px] px-4 md:px-8">
-        <div className="flex flex-wrap gap-x-8 gap-y-2 border-t border-rule pt-4 text-sm text-soft">
-          <p className="font-bold text-white">Working prototype</p>
-          <p>
-            <span className="font-bold text-white">Real:</span> card rules, refusals, quote-bound purchase, receipts, Claude.
-          </p>
-          <p>
-            <span className="font-bold text-white">Simulated:</span> the cancellation, flights, hotels, card and payment. No money moves.{" "}
-            {mode === "mock" ? `This page is running on mock data${source.fallbackReason ? `: ${source.fallbackReason}` : "."}` : null}
-            {source.seatError ? ` Could not take the traveler seat: ${source.seatError}` : null}
-          </p>
-        </div>
-      </footer>
+      {mode === "mock" || source.seatError ? (
+        <p className="mx-auto mt-16 max-w-[1600px] px-4 text-sm text-soft md:px-8">
+          {mode === "mock" ? `Mock data${source.fallbackReason ? `: ${source.fallbackReason}` : "."}` : null}
+          {source.seatError ? ` Could not take the traveler seat: ${source.seatError}` : null}
+        </p>
+      ) : null}
 
       <nav aria-label="Demo controls" className="mx-auto mt-6 max-w-[1600px] px-4 md:px-8">
         <div className="flex flex-wrap items-center gap-1 border-2 border-yellow px-2 py-2">
@@ -260,6 +254,36 @@ function RerouteView({ source }: { source: RerouteSource }) {
         </div>
         {notice ? <p className="px-4 pb-2 text-sm text-alert">{notice}</p> : null}
       </nav>
+    </div>
+  );
+}
+
+/** The dashboard's own bar: where you are, what is connected, and your account. */
+function DashBar({ trip, live, account }: { trip: { route: string; flight: string } | null; live: boolean; account?: ReactNode }) {
+  const links = [
+    ["Trip", "#trip"],
+    ["Options", "#options"],
+    ["Card", "#mandate"],
+  ] as const;
+  return (
+    <div className="board border-b border-rule">
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 md:px-8">
+        <p className="text-sm font-bold">
+          Dashboard <span className="font-semibold text-soft">· {trip ? `${trip.flight}, ${trip.route}` : "Loading trip"}</span>
+        </p>
+        <nav aria-label="Sections" className="flex gap-1">
+          {links.map(([label, href]) => (
+            <a key={href} href={href} className="px-2.5 py-1 text-sm font-semibold text-soft hover:bg-panel-2 hover:text-white">
+              {label}
+            </a>
+          ))}
+        </nav>
+        <p className="ml-auto flex items-center gap-2 text-sm font-semibold">
+          <span className={`h-2 w-2 ${live ? "bg-go" : "bg-yellow"}`} aria-hidden="true" />
+          {live ? "Live database" : "Mock data"}
+        </p>
+        {account}
+      </div>
     </div>
   );
 }

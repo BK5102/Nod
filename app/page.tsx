@@ -1,5 +1,5 @@
-import { RerouteApp } from "@/components/rerouted/RerouteApp";
+import { Landing } from "@/components/landing/Landing";
 
 export default function Page() {
-  return <RerouteApp />;
+  return <Landing />;
 }

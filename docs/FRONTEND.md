@@ -84,3 +84,19 @@ Loop tasks (repeatable, good for `/loop`):
 3. Run the design detector on `components/` and `app/` and fix findings.
 
 Needs the user: `spacetime login` for Maincloud (backend side).
+
+## 7. Routes and sign-in (added Oct 24)
+
+| Route | What it is |
+| --- | --- |
+| `/` | Landing page. The hero replays the demo in the corridor on a private mock engine, with captions per beat. It never touches the live database |
+| `/login` | Admin sign-in |
+| `/dashboard` | The agent workspace (live or mock), behind sign-in |
+
+Sign-in is frontend only: a server action checks the admin email and an scrypt password hash, then sets a signed, http-only session cookie (HMAC-SHA256, 12 hours). `middleware.ts` sends unsigned visitors from `/dashboard` to `/login`, and the dashboard page checks the session again. There is no registration: the admin account is created by hand.
+
+Env (server only, never committed), kept in `.env.development.local` so `.env.local` is never rewritten. For a deploy, set the same three in the host's environment:
+
+- `REROUTED_ADMIN_EMAIL`
+- `REROUTED_ADMIN_PASSWORD_HASH` (`scrypt:<salt hex>:<hash hex>`)
+- `REROUTED_AUTH_SECRET`
