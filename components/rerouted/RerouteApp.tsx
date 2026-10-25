@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { CardObject } from "./CardObject";
+import { ClaudeSaw } from "./ClaudeSaw";
 import { CalmPanel, ClosedOptions, OptionCard, ReceiptPanel, SetAsideShelf, ShoppingPanel, type Stamp } from "./Focus";
 import { Pictogram } from "./Pictogram";
 import { SignBand } from "./SignBand";
@@ -184,6 +185,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
     trip?.status === "scheduled" ? "cancel" : top && !flightBooked && !agentTried ? "agent" : top && !flightBooked && top.priceCents !== NEW_PRICE ? "price" : flightBooked ? "reset" : null;
 
   const shopping = trip?.status === "canceled" && ranked.length === 0;
+  const [saw, setSaw] = useState(false);
 
   return (
     <div className="flex min-h-dvh flex-col bg-ink lg:h-dvh lg:overflow-hidden">
@@ -204,13 +206,16 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
         <div className="order-3 flex min-h-0 min-w-0 flex-col gap-4 lg:order-none">
         <section aria-labelledby="corridor" className="board flex min-h-[300px] min-w-0 flex-1 flex-col">
           <div className="flex items-baseline justify-between gap-4 px-5 pt-4">
-            <h2 id="corridor" className="text-lg font-extrabold">
-              Every way home, against 9:00 AM
+            <h2 id="corridor" className="text-lg font-extrabold whitespace-nowrap">
+              Every way home <span className="font-semibold text-soft">· New York time</span>
             </h2>
-            <p className="text-base text-soft">New York time</p>
+            <button type="button" onClick={() => setSaw((v) => !v)} aria-expanded={saw} className="border border-rule px-2.5 py-1 text-sm font-bold whitespace-nowrap hover:bg-panel-2">
+              What Claude saw
+            </button>
           </div>
           <div className="relative min-h-0 flex-1">
             <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
+            {saw ? <ClaudeSaw trip={trip} mandate={mandate} onClose={() => setSaw(false)} /> : null}
           </div>
         </section>
         {!flightBooked ? <SetAsideShelf offers={aside} /> : null}
@@ -219,7 +224,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
         <div className="order-1 flex min-h-0 flex-col gap-3 lg:order-none lg:overflow-y-auto">
           {flightBooked && trip ? (
             <>
-              <ReceiptPanel receipts={receipts} trip={trip} voids={shownVoids} />
+              <ReceiptPanel receipts={receipts} trip={trip} voids={shownVoids} offers={offers} />
               <ClosedOptions offers={ranked.filter((o) => o.status !== "booked")} />
             </>
           ) : ranked.length ? (

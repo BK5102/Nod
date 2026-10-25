@@ -19,6 +19,13 @@ export interface Void {
 /** The listing text the seeded offers were built from. Shown as untrusted, quoted text, never as instructions. */
 const listingOf = new Map(fixture.offers.map((o) => [o.offerId, o.listingText]));
 
+/** Why an option sits where it does: the ranking rule first, then the card rule that asks you. */
+function whyRank(o: Offer, delta: ReturnType<typeof deadlineDelta> | null): string {
+  const ask = parseRules(o.rulesJson).find((r) => r.tier === "ASK" && r.id !== "above_auto_ceiling");
+  const place = o.kind === "hotel" ? "Hotels rank after flights" : delta?.before ? "Lands before your deadline" : o.priceCents === 0 ? "Costs nothing, but misses your deadline" : "Misses your deadline";
+  return ask ? `${place}. ${ask.reason}` : `${place}.`;
+}
+
 function landing(o: Offer) {
   if (o.kind === "hotel") return null;
   const dep = clockHours(o.departs);
@@ -108,8 +115,17 @@ export function OptionCard({
         </p>
       </div>
 
-      {lead && offer.claudeReason ? <p className="mt-2 line-clamp-2 text-lg leading-snug" title={offer.claudeReason}>{offer.claudeReason}</p> : null}
-      {!lead && offer.claudeReason ? <p className="mt-1 line-clamp-1 text-base text-soft" title={offer.claudeReason}>{offer.claudeReason}</p> : null}
+      {lead ? (
+        <p className="mt-2 truncate text-base" title={whyRank(offer, delta)}>
+          <span className="font-bold">Why #1:</span> {whyRank(offer, delta)}
+        </p>
+      ) : null}
+      {offer.claudeReason ? (
+        <p className={`mt-1.5 flex gap-2 ${lead ? "text-lg leading-snug" : "text-base text-soft"}`} title={offer.claudeReason}>
+          <span className="mt-0.5 shrink-0 border border-rule px-1.5 text-xs leading-5 font-bold text-soft">Claude</span>
+          <span className={lead ? "line-clamp-2" : "line-clamp-1"}>{offer.claudeReason}</span>
+        </p>
+      ) : null}
 
       {stamp?.by === "agent" ? (
         <p role="alert" className="stamp mt-3 flex items-center gap-3 border-2 border-alert p-2.5 text-lg leading-snug font-bold text-alert">
@@ -119,12 +135,9 @@ export function OptionCard({
       ) : null}
 
       {voided && offer.status !== "booked" ? (
-        <div role="alert" className="stamp mt-3 border-2 border-alert p-3">
-          <p className="text-lg leading-snug font-bold">
-            You approved {money(voided.priceCents)}. The price is now {money(offer.priceCents)}. That approval is void.
-          </p>
-          {voided.text !== "quote" ? <p className="mt-1 text-sm text-soft">The database said: {voided.text}</p> : null}
-        </div>
+        <p role="alert" className="stamp mt-3 border-2 border-alert p-3 text-lg leading-snug font-bold" title={voided.text !== "quote" ? `The database said: ${voided.text}` : undefined}>
+          You approved {money(voided.priceCents)}. The price is now {money(offer.priceCents)}. That approval is void.
+        </p>
       ) : stamp?.by === "traveler" ? (
         <p role="alert" className="stamp mt-3 border-2 border-alert p-2.5 text-lg font-bold text-alert">
           {stamp.text}
@@ -140,7 +153,9 @@ export function OptionCard({
         >
           {busy ? "Checking your card" : `Approve ${offer.priceCents === 0 ? "free rebooking" : price}`}
         </button>
-      ) : (
+      ) : null}
+      {lead ? <p className="mt-1.5 text-center text-sm text-soft">Charges card •••• 4242 exactly {price}. Nothing else is bought.</p> : null}
+      {lead ? null : (
         <button
           type="button"
           disabled={busy}
@@ -174,7 +189,7 @@ export function SetAsideShelf({ offers }: { offers: Offer[] }) {
               </p>
               {o.flagged && listing ? (
                 <div className="mt-1 border-2 border-alert p-2.5">
-                  <p className="text-sm font-bold text-alert">Its listing tried to give the agent orders</p>
+                  <p className="text-sm font-bold text-alert">Claude caught it: the listing tried to give the agent orders</p>
                   <blockquote className="mt-1 text-base leading-snug text-white">&ldquo;{listing}&rdquo;</blockquote>
                 </div>
               ) : (
@@ -189,11 +204,15 @@ export function SetAsideShelf({ offers }: { offers: Offer[] }) {
 }
 
 /** The ending: what was bought, by whom, with the proof and the refund. */
-export function ReceiptPanel({ receipts, trip, voids }: { receipts: Receipt[]; trip: Trip; voids: Record<string, Void> }) {
+export function ReceiptPanel({ receipts, trip, voids, offers }: { receipts: Receipt[]; trip: Trip; voids: Record<string, Void>; offers: Offer[] }) {
   const r = receipts.at(-1);
   if (!r) return null;
   const chain = verifyReceipts(receipts);
   const v = voids[r.offerId];
+  const shown = offers.filter((o) => o.rank > 0).length;
+  const chosen = offers.find((o) => o.offerId === r.offerId)?.rank;
+  const minutes = trip.canceledAt && trip.bookedAt ? Math.max(0, Math.round((Date.parse(trip.bookedAt) - Date.parse(trip.canceledAt)) / 1000)) : null;
+  const took = minutes === null ? null : `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
   return (
     <section aria-labelledby="receipt-h" className="print flex flex-col gap-3 bg-white p-5 text-ink">
       <div className="flex items-baseline justify-between">
@@ -212,6 +231,9 @@ export function ReceiptPanel({ receipts, trip, voids }: { receipts: Receipt[]; t
         </div>
         <p className="text-[2.4rem] leading-none font-black tabular-nums">{money(r.amountCents)}</p>
       </div>
+      <p className="text-base font-bold">
+        {shown} options shown, #{chosen ?? 1} chosen{took ? `, ${took} from cancel to booked` : ""}. Free rebooking checked first.
+      </p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-base">
         <dt className="text-ink/70">Fingerprint</dt>
         <dd className="font-mono text-sm" title={r.hash}>{r.hash.slice(0, 16)}</dd>

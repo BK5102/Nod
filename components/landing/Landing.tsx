@@ -215,6 +215,38 @@ export function Landing() {
         })}
       </section>
 
+      <section className="mx-auto grid max-w-[1440px] gap-12 px-4 pb-24 md:px-8 lg:grid-cols-2 lg:gap-20">
+        <Reveal from="left">
+          <h2 className="text-[2.4rem] leading-tight font-black tracking-[-0.03em]">Who it helps</h2>
+          <dl className="mt-6 divide-y divide-rule border-y border-rule text-lg">
+            {[
+              ["Travelers", "A way home in minutes, inside limits they set, with nothing bought until they tap."],
+              ["Card issuers", "Spending rules that hold even when an AI agent is the one shopping."],
+              ["Airlines and hotels", "A sale the cardholder approved at an exact price, with a receipt behind it."],
+            ].map(([who, what]) => (
+              <div key={who} className="grid gap-1 py-4 md:grid-cols-[11rem_1fr] md:gap-6">
+                <dt className="font-extrabold">{who}</dt>
+                <dd className="text-soft">{what}</dd>
+              </div>
+            ))}
+          </dl>
+        </Reveal>
+        <Reveal from="right">
+          <h2 className="text-[2.4rem] leading-tight font-black tracking-[-0.03em]">What comes next</h2>
+          <ul className="mt-6 divide-y divide-rule border-y border-rule text-lg">
+            {[
+              "Live fares and hotel rates from public travel APIs instead of a replayed demo.",
+              "Card network agent controls in place of the simulated token.",
+              "More disruptions: delays, missed connections, a traveler group on one card.",
+            ].map((line) => (
+              <li key={line} className="py-4 text-soft">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      </section>
+
       <section className="sign on-yellow">
         <Reveal from="left">
           <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-6 px-4 py-14 md:px-8">

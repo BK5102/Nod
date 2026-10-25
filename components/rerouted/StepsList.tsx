@@ -19,16 +19,18 @@ const ROWS = 3;
  * rows never push the layout. Each kind has its own marker; refusals and errors read in red.
  */
 export function StepsList({ steps, idle }: { steps: AgentStep[]; idle: boolean }) {
-  const rows = steps.slice(-ROWS);
+  const errors = steps.filter((s) => s.kind === "error");
+  const rest = steps.filter((s) => s.kind !== "error").slice(-(ROWS - Math.min(errors.length, 1)));
+  const rows = [...errors.slice(-1), ...rest];
   return (
     <section aria-labelledby="steps-h" className="flex min-h-0 flex-1 flex-col">
       <h2 id="steps-h" className="mb-3 text-lg font-extrabold">
         What the agent did
       </h2>
       {idle && rows.length === 0 ? (
-        <p className="text-lg leading-snug text-soft">The agent is idle. It starts shopping the moment your flight is canceled.</p>
+        <p className="min-h-[204px] text-lg leading-snug text-soft">The agent is idle. It starts shopping the moment your flight is canceled.</p>
       ) : (
-        <ol className="flex flex-col gap-2.5" aria-live="polite">
+        <ol className="flex min-h-[204px] flex-col gap-2.5" aria-live="polite">
           {rows.map((s) => {
             const m = marker[s.kind];
             const red = s.kind === "refusal" || s.kind === "error";
