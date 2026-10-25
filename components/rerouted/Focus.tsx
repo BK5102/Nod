@@ -43,12 +43,16 @@ export function CalmPanel({ trip }: { trip: Trip | null }) {
       </h2>
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-4">
         <div>
-          <p className="text-[2.25rem] leading-none font-black tracking-[-0.03em]">SFO</p>
+          <p className="display text-[2.75rem] leading-none">SFO</p>
           <p className="mt-1 text-[15px] text-muted">Departs {trip?.departs}</p>
         </div>
-        <Pictogram name="depart" size={44} className="mb-2 bg-sunk!" />
+        <div className="mb-3 flex items-center gap-1.5 text-muted" aria-hidden>
+          <span className="h-0 w-6 border-t-2 border-dashed border-line" />
+          <Pictogram name="depart" size={26} className="rounded bg-fg! text-card!" />
+          <span className="h-0 w-6 border-t-2 border-dashed border-line" />
+        </div>
         <div className="text-right">
-          <p className="text-[2.25rem] leading-none font-black tracking-[-0.03em]">JFK</p>
+          <p className="display text-[2.75rem] leading-none">JFK</p>
           <p className="mt-1 text-[15px] text-muted">Arrive by 9:00 AM</p>
         </div>
       </div>
@@ -101,7 +105,7 @@ export function OptionCard({
   return (
     <article className={`slide-in rounded-xl border bg-card ${lead ? "card-focus border-line p-5" : "border-line px-4 py-3"}`} style={{ animationDelay: `${offer.rank * 110}ms` }} aria-label={`Option ${offer.rank}: ${offer.title}`}>
       <div className="flex items-start gap-3">
-        <span className={`leading-[0.85] font-black tabular-nums ${lead ? "text-[1.75rem]" : "text-lg text-muted"}`}>{offer.rank}</span>
+        <span className={`display leading-[0.85] ${lead ? "text-[1.9rem]" : "text-lg text-muted"}`}>{offer.rank}</span>
         <div className="min-w-0 flex-1">
           <h3 className={`truncate font-extrabold ${lead ? "text-lg leading-tight" : "text-[15px]"}`}>{offer.title}</h3>
           <p className="flex items-baseline gap-2 text-sm text-muted">
@@ -119,14 +123,14 @@ export function OptionCard({
             ) : null}
           </p>
         </div>
-        <p className={`text-right leading-none font-black tabular-nums ${lead ? "text-[1.5rem]" : "text-lg"}`}>
+        <p className={`display text-right leading-none ${lead ? "text-[1.9rem]" : "text-xl"}`}>
           <span key={offer.priceCents} className="price-flip inline-block">{price}</span>
           {voided ? <span className="mt-1 block text-sm font-bold text-muted line-through decoration-danger decoration-2">{money(voided.priceCents)}</span> : null}
         </p>
       </div>
 
       {lead ? (
-        <p className="mt-2 truncate text-sm" title={whyRank(offer, delta)}>
+        <p className="mt-2 text-sm leading-snug">
           <span className="font-bold">Why #1:</span> {whyRank(offer, delta)}
         </p>
       ) : null}
@@ -139,13 +143,17 @@ export function OptionCard({
 
       {stamp?.by === "agent" ? (
         <p role="alert" className="stamp mt-3 flex items-center gap-3 rounded-lg border border-danger bg-danger/5 p-2.5 text-[15px] leading-snug font-bold text-danger">
-          <Pictogram name="lock" size={32} className="bg-danger! text-ink!" />
+          <Pictogram name="lock" size={32} className="bg-danger! text-white!" />
           {stamp.text}
         </p>
       ) : null}
 
       {voided && offer.status !== "booked" ? (
         <p role="alert" className="stamp mt-3 rounded-lg border border-danger bg-danger/5 p-3 text-[15px] leading-snug font-bold" title={voided.text !== "quote" ? `The database said: ${voided.text}` : undefined}>
+          <span className="mb-1 flex items-center gap-2 text-[13px] text-danger">
+            <Pictogram name="clock" size={22} className="rounded bg-danger! text-white!" />
+            Price changed after you approved
+          </span>
           You approved {money(voided.priceCents)}. The price is now {money(offer.priceCents)}. That approval is void.
         </p>
       ) : stamp?.by === "traveler" ? (
@@ -229,7 +237,7 @@ export function ReceiptPanel({ receipts, trip, voids, offers }: { receipts: Rece
           </p>
           {v ? <p className="text-sm font-bold">{money(v.priceCents)} approval voided: the price changed</p> : null}
         </div>
-        <p className="text-[1.75rem] leading-none font-black tabular-nums">{money(r.amountCents)}</p>
+        <p className="display text-[2.25rem] leading-none">{money(r.amountCents)}</p>
       </div>
       <p className="text-sm font-bold">
         {shown} options shown, #{chosen ?? 1} chosen{took ? `, ${took} from cancel to booked` : ""}. Free rebooking checked first.

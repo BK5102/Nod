@@ -1,6 +1,6 @@
 // Filled pictograms drawn for the sign system: white on a black inset square, one weight.
 
-export type PictoName = "depart" | "arrive" | "bed" | "card" | "closed" | "clock" | "refund" | "reroute" | "agent" | "lock" | "check" | "search";
+export type PictoName = "depart" | "arrive" | "bed" | "card" | "closed" | "clock" | "refund" | "reroute" | "agent" | "lock" | "check" | "search" | "flag";
 
 const PLANE =
   "M12 1.8c.9 0 1.5 1 1.5 2.2v5.1l7.7 4.5v2.2l-7.7-2.3v4.6l2.3 1.7v1.6L12 20.3l-3.8 1.1v-1.6l2.3-1.7V13.5L2.8 15.8v-2.2l7.7-4.5V4c0-1.2.6-2.2 1.5-2.2z";
@@ -50,6 +50,8 @@ function Glyph({ name }: { name: PictoName }) {
       );
     case "lock":
       return <path fillRule="evenodd" d="M12 2.5a5 5 0 0 1 5 5V10h1.5A1.5 1.5 0 0 1 20 11.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 20.5v-9A1.5 1.5 0 0 1 5.5 10H7V7.5a5 5 0 0 1 5-5zm0 2.2a2.8 2.8 0 0 0-2.8 2.8V10h5.6V7.5A2.8 2.8 0 0 0 12 4.7zM11 14v4h2v-4z" />;
+    case "flag":
+      return <path d="M5 2h2v20H5zM8 3h11l-2.5 4.5L19 12H8z" />;
     case "check":
       return <path d="M9.4 15.6 5.2 11.4 3 13.6l6.4 6.4L21 8.4l-2.2-2.2z" />;
     case "search":

@@ -302,7 +302,13 @@ function CardMeter({ mandate, trip }: { mandate: { tripCapCents: number; askAbov
       <p className="flex items-baseline justify-between text-[15px]">
         <span className="font-bold">Travel card •••• 4242</span>
         <span className="tabular-nums">
-          <span className="font-bold">{d(spent)}</span> <span className="text-muted">/ {d(cap)}</span>
+          {spent ? (
+            <>
+              <span className="display text-lg">{d(spent)}</span> <span className="text-muted">of {d(cap)}</span>
+            </>
+          ) : (
+            <span className="text-muted">Nothing spent · {d(cap)} cap</span>
+          )}
         </span>
       </p>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-sunk" role="meter" aria-valuemin={0} aria-valuemax={cap / 100} aria-valuenow={spent / 100} aria-label="Spent against the trip cap">
@@ -382,7 +388,9 @@ function Sidebar({
         </div>
 
         <div className="rounded-xl border border-line p-3">
-          <p className="mb-2 text-[13px] font-bold">Presenter</p>
+          <p className="mb-2 flex items-baseline justify-between text-[13px] font-bold">
+            Demo controls <span className="font-medium text-muted">simulated events</span>
+          </p>
           <ul className="flex flex-col gap-1">
             {controls.map((c) => (
               <li key={c.id}>
@@ -394,6 +402,7 @@ function Sidebar({
                 >
                   <kbd className={`grid h-5 w-5 place-items-center rounded font-mono text-[11px] ${nextKey === c.id ? "bg-fg text-card" : "border border-line"}`}>{c.key}</kbd>
                   {running === c.id ? "Working" : c.label}
+                  {nextKey === c.id && !running ? <span className="ml-auto text-[11px] font-semibold text-muted">next</span> : null}
                 </button>
               </li>
             ))}

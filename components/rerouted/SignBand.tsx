@@ -55,13 +55,13 @@ export function SignBand({ trip, offers }: { trip: Trip | null; offers: Offer[] 
   return (
     <header className="flex h-[112px] shrink-0 items-center gap-8 px-8">
       <div key={`${trip?.status}-${big}`} className="flap min-w-0 flex-1" aria-live="polite">
-        <p className={`truncate text-[2.25rem] leading-[1.05] font-extrabold tracking-[-0.025em] ${alert ? "text-danger uppercase" : "text-fg"}`}>{big || " "}</p>
+        <p className={`display truncate text-[2.75rem] leading-[1.02] ${alert ? "text-danger uppercase" : "text-fg"}`}>{big || " "}</p>
         <p className="mt-1 truncate text-[15px] text-muted">{detail}</p>
       </div>
       {trip?.canceledAt ? (
         <div className="text-right">
           <p className="text-sm font-semibold text-muted">{trip.bookedAt ? "Canceled to booked" : "Since the cancellation"}</p>
-          <p className="text-[1.75rem] leading-none font-extrabold tabular-nums">{elapsed(trip.canceledAt, trip.bookedAt ? Date.parse(trip.bookedAt) : now)}</p>
+          <p className="display text-[2rem] leading-none">{elapsed(trip.canceledAt, trip.bookedAt ? Date.parse(trip.bookedAt) : now)}</p>
         </div>
       ) : null}
     </header>

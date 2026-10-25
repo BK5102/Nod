@@ -8,8 +8,8 @@ const marker: Record<AgentStep["kind"], { picto: PictoName; cls: string; word: s
   info: { picto: "clock", cls: "bg-sunk! text-fg!", word: "Note" },
   search: { picto: "search", cls: "bg-sunk! text-fg!", word: "Searching" },
   decision: { picto: "check", cls: "bg-fg! text-card!", word: "Decided" },
-  refusal: { picto: "lock", cls: "bg-danger! text-ink!", word: "Refused" },
-  error: { picto: "closed", cls: "bg-danger! text-ink!", word: "Error" },
+  refusal: { picto: "lock", cls: "bg-danger! text-white!", word: "Refused" },
+  error: { picto: "closed", cls: "bg-danger! text-white!", word: "Error" },
 };
 
 const ROWS = 3;
@@ -32,13 +32,14 @@ export function StepsList({ steps, idle, limit = ROWS }: { steps: AgentStep[]; i
       ) : (
         <ol className={`flex flex-col gap-3 ${limit === ROWS ? "min-h-[168px]" : ""}`} aria-live="polite">
           {rows.map((s) => {
-            const m = marker[s.kind];
+            const flag = s.kind === "refusal" && /^Flagged/i.test(s.text);
+            const m = flag ? { picto: "flag" as const, cls: "bg-danger/10! text-danger!", word: "Flagged" } : marker[s.kind];
             const red = s.kind === "refusal" || s.kind === "error";
             return (
               <li key={s.id} className="row-in grid grid-cols-[auto_1fr] items-start gap-3">
                 <Pictogram name={m.picto} size={28} label={m.word} className={m.cls} />
                 <div className="min-w-0">
-                  <p className={`line-clamp-2 text-[15px] leading-snug ${red ? "font-bold text-danger" : "text-fg"}`}>{s.text}</p>
+                  <p title={s.text} className={`text-[15px] leading-snug ${red ? "line-clamp-3 font-bold text-danger" : "line-clamp-2 text-fg"}`}>{s.text}</p>
                   <p className="font-mono text-xs text-muted">{clockOf(s.at)}</p>
                 </div>
               </li>
