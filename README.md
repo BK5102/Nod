@@ -94,8 +94,9 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 | Quote-bound atomic purchase, hash-chained receipts | Real |
 | Claude reasons and listing flags | Real when `ANTHROPIC_API_KEY` is set; errors shown, never faked |
 | Cancellation | Simulated, triggered by the operator |
-| Flights and hotels | Simulated, replayed fixture with fictional airline and hotel names |
-| Card token and payment | Simulated: a mock of the controls Visa publicly describes. No Visa API, no money moves |
+| Flights | Real search: live Duffel flight API (FLIGHT_PROVIDER=duffel). In Duffel test mode the fares are sandbox data; a live-mode token returns real airline inventory. Saved demo offers are the default and the fallback |
+| Free rebooking, hotels | Simulated, fictional names (the free rebooking comes from the airline, not a search API) |
+| Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Traveler | Fictional |
 
 ## Known limitations

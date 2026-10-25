@@ -367,9 +367,10 @@ Pure TypeScript in `spacetimedb/src/core/`, used by reducers and tests. Tiers ar
 | Claude explanations and flags | Real when the key is set; errors shown, never faked |
 | Receipts | Real, hash-chained, verified by `demo-check.ts` |
 | Cancellation | Simulated, by the operator |
-| Flights and hotels | Simulated, replayed fixtures, fictional names |
+| Flights | Real search: live Duffel flight API (FLIGHT_PROVIDER=duffel). In Duffel test mode the fares are sandbox data; a live-mode token returns real airline inventory. Saved demo offers are the default and the fallback |
+| Free rebooking, hotels | Simulated, fictional names (the free rebooking comes from the airline, not a search API) |
 | Card token | Simulated: a mock of the controls Visa publicly describes. No Visa API |
-| Payment | Simulated. No money moves |
+| Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Traveler | Fictional |
 
 ## 15. Known limitations
