@@ -41,62 +41,88 @@ async function main() {
 
   // 2. cancel, agent run
   const c = await post("/api/demo", { action: "cancel" });
-  check(c.ok, "cancel: route returned", c.error ?? `${c.result?.ms} ms, claude ${c.result?.claudeOk ? "ok" : `failed: ${c.result?.claudeError}`}`);
-  await waitFor(() => traveler.db.trip.tripId.find(DEMO_TRIP_ID)?.status === "options_ready" && offers(traveler).length === 6, "options");
-  const expect: Record<string, [string, number]> = {
-    off_harbor_redeye: ["ASK", 1],
-    off_bayline_free: ["ASK", 2],
-    off_coastal_0600: ["ASK", 3],
-    off_airport_inn: ["ASK", 4],
-    off_harbor_business: ["BLOCK", 0],
-    off_skyport: ["BLOCK", 0],
-  };
-  for (const [id, [tier, rank]] of Object.entries(expect)) {
-    const o = offer(traveler, id);
-    check(o?.tier === tier && o?.rank === rank, `cancel: ${id} is ${tier} rank ${rank}`, `${o?.tier} rank ${o?.rank}`);
+  const source = String(c.result?.source ?? "");
+  const live = source.startsWith("live");
+  check(
+    c.ok,
+    "cancel: route returned",
+    c.error ?? `${c.result?.ms} ms, ${source}${c.result?.fallbackReason ? ` (fell back: ${c.result.fallbackReason})` : ""}, claude ${c.result?.claudeOk ? "ok" : `failed: ${c.result?.claudeError}`}`
+  );
+  await waitFor(() => traveler.db.trip.tripId.find(DEMO_TRIP_ID)?.status === "options_ready" && offers(traveler).length > 0, "options");
+
+  if (!live) {
+    // Saved demo offers: the exact tiers and ranks from docs/PLAN.md section 12.
+    const expect: Record<string, [string, number]> = {
+      off_harbor_redeye: ["ASK", 1],
+      off_bayline_free: ["ASK", 2],
+      off_coastal_0600: ["ASK", 3],
+      off_airport_inn: ["ASK", 4],
+      off_harbor_business: ["BLOCK", 0],
+      off_skyport: ["BLOCK", 0],
+    };
+    for (const [id, [tier, rank]] of Object.entries(expect)) {
+      const o = offer(traveler, id);
+      check(o?.tier === tier && o?.rank === rank, `cancel: ${id} is ${tier} rank ${rank}`, `${o?.tier} rank ${o?.rank}`);
+    }
+  } else {
+    // Live flights: the same guarantees, whatever the search returned.
+    const flights = offers(traveler).filter((o) => o.offerId.startsWith("duf_"));
+    check(flights.length > 0, "cancel: live flights arrived", `${flights.length} flights`);
+    const ranks = offers(traveler).filter((o) => o.rank > 0).map((o) => o.rank).sort((a, b) => a - b);
+    check(ranks.every((r, i) => r === i + 1), "cancel: ranks are 1..n with no gaps", ranks.join(","));
+    check(offers(traveler).every((o) => o.tier !== "BLOCK" || o.rank === 0), "cancel: every BLOCK offer is set aside");
   }
   check(!!offer(traveler, "off_skyport")?.flagged, "cancel: Skyport's injected instruction was flagged", offer(traveler, "off_skyport")?.flagReason);
   check(steps(traveler).length >= 5, "cancel: agent steps streamed", `${steps(traveler).length} steps`);
 
+  // The flight the traveler buys: the top-ranked paid flight that fits under the cap after a price rise.
+  const target = live
+    ? offers(traveler)
+        .filter((o) => o.kind === "flight" && o.status === "open" && o.priceCents + 2_300 <= 60_000)
+        .sort((a, b) => a.rank - b.rank)[0]
+    : offer(traveler, "off_harbor_redeye");
+  if (!target) throw new Error("No paid flight under the cap to run the purchase checks on");
+  const newPrice = live ? target.priceCents + 2_300 : 41_200;
+  const newDollars = `$${(newPrice / 100).toFixed(newPrice % 100 ? 2 : 0)}`;
+
   // 3. the agent tries to buy for itself
-  const ta = await post("/api/agent/try-approve", { offerId: "off_harbor_redeye" });
+  const ta = await post("/api/agent/try-approve", { offerId: target.offerId });
   check(ta.ok && ta.result?.refused === true, "agent cannot approve its own purchase", String(ta.result?.reason ?? ta.error));
   await waitFor(() => steps(traveler).some((s) => s.kind === "refusal" && s.text.includes("agent tried")), "refusal step");
   check(true, "refusal step written");
 
   // 4. the operator cannot approve either
-  const harbor = offer(traveler, "off_harbor_redeye")!;
-  const opRefusal = await refused(operator.reducers.approveOffer({ offerId: harbor.offerId, quoteHash: harbor.quoteHash }));
+  const opRefusal = await refused(operator.reducers.approveOffer({ offerId: target.offerId, quoteHash: target.quoteHash }));
   check(!!opRefusal, "operator cannot approve", opRefusal ?? "was NOT refused");
 
   // 5. price change voids the old quote
-  const oldHash = harbor.quoteHash;
-  const p = await post("/api/demo", { action: "price", offerId: "off_harbor_redeye", priceCents: 41_200 });
-  await waitFor(() => offer(traveler, "off_harbor_redeye")?.priceCents === 41_200, "price change");
-  const stale = await refused(traveler.reducers.approveOffer({ offerId: "off_harbor_redeye", quoteHash: oldHash }));
-  check(p.ok && !!stale && /price changed to \$412/.test(stale), "approval of the old $389 quote is refused", stale ?? "was NOT refused");
+  const oldHash = target.quoteHash;
+  const p = await post("/api/demo", { action: "price", offerId: target.offerId, priceCents: newPrice });
+  await waitFor(() => offer(traveler, target.offerId)?.priceCents === newPrice, "price change");
+  const stale = await refused(traveler.reducers.approveOffer({ offerId: target.offerId, quoteHash: oldHash }));
+  check(p.ok && !!stale && stale.includes(`price changed to ${newDollars}`), "approval of the old quote is refused", stale ?? "was NOT refused");
 
   // 6. approve the new quote
-  const fresh = offer(traveler, "off_harbor_redeye")!;
+  const fresh = offer(traveler, target.offerId)!;
   try {
     await traveler.reducers.approveOffer({ offerId: fresh.offerId, quoteHash: fresh.quoteHash });
   } catch (e) {
-    check(false, "approve $412", reason(e));
+    check(false, `approve ${newDollars}`, reason(e));
   }
   await waitFor(() => traveler.db.trip.tripId.find(DEMO_TRIP_ID)?.status === "booked", "booking");
   const trip = traveler.db.trip.tripId.find(DEMO_TRIP_ID)!;
   const receipts = [...traveler.db.receipt.iter()].filter((x) => x.tripId === DEMO_TRIP_ID);
-  check(trip.spendCents === 41_200 && receipts.length === 1, "booked at $412, one receipt", `spend ${trip.spendCents}, ${receipts.length} receipts`);
+  check(trip.spendCents === newPrice && receipts.length === 1, `booked at ${newDollars}, one receipt`, `spend ${trip.spendCents}, ${receipts.length} receipts`);
 
   // 7. one flight per trip (the $0 free rebooking, so the cap check cannot be the reason)
   const freeRebook = offer(traveler, "off_bayline_free")!;
   const second = await refused(traveler.reducers.approveOffer({ offerId: freeRebook.offerId, quoteHash: freeRebook.quoteHash }));
   check(!!second && /already have a flight/.test(second), "a second flight is refused", second ?? "was NOT refused");
 
-  // 8. blocked options stay blocked
-  const biz = offer(traveler, "off_harbor_business")!;
+  // 8. blocked options stay blocked (business class in the saved offers, Skyport in both modes)
+  const biz = offer(traveler, live ? "off_skyport" : "off_harbor_business")!;
   const blocked = await refused(traveler.reducers.approveOffer({ offerId: biz.offerId, quoteHash: biz.quoteHash }));
-  check(!!blocked && /blocked/.test(blocked), "business class (over cap) is refused", blocked ?? "was NOT refused");
+  check(!!blocked && /blocked/.test(blocked), `${biz.title} (blocked) is refused`, blocked ?? "was NOT refused");
 
   // 9. receipt chain
   const chain = verifyReceipts(receipts);
