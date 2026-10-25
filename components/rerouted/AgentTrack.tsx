@@ -53,10 +53,10 @@ export function AgentTrack({ trip, offers, steps }: { trip: Trip | null; offers:
                 name={s.picto}
                 size={40}
                 label={`${s.word}${s.done ? ", done" : ", not yet"}`}
-                className={s.done ? (s.alert ? "bg-alert! text-ink!" : "bg-yellow! text-ink!") : "bg-panel-2! text-white/30!"}
+                className={s.done ? (s.alert ? "bg-alert! text-ink!" : "bg-yellow! text-ink!") : "bg-panel-2! text-soft!"}
               />
             </span>
-            <span className={`text-xs leading-tight font-bold md:text-sm ${s.done ? "text-white" : "text-white/35"}`}>{s.word}</span>
+            <span className={`text-xs leading-tight font-bold md:text-sm ${s.done ? "text-white" : "text-soft"}`}>{s.word}</span>
           </li>
         ))}
       </ol>

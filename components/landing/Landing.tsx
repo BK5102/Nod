@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { createMockEngine } from "@/components/rerouted/mock";
 import { Pictogram, type PictoName } from "@/components/rerouted/Pictogram";
@@ -76,11 +76,45 @@ function useReplay() {
   return { state, beat, pulse, done, replay: () => setRound((n) => n + 1) };
 }
 
-const beats: { picto: PictoName; head: string; line: string }[] = [
-  { picto: "refund", head: "Free first", line: "It checks the airline's free rebooking before it spends anything." },
-  { picto: "card", head: "Your card decides", line: "Trip cap, ask-first limit, allowed categories. Enforced in the database." },
-  { picto: "agent", head: "The agent cannot pay itself", line: "Only your tap buys, at the exact price you saw." },
-  { picto: "arrive", head: "A receipt you can check", line: "Hash-chained, with the refund you are owed." },
+/** Slides its content in from one side the first time it scrolls into view. */
+function Reveal({ from, children, className = "" }: { from: "left" | "right"; children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || new URLSearchParams(window.location.search).has("static")) {
+      setShown(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -8% 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className={`transition-[transform,opacity] duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${shown ? "translate-x-0 opacity-100" : from === "left" ? "-translate-x-24 opacity-0" : "translate-x-24 opacity-0"} ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The story, one sign per beat, alternating sides as you scroll. */
+const story: { picto: PictoName; tone: "yellow" | "alert"; big: string; head: string; line: string }[] = [
+  { picto: "refund", tone: "yellow", big: "Free", head: "Free first", line: "It checks the airline's free rebooking before it spends a dollar." },
+  { picto: "card", tone: "yellow", big: "$600", head: "Your card decides", line: "Trip cap, ask-first limit and allowed categories, enforced in the database." },
+  { picto: "agent", tone: "alert", big: "No", head: "The agent cannot pay itself", line: "Only your tap buys, at the exact price you saw." },
+  { picto: "arrive", tone: "yellow", big: "$318", head: "Your refund, counted", line: "Every purchase leaves a receipt that cannot be quietly changed." },
 ];
 
 export function Landing() {
@@ -89,99 +123,106 @@ export function Landing() {
   const toneClass = now.tone === "alert" ? "text-alert" : now.tone === "yellow" ? "text-yellow" : "text-white";
 
   return (
-    <div className="min-h-dvh bg-ink text-white">
+    <div className="min-h-dvh overflow-x-hidden bg-ink text-white">
       <header className="sign on-yellow">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 md:px-8">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 md:px-8">
           <Link href="/" className="flex items-center gap-3">
             <Pictogram name="reroute" size={40} label="Rerouted" />
             <span className="text-2xl font-extrabold tracking-tight">Rerouted</span>
           </Link>
-          <Link href="/login" className="flex items-center gap-3 bg-ink px-4 py-2.5 text-lg font-extrabold text-white transition-colors hover:bg-panel-2">
+          <Link href="/login" className="bg-ink px-4 py-2 text-base font-extrabold text-white transition-colors hover:bg-panel-2">
             Sign in
           </Link>
         </div>
       </header>
 
       <section className="sign on-yellow border-b-4 border-ink">
-        <div className="mx-auto grid max-w-[1600px] items-center gap-10 px-4 pt-10 pb-14 md:px-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)] lg:pt-16 lg:pb-20">
-          <div className="flap">
-            <h1 className="text-[3.25rem] leading-[0.92] font-black tracking-[-0.04em] [text-wrap:balance] md:text-[5.5rem]">Canceled? Rerouted.</h1>
-            <p className="mt-5 max-w-[34ch] text-xl leading-snug font-semibold text-yellow-soft md:text-2xl">
-              An agent shops your way home inside your card&apos;s rules. You approve with one tap.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link href="/login" className="flex items-center gap-3 bg-ink py-3 pr-5 pl-3 text-xl font-extrabold text-white transition-[transform,background-color] hover:bg-panel-2 active:scale-[0.985]">
-                <Pictogram name="depart" size={36} className="bg-yellow! text-ink!" />
-                Open the dashboard
-              </Link>
-            </div>
-          </div>
+        <div className="mx-auto grid max-w-[1440px] items-center gap-10 px-4 pt-10 pb-16 md:px-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14 lg:pt-14 lg:pb-20">
+          <Reveal from="left">
+            <h1 className="text-[3.25rem] leading-[0.92] font-black tracking-[-0.04em] [text-wrap:balance] md:text-[4.25rem] xl:text-[5.5rem]">Canceled? Rerouted.</h1>
+            <p className="mt-5 max-w-[30ch] text-xl leading-snug font-semibold text-yellow-soft">An agent shops your way home inside your card&apos;s rules. You approve with one tap.</p>
+            <Link
+              href="/login"
+              className="mt-8 inline-flex items-center gap-3 bg-ink py-3 pr-5 pl-3 text-lg font-extrabold text-white transition-[transform,background-color] hover:bg-panel-2 active:scale-[0.985]"
+            >
+              <Pictogram name="depart" size={32} className="bg-yellow! text-ink!" />
+              Open the dashboard
+            </Link>
+          </Reveal>
 
-          {/* The show: the corridor performs each beat while a caption flips above it. */}
-          <div className="board relative overflow-hidden border-4 border-ink">
-            <div className="relative h-[360px] sm:h-[460px] lg:h-[560px]">
-              <CorridorCanvas trip={state.trip} offers={state.offers} refusedPulse={pulse} />
-
-              <div className="pointer-events-none absolute top-0 left-0 bg-panel/90 px-5 py-4">
-                <p key={now.id} className={`flap text-[2.4rem] leading-[0.95] font-black tracking-[-0.03em] md:text-[3.25rem] ${toneClass}`}>
-                  {now.head}
-                </p>
-                <p key={`${now.id}-sub`} className="flap mt-2 text-lg font-semibold text-white/80">
-                  {now.sub}
-                </p>
+          {/* The show: a caption band, then the corridor performing the beat. */}
+          <Reveal from="right">
+            <div className="board border-4 border-ink">
+              <div className="flex min-h-[96px] items-center justify-between gap-4 border-b border-rule px-5 py-3">
+                <div className="min-w-0">
+                  <p key={now.id} className={`flap text-[2rem] leading-none font-black tracking-[-0.03em] ${toneClass}`}>
+                    {now.head}
+                  </p>
+                  <p key={`${now.id}-sub`} className="flap mt-1.5 text-base font-semibold text-white/75">
+                    {now.sub}
+                  </p>
+                </div>
+                {now.id === "refused" ? (
+                  <p className="stamp shrink-0 -rotate-6 border-[3px] border-alert px-3 py-1 text-xl font-black tracking-[0.04em] text-alert">REFUSED</p>
+                ) : null}
               </div>
 
-              {now.id === "refused" ? (
-                <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                  <p className="stamp -rotate-6 border-4 border-alert bg-ink/90 px-6 py-3 text-[2.4rem] font-black tracking-[0.04em] text-alert">REFUSED</p>
-                </div>
-              ) : null}
+              <div className="relative aspect-[4/3] w-full sm:aspect-[16/10]">
+                <CorridorCanvas trip={state.trip} offers={state.offers} refusedPulse={pulse} labelScale={0.72} />
+                {done ? (
+                  <button
+                    type="button"
+                    onClick={replay}
+                    className="row-in absolute right-3 bottom-3 flex items-center gap-1.5 bg-yellow px-2.5 py-1.5 text-sm font-extrabold text-ink hover:bg-yellow-deep"
+                  >
+                    <Pictogram name="reroute" size={20} />
+                    Play again
+                  </button>
+                ) : null}
+              </div>
 
-              {done ? (
-                <button
-                  type="button"
-                  onClick={replay}
-                  className="row-in absolute right-5 bottom-16 flex items-center gap-2 bg-yellow px-4 py-2.5 text-lg font-extrabold text-ink hover:bg-yellow-deep"
-                >
-                  <Pictogram name="reroute" size={28} />
-                  Play again
-                </button>
-              ) : null}
+              <ol className="grid grid-cols-6 gap-1 border-t border-rule px-5 py-3" aria-label="Demo progress">
+                {BEATS.map((b, i) => (
+                  <li key={b.id}>
+                    <span className={`block h-1.5 transition-colors duration-500 ${i <= beat ? (b.tone === "alert" ? "bg-alert" : "bg-yellow") : "bg-panel-2"}`} />
+                  </li>
+                ))}
+              </ol>
             </div>
-
-            <ol className="grid grid-cols-6 gap-1 bg-ink px-5 py-3" aria-label="Demo progress">
-              {BEATS.map((b, i) => (
-                <li key={b.id} className="flex flex-col gap-1.5">
-                  <span className={`h-1.5 transition-colors duration-500 ${i <= beat ? (b.tone === "alert" ? "bg-alert" : "bg-yellow") : "bg-panel-2"}`} />
-                  <span className={`hidden text-xs font-bold sm:block ${i === beat ? "text-white" : "text-white/40"}`}>{b.head.split(",")[0]}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+          </Reveal>
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1600px] px-4 py-16 md:px-8 lg:py-24">
-        <ol className="grid gap-px bg-rule sm:grid-cols-2 lg:grid-cols-4">
-          {beats.map((b, i) => (
-            <li key={b.head} className="row-in bg-ink p-6 lg:p-8" style={{ animationDelay: `${i * 120}ms` }}>
-              <Pictogram name={b.picto} size={56} className="bg-yellow! text-ink!" />
-              <h2 className="mt-6 text-[1.45rem] leading-tight font-extrabold">{b.head}</h2>
-              <p className="mt-2 text-base leading-snug text-soft">{b.line}</p>
-            </li>
-          ))}
-        </ol>
+      <section className="mx-auto flex max-w-[1440px] flex-col gap-20 px-4 py-20 md:px-8 lg:gap-28 lg:py-28">
+        {story.map((s, i) => {
+          const left = i % 2 === 0;
+          return (
+            <Reveal key={s.head} from={left ? "left" : "right"}>
+              <div className={`flex flex-col items-start gap-6 md:flex-row md:items-center md:gap-12 ${left ? "" : "md:flex-row-reverse md:text-right"}`}>
+                <div className={`flex shrink-0 items-center gap-5 ${left ? "" : "md:flex-row-reverse"}`}>
+                  <Pictogram name={s.picto} size={88} className={s.tone === "alert" ? "bg-alert! text-ink!" : "bg-yellow! text-ink!"} />
+                  <p className={`text-[4.5rem] leading-none font-black tracking-[-0.04em] md:text-[6rem] ${s.tone === "alert" ? "text-alert" : "text-yellow"}`}>{s.big}</p>
+                </div>
+                <div className={`max-w-[32ch] ${left ? "" : "md:ml-auto"}`}>
+                  <h2 className="text-[2rem] leading-tight font-black tracking-[-0.02em]">{s.head}</h2>
+                  <p className="mt-2 text-lg leading-snug text-soft">{s.line}</p>
+                </div>
+              </div>
+            </Reveal>
+          );
+        })}
       </section>
 
       <section className="sign on-yellow">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-6 px-4 py-12 md:px-8">
-          <p className="text-[2rem] leading-tight font-black tracking-[-0.02em] md:text-[2.4rem]">Watch it shop, live.</p>
-          <Link href="/login" className="bg-ink px-5 py-3 text-xl font-extrabold text-white hover:bg-panel-2">
-            Sign in
-          </Link>
-        </div>
+        <Reveal from="left">
+          <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-6 px-4 py-14 md:px-8">
+            <p className="text-[2.4rem] leading-tight font-black tracking-[-0.03em]">Watch it shop, live.</p>
+            <Link href="/login" className="bg-ink px-5 py-3 text-lg font-extrabold text-white hover:bg-panel-2">
+              Sign in
+            </Link>
+          </div>
+        </Reveal>
       </section>
-
     </div>
   );
 }

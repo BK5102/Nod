@@ -180,8 +180,9 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
 
   return (
     <div className="min-h-dvh bg-ink pb-10">
-      <DashBar trip={trip} live={mode === "live"} account={account} />
+      <DashBar trip={trip} account={account} />
       <SignBand trip={trip} offers={offers} />
+      <TripStrip offers={offers} spentCents={trip?.spendCents ?? 0} capCents={mandate?.tripCapCents ?? 0} refundCents={trip?.refundOwedCents ?? 0} />
 
       {/* Phone order: choices, corridor, board. Desktop: corridor and board left, choices right. */}
       <main className="mx-auto grid max-w-[1600px] gap-8 px-4 pt-8 md:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-10 lg:gap-y-8 lg:pt-10">
@@ -245,7 +246,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
               type="button"
               disabled={!c.enabled || !!control}
               onClick={() => run(c.id)}
-              className="flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-bold text-white hover:bg-panel-2 disabled:text-white/35 disabled:hover:bg-transparent"
+              className="flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-bold text-white hover:bg-panel-2 disabled:text-white/55 disabled:hover:bg-transparent"
             >
               <kbd className="grid h-6 w-6 place-items-center bg-yellow font-mono text-xs text-ink">{c.key}</kbd>
               {control === c.id ? "Working" : c.label}
@@ -259,7 +260,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
 }
 
 /** The dashboard's own bar: where you are, what is connected, and your account. */
-function DashBar({ trip, live, account }: { trip: { route: string; flight: string } | null; live: boolean; account?: ReactNode }) {
+function DashBar({ trip, account }: { trip: { route: string; flight: string } | null; account?: ReactNode }) {
   const links = [
     ["Trip", "#trip"],
     ["Options", "#options"],
@@ -278,12 +279,36 @@ function DashBar({ trip, live, account }: { trip: { route: string; flight: strin
             </a>
           ))}
         </nav>
-        <p className="ml-auto flex items-center gap-2 text-sm font-semibold">
-          <span className={`h-2 w-2 ${live ? "bg-go" : "bg-yellow"}`} aria-hidden="true" />
-          {live ? "Live database" : "Mock data"}
-        </p>
-        {account}
+        <div className="ml-auto">{account}</div>
       </div>
+    </div>
+  );
+}
+
+/** The trip at a glance: four readouts straight from the database rows, flush-bordered. */
+function TripStrip({ offers, spentCents, capCents, refundCents }: { offers: Offer[]; spentCents: number; capCents: number; refundCents: number }) {
+  const ranked = offers.filter((o) => o.rank > 0);
+  const making = ranked.filter((o) => o.meetsDeadline && o.kind !== "hotel").length;
+  const dollars = (c: number) => `$${Math.round(c / 100).toLocaleString("en-US")}`;
+  const cells: { label: string; value: string; hint?: string }[] = [
+    { label: "Ways home", value: ranked.length ? String(ranked.length) : "0", hint: offers.length - ranked.length ? `${offers.length - ranked.length} set aside` : undefined },
+    { label: "Land by 9:00 AM", value: String(making) },
+    { label: "Spent", value: dollars(spentCents), hint: capCents ? `of ${dollars(capCents)} cap` : undefined },
+    { label: "Refund owed", value: dollars(refundCents), hint: refundCents ? "canceled ticket" : undefined },
+  ];
+  return (
+    <div className="board border-b border-rule">
+    <dl className="mx-auto grid max-w-[1600px] grid-cols-2 md:grid-cols-4 md:divide-x md:divide-rule">
+      {cells.map((c) => (
+        <div key={c.label} className="flex items-baseline justify-between gap-3 px-4 py-3 md:px-6">
+          <dt className="text-sm font-semibold text-soft">{c.label}</dt>
+          <dd className="text-right">
+            <span className="text-[1.45rem] leading-none font-black tabular-nums">{c.value}</span>
+            {c.hint ? <span className="block text-xs font-semibold text-soft">{c.hint}</span> : null}
+          </dd>
+        </div>
+      ))}
+    </dl>
     </div>
   );
 }

@@ -129,7 +129,10 @@ export class Corridor {
   private dolly = 0;
   private sweep: THREE.Mesh | null = null;
 
-  constructor(private host: HTMLElement) {
+  constructor(
+    private host: HTMLElement,
+    private opts: { labelScale?: number } = {},
+  ) {
     this.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -220,7 +223,8 @@ export class Corridor {
     this.camBase.set(-7.5 * k, 8.2 * k, 15.5 * k);
     this.camera.updateProjectionMatrix();
     this.placeCamera();
-    this.labelScale = aspect < 1.4 ? 1.9 : 1;
+    // Labels grow only on genuinely narrow stages (phones); the host can shrink them overall.
+    this.labelScale = (aspect < 1 ? 1.5 : aspect < 1.3 ? 1.15 : 1) * (this.opts.labelScale ?? 1);
     this.scene.traverse((o) => {
       if (o instanceof THREE.Sprite) this.fit(o);
     });
