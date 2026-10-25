@@ -58,8 +58,11 @@ export function clockOf(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
 
-/**
- * "Tomorrow 6:45 AM" -> "6:45 AM": tonight and tomorrow are clear from the deadline line beside it.
- * "Today" is kept short as "today", and a dated label such as "Mon Oct 26 7:00 AM" keeps its date.
- */
-export const timeOnly = (text: string) => text.replace(/^(tonight|tomorrow)\s+/i, "").replace(/^today\s+(.+)$/i, "$1 today");
+/** "Tomorrow 6:45 AM" -> "6:45 AM". A dated label such as "Mon Oct 26 7:00 AM" keeps its date. */
+export const timeOnly = (text: string) => text.replace(/^(tonight|tomorrow|today)\s+/i, "");
+
+/** "Today 1:43 PM to 10:29 PM": the day is named once, only when it is today (tonight and tomorrow read from the deadline). */
+export const timeSpan = (departs: string, arrives: string) => `${/^\s*today\b/i.test(departs) ? "Today " : ""}${timeOnly(departs)} to ${timeOnly(arrives)}`;
+
+/** "10 h 31 min early" -> "10 h early" past two hours: the minutes stop mattering. */
+export const roughly = (text: string) => text.replace(/^(\d+) h \d+ min/, (m, h) => (Number(h) >= 2 ? `${h} h` : m));

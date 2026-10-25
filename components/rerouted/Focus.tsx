@@ -2,7 +2,7 @@
 
 import fixture from "@/data/fixtures/demo.json";
 import { verifyReceipts } from "@/spacetimedb/src/core/receipt";
-import { clockHours, clockOf, deadlineDelta, money, timeOnly } from "./format";
+import { clockHours, clockOf, deadlineDelta, money, roughly, timeOnly, timeSpan } from "./format";
 import { Pictogram } from "./Pictogram";
 import { parseRules, type Offer, type Receipt, type Trip } from "./types";
 
@@ -121,7 +121,7 @@ export function OptionCard({
 }) {
   const delta = landing(offer);
   const price = offer.priceCents === 0 ? "Free" : money(offer.priceCents);
-  const times = offer.kind === "hotel" ? "Tonight, near SFO" : `${timeOnly(offer.departs)} to ${timeOnly(offer.arrives)}`;
+  const times = offer.kind === "hotel" ? "Tonight, near SFO" : timeSpan(offer.departs, offer.arrives);
   const misses = delta && !delta.before;
 
   return (
@@ -131,8 +131,8 @@ export function OptionCard({
         <div className="min-w-0 flex-1">
           <h3 className={`truncate font-extrabold ${lead ? "text-lg leading-tight" : "text-[15px]"}`}>{offer.title}</h3>
           <p className="flex items-baseline gap-2 text-sm text-muted">
-            <span>{times}</span>
-            {delta ? <span className={`ml-2 font-bold ${misses ? "text-muted" : "text-fg"}`}>{misses ? "misses 9:00 AM" : `${delta.text.replace(" before 9:00 AM", "")} early`}</span> : null}
+            <span className="whitespace-nowrap">{times}</span>
+            {delta ? <span className={`font-bold whitespace-nowrap ${misses ? "text-muted" : "text-fg"}`}>{misses ? "misses 9:00 AM" : `${roughly(delta.text.replace(" before 9:00 AM", ""))} early`}</span> : null}
             {!lead ? (
               <button
                 type="button"
