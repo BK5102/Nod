@@ -83,11 +83,16 @@ export function createMockEngine() {
       const mine = ++run;
       set({ trip: { ...state.trip, status: "canceled", cancelReason: CANCEL_REASON, canceledAt: new Date().toISOString(), refundOwedCents: state.trip.fareCents } });
       step("info", `${DEMO_TRIP.flight} was canceled: ${CANCEL_REASON}. Your ${dollars(DEMO_TRIP.fareCents)} fare is owed back to you.`);
-      const free = OFFERS.find((o) => o.kind === "free_rebooking")!;
+      // The fixture is a recorded real search: flights only, so the free rebooking and hotel lines appear
+      // only if those offers exist (the same as the live agent in lib/agent/run.ts).
+      const free = OFFERS.find((o) => o.kind === "free_rebooking");
+      const hotels = OFFERS.filter((o) => o.kind === "hotel").length;
       const script: [AgentStep["kind"], string][] = [
-        ["search", `Checking ${free.merchant}'s free rebooking`],
-        ["decision", `Free rebooking: departs ${free.departs.toLowerCase()}, lands ${free.arrives.toLowerCase()}. Misses your 9:00 AM deadline.`],
-        ["search", `Searched ${OFFERS.filter((o) => o.kind === "flight").length} paid flights and ${OFFERS.filter((o) => o.kind === "hotel").length} hotels`],
+        ["search", `Searching flights ${DEMO_TRIP.route}`],
+        ...(free
+          ? ([["decision", `Free rebooking: departs ${free.departs.toLowerCase()}, lands ${free.arrives.toLowerCase()}. ${free.meetsDeadline ? "Makes" : "Misses"} your 9:00 AM deadline.`]] as [AgentStep["kind"], string][])
+          : []),
+        ["search", `Found ${OFFERS.filter((o) => o.kind === "flight").length} paid flights${hotels ? ` and ${hotels} hotels` : ""} from a recorded Google Flights search (Oct 25, 2026)`],
         ["info", "Checking listings and writing a reason for each option"],
       ];
       for (const [kind, text] of script) {
@@ -102,9 +107,10 @@ export function createMockEngine() {
         step("error", "The agent could not write reasons (mock outage). The card's rules still apply, and nothing is bought without your yes.");
         set({ offers: submit(0, new Map()), trip: { ...state.trip!, status: "options_ready" } });
       } else {
-        const flags = new Map([["off_skyport", SKYPORT_FLAG]]);
+        const skyport = OFFERS.find((o) => o.offerId === "off_skyport");
+        const flags = new Map(skyport ? [[skyport.offerId, SKYPORT_FLAG]] : []);
         set({ offers: submit(0, flags), trip: { ...state.trip!, status: "options_ready" } });
-        step("refusal", `Flagged Skyport Suites: ${SKYPORT_FLAG}`);
+        if (skyport) step("refusal", `Flagged ${skyport.merchant}: ${SKYPORT_FLAG}`);
       }
       const aside = state.offers.filter((o) => o.status === "set_aside").length;
       step("decision", `${state.offers.length - aside} options ready, ${aside} set aside`);
