@@ -87,7 +87,7 @@ export function OptionPanel({
     );
   }
 
-  const times = hotel ? "Tonight, near SFO" : `${timeOnly(offer.departs)} to ${timeOnly(offer.arrives)}`;
+  const times = hotel ? "Tonight, near the airport" : `${timeOnly(offer.departs)} to ${timeOnly(offer.arrives)}`;
   const price = offer.priceCents === 0 ? "Free" : money(offer.priceCents);
   const early = delta ? delta.text.replace(/ (before|after) 9:00 AM$/, "") : "";
 

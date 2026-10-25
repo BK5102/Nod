@@ -1,11 +1,11 @@
-// The deadline corridor. One shared time axis (New York time, tonight to tomorrow afternoon).
+// The deadline corridor. One shared time axis (the destination's time, tonight to tomorrow afternoon).
 // The 9:00 AM deadline stands as a yellow overhead sign frame. Every way home is an arc from its
 // departure to its arrival, so routes that make it land in front of the frame and late ones land
 // past it. The canceled flight breaks and falls; blocked routes drop through the floor; the booked
 // route turns yellow and a plane flies it once. Renders on demand: no frames while nothing moves.
 
 import * as THREE from "three";
-import { clockHours } from "@/components/rerouted/format";
+import { airportsOf, clockHours } from "@/components/rerouted/format";
 import type { Offer, Trip } from "@/components/rerouted/types";
 
 const YELLOW = 0xffcc00;
@@ -14,7 +14,10 @@ const SOFT = 0x8a8a8a;
 const ALERT = 0xff5a4e;
 const GROUND = 0x1a1a1a;
 
-const PT_TO_ET = 3; // departures are printed in San Francisco time, arrivals in New York time
+// Departures are printed in West Coast (Pacific) time, arrivals in the destination's time: New York and
+// Boston are 3 hours ahead, Chicago 2. The axis runs on the destination's clock.
+const HOURS_AHEAD: Record<string, number> = { ORD: 2 };
+const hoursAhead = (dest: string) => HOURS_AHEAD[dest] ?? 3;
 const DEADLINE_ET = 21; // 9:00 AM tomorrow on the clockHours axis
 const AXIS_TO = 29; // 5 PM tomorrow
 /**
@@ -144,6 +147,12 @@ export class Corridor {
   /** The viewer's own turn and zoom, layered on top of the scripted framing. */
   private view = { yaw: 0, pitch: 0, zoom: 1 };
   private unbind: (() => void) | null = null;
+  private signFrame: THREE.Group | null = null;
+  private deadlineSign: THREE.Sprite | null = null;
+  private tripKey = "";
+  private origin = "SFO";
+  /** Hours the destination's clock is ahead of the departure airport's (Pacific). */
+  private tz = 3;
 
   constructor(
     private host: HTMLElement,
@@ -289,16 +298,8 @@ export class Corridor {
     veil.rotation.y = Math.PI / 2;
     veil.position.set(0, 2.1, -1);
     frame.add(veil);
-    const sign = textSprite(
-      [
-        { text: "Arrive JFK by", weight: 700, size: 26, color: "#0b0b0b" },
-        { text: "9:00 AM", weight: 900, size: 58, color: "#0b0b0b" },
-      ],
-      { bg: "#ffffff", pad: 14, height: 1.6 },
-    );
-    sign.center.set(0.5, 0);
-    sign.position.set(0, 4.35, -1);
-    frame.add(sign);
+    this.signFrame = frame;
+    this.setDestination("JFK");
     frame.position.x = x;
     this.scene.add(frame);
   }
@@ -482,9 +483,38 @@ export class Corridor {
     );
   }
 
+  /** The deadline sign names the destination; the demo can switch to a flight on another route. */
+  private setDestination(dest: string) {
+    if (this.deadlineSign) {
+      this.signFrame?.remove(this.deadlineSign);
+      disposeSprite(this.deadlineSign);
+    }
+    const sign = textSprite(
+      [
+        { text: `Arrive ${dest} by`, weight: 700, size: 26, color: "#0b0b0b" },
+        { text: "9:00 AM", weight: 900, size: 58, color: "#0b0b0b" },
+      ],
+      { bg: "#ffffff", pad: 14, height: 1.6 },
+    );
+    sign.center.set(0.5, 0);
+    sign.position.set(0, 4.35, -1);
+    this.signFrame?.add(sign);
+    this.deadlineSign = sign;
+  }
+
   /** Bring the scene in line with the state. Safe to call on every state change. */
   update(trip: Trip | null, offers: Offer[]) {
     if (!trip) return;
+    // A different flight (the demo's shuffle) starts the scene over, on that route's clock.
+    const key = `${trip.route}|${trip.flight}`;
+    if (key !== this.tripKey) {
+      if (this.tripKey) this.resetScene();
+      this.tripKey = key;
+      const { from, to } = airportsOf(trip.route);
+      this.origin = from || "SFO";
+      this.tz = hoursAhead(to);
+      this.setDestination(to || "JFK");
+    }
     if (trip.status === "scheduled" && this.status !== "scheduled") this.resetScene();
     if (!this.original) this.buildOriginal(trip);
     if (trip.status !== "scheduled" && this.original && !this.original.broken) {
@@ -512,7 +542,7 @@ export class Corridor {
   }
 
   private buildOriginal(trip: Trip) {
-    const dep = (clockHours(trip.departs) ?? 6.67) + PT_TO_ET;
+    const dep = (clockHours(trip.departs) ?? 6.67) + this.tz;
     // Drawn to the length of a nonstop crossing; no arrival time is claimed for it.
     const curve = this.arc(dep, dep + 5.5, -1);
     const tube = this.tube(curve, WHITE, 0.07);
@@ -522,7 +552,7 @@ export class Corridor {
     const label = textSprite(
       [
         { text: trip.flight, weight: 700, size: 30, color: "#ffffff" },
-        { text: `Departs ${trip.departs} from SFO`, weight: 600, size: 22, color: "#b8b8b8" },
+        { text: `Departs ${trip.departs} from ${this.origin}`, weight: 600, size: 22, color: "#b8b8b8" },
       ],
       { height: 0.8 },
     );
@@ -586,10 +616,10 @@ export class Corridor {
       // A night in a hotel is a low rest bar from late tonight to check-out.
       // Check in around 9 PM in San Francisco (midnight in New York), out at the listed time.
       const checkIn = 12;
-      const end = (clockHours(o.arrives, checkIn - PT_TO_ET) ?? 17) + PT_TO_ET;
+      const end = (clockHours(o.arrives, checkIn - this.tz) ?? 17) + this.tz;
       curve = this.arc(checkIn, end, z, 0.12);
     } else {
-      const dep = (clockHours(o.departs) ?? 12) + PT_TO_ET;
+      const dep = (clockHours(o.departs) ?? 12) + this.tz;
       const arr = clockHours(o.arrives, dep) ?? dep + 5;
       curve = this.arc(dep, arr, z);
     }

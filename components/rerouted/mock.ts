@@ -78,6 +78,11 @@ export function createMockEngine() {
       return ok;
     },
 
+    async shuffle() {
+      // The recorded flights are mapped on the server, so switching flights needs the live database.
+      return fail("Another flight needs the live database. Open the dashboard without ?mock=1.");
+    },
+
     async cancel() {
       if (state.trip?.status !== "scheduled") return fail("This flight is already canceled. Reset the demo first.");
       const mine = ++run;

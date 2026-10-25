@@ -1,3 +1,9 @@
+/** "SFO to JFK" -> { from: "SFO", to: "JFK" }. The trip row carries the route; the demo can switch flights. */
+export function airportsOf(route: string | undefined): { from: string; to: string } {
+  const m = /^([A-Z]{3}) to ([A-Z]{3})$/.exec(route ?? "");
+  return { from: m?.[1] ?? "", to: m?.[2] ?? "" };
+}
+
 export const money = (cents: number) =>
   `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: cents % 100 ? 2 : 0, minimumFractionDigits: cents % 100 ? 2 : 0 })}`;
 

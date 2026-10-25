@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { clockHours, deadlineDelta, elapsed, timeOnly } from "./format";
+import { airportsOf, clockHours, deadlineDelta, elapsed, timeOnly } from "./format";
 import type { Offer, Trip } from "./types";
 
 /** The one thing to know right now, at sign scale. Neutral except the canceled state. */
@@ -19,13 +19,14 @@ export function SignBand({ trip, offers }: { trip: Trip | null; offers: Offer[] 
   const booked = offers.find((o) => o.status === "booked" && o.kind !== "hotel");
   const making = ranked.filter((o) => o.meetsDeadline && o.kind !== "hotel").length;
 
+  const { from, to } = airportsOf(trip?.route);
   let big = "";
   let detail: React.ReactNode = "";
   let alert = false;
   switch (trip?.status) {
     case "scheduled":
       big = "On time";
-      detail = `${trip.flight}, SFO ${trip.departs} to JFK. ${trip.deadlineText}.`;
+      detail = `${trip.flight}, ${from} ${trip.departs} to ${to}. ${trip.deadlineText}.`;
       break;
     case "canceled":
       big = "Canceled";
@@ -35,7 +36,7 @@ export function SignBand({ trip, offers }: { trip: Trip | null; offers: Offer[] 
           <span className="line-through decoration-danger decoration-2">
             {trip.flight}, {trip.departs}
           </span>
-          <span className="ml-3">You need to be at JFK by 9:00 AM.</span>
+          <span className="ml-3">You need to be at {to} by 9:00 AM.</span>
         </>
       );
       break;

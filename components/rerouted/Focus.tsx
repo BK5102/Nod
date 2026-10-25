@@ -2,7 +2,7 @@
 
 import fixture from "@/data/fixtures/demo.json";
 import { verifyReceipts } from "@/spacetimedb/src/core/receipt";
-import { clockHours, clockOf, deadlineDelta, money, roughly, timeOnly, timeSpan } from "./format";
+import { airportsOf, clockHours, clockOf, deadlineDelta, money, roughly, timeOnly, timeSpan } from "./format";
 import { Pictogram } from "./Pictogram";
 import { parseRules, type Offer, type Receipt, type Trip } from "./types";
 
@@ -36,6 +36,7 @@ function landing(o: Offer) {
 
 /** Before anything goes wrong: the trip, in plain terms. */
 export function CalmPanel({ trip }: { trip: Trip | null }) {
+  const { from, to } = airportsOf(trip?.route);
   return (
     <section aria-labelledby="calm-h" className="flex flex-col gap-5">
       <h2 id="calm-h" className="text-[15px] font-extrabold">
@@ -43,7 +44,7 @@ export function CalmPanel({ trip }: { trip: Trip | null }) {
       </h2>
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-4">
         <div>
-          <p className="display text-[2.75rem] leading-none">SFO</p>
+          <p className="display text-[2.75rem] leading-none">{from}</p>
           <p className="mt-1 text-[15px] text-muted">Departs {trip?.departs}</p>
         </div>
         <div className="mb-3 flex items-center gap-1.5 text-muted" aria-hidden>
@@ -52,7 +53,7 @@ export function CalmPanel({ trip }: { trip: Trip | null }) {
           <span className="h-0 w-6 border-t-2 border-dashed border-line" />
         </div>
         <div className="text-right">
-          <p className="display text-[2.75rem] leading-none">JFK</p>
+          <p className="display text-[2.75rem] leading-none">{to}</p>
           <p className="mt-1 text-[15px] text-muted">Arrive by 9:00 AM</p>
         </div>
       </div>
@@ -66,17 +67,17 @@ export function CalmPanel({ trip }: { trip: Trip | null }) {
           <dd className="font-bold tabular-nums">{trip ? money(trip.fareCents) : ""}</dd>
         </div>
       </dl>
-      <p className="text-[15px] leading-snug text-muted">If it is canceled, the agent searches real flights to JFK, ranks them against your deadline and checks each one against your card&apos;s rules. Nothing is bought until you tap.</p>
+      <p className="text-[15px] leading-snug text-muted">If it is canceled, the agent searches real flights to {to}, ranks them against your deadline and checks each one against your card&apos;s rules. Nothing is bought until you tap.</p>
     </section>
   );
 }
 
 /** While the agent shops: a designed waiting state, not an empty box. */
-export function ShoppingPanel() {
+export function ShoppingPanel({ trip }: { trip: Trip | null }) {
   return (
     <section className="flex flex-col gap-3" aria-live="polite">
       <h2 className="text-[15px] font-extrabold">Shopping for you</h2>
-      <p className="text-[15px] leading-snug text-muted">Searching flights to JFK and ranking them against 9:00 AM.</p>
+      <p className="text-[15px] leading-snug text-muted">Searching flights to {airportsOf(trip?.route).to} and ranking them against 9:00 AM.</p>
     </section>
   );
 }
@@ -121,7 +122,7 @@ export function OptionCard({
 }) {
   const delta = landing(offer);
   const price = offer.priceCents === 0 ? "Free" : money(offer.priceCents);
-  const times = offer.kind === "hotel" ? "Tonight, near SFO" : timeSpan(offer.departs, offer.arrives);
+  const times = offer.kind === "hotel" ? "Tonight, near the airport" : timeSpan(offer.departs, offer.arrives);
   const misses = delta && !delta.before;
 
   return (

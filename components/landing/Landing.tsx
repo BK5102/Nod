@@ -5,6 +5,10 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { createMockEngine } from "@/components/rerouted/mock";
 import { Pictogram, type PictoName } from "@/components/rerouted/Pictogram";
+import { airportsOf, clockHours, deadlineDelta, money, roughly, timeOnly } from "@/components/rerouted/format";
+import fixture from "@/data/fixtures/demo.json";
+import { rankOffers } from "@/spacetimedb/src/core/policy";
+import { DEMO_TRIP } from "@/spacetimedb/src/core/seed";
 
 type Engine = ReturnType<typeof createMockEngine>;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -17,13 +21,32 @@ interface Beat {
   tone: "white" | "yellow" | "alert";
 }
 
+// The replay's numbers come from the same data the mock engine plays: the seeded (real) flight and
+// the recorded real search. Every option is ASK there (above $250, under the cap), so rank by kind,
+// deadline and price, as the reducer does.
+const { from: FROM, to: TO } = airportsOf(DEMO_TRIP.route);
+const RANKS = rankOffers(fixture.offers.map((o) => ({ ...o, tier: "ASK" as const })));
+const TOP = fixture.offers.find((o) => RANKS.get(o.offerId) === 1)!;
+const PRICE_STEP = 2300; // the same simulated price move as the dashboard and demo-check
+const MOVED = TOP.priceCents + PRICE_STEP;
+const TOP_DELTA = (() => {
+  const dep = clockHours(TOP.departs);
+  const arr = dep === null ? null : clockHours(TOP.arrives, dep + 3);
+  return arr === null ? null : deadlineDelta(arr);
+})();
+
 const BEATS: Beat[] = [
-  { id: "scheduled", head: "Bayline 412 to JFK", sub: "Departs SFO at 6:40 PM", tone: "white" },
+  { id: "scheduled", head: `${DEMO_TRIP.flight} to ${TO}`, sub: `Departs ${FROM} at ${DEMO_TRIP.departs}`, tone: "white" },
   { id: "canceled", head: "Canceled", sub: "The agent starts shopping", tone: "alert" },
-  { id: "options", head: "4 ways home", sub: "Ranked against your 9:00 AM deadline", tone: "yellow" },
+  { id: "options", head: `${fixture.offers.length} ways home`, sub: "Ranked against your 9:00 AM deadline", tone: "yellow" },
   { id: "refused", head: "Agent refused", sub: "It cannot approve its own purchase", tone: "alert" },
-  { id: "price", head: "$389 to $412", sub: "The price moved, so the old quote is void", tone: "yellow" },
-  { id: "booked", head: "Booked, $412", sub: "Lands 6:45 AM, 2 h 15 min early", tone: "yellow" },
+  { id: "price", head: `${money(TOP.priceCents)} to ${money(MOVED)}`, sub: "The price moved, so the old quote is void", tone: "yellow" },
+  {
+    id: "booked",
+    head: `Booked, ${money(MOVED)}`,
+    sub: `Lands ${timeOnly(TOP.arrives)}${TOP_DELTA?.before ? `, ${roughly(TOP_DELTA.text.replace(" before 9:00 AM", ""))} early` : ""}`,
+    tone: "yellow",
+  },
 ];
 
 /** The hero's corridor plays the demo once on a private mock engine. It never touches the live database. */
@@ -59,7 +82,7 @@ function useReplay() {
       await sleep(2200);
       if (!alive) return;
       go(4);
-      await e.actions.setPrice(top.offerId, 41200);
+      await e.actions.setPrice(top.offerId, top.priceCents + PRICE_STEP);
       await sleep(2000);
       const fresh = e.getState().offers.find((o) => o.offerId === top.offerId);
       if (!alive || !fresh) return;
@@ -114,7 +137,7 @@ const story: { picto: PictoName; tone: "yellow" | "alert"; big: string; head: st
   { picto: "search", tone: "yellow", big: "Live", head: "Real flights, ranked", line: "It searches current fares across airlines and ranks them against the time you need to land." },
   { picto: "card", tone: "yellow", big: "$600", head: "Your card decides", line: "Trip cap, ask-first limit and allowed categories, enforced in the database." },
   { picto: "agent", tone: "alert", big: "No", head: "The agent cannot pay itself", line: "Only your tap buys, at the exact price you saw." },
-  { picto: "arrive", tone: "yellow", big: "$318", head: "Your refund, counted", line: "Every purchase leaves a receipt that cannot be quietly changed." },
+  { picto: "arrive", tone: "yellow", big: money(DEMO_TRIP.fareCents), head: "Your refund, counted", line: "Every purchase leaves a receipt that cannot be quietly changed." },
 ];
 
 /** The traveler at the gate, alone and with Rerouted, one moment per row. */

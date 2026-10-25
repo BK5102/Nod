@@ -13,7 +13,7 @@ import { LiveProvider, STDB_DB, useLive } from "./live";
 import type { Offer, RerouteSource } from "./types";
 import { useMock } from "./useRerouted";
 
-/** The simulated airline price move: the top fare goes up $23 ($389 to $412 on the saved offers), the same move demo-check makes. */
+/** The simulated airline price move: the top fare goes up $23 ($382 to $405 on the recorded search), the same move demo-check makes. */
 const PRICE_STEP = 2300;
 
 /**
@@ -112,6 +112,11 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
           setStamps({});
           setVoids({});
           await actions.reset();
+        } else if (name === "shuffle") {
+          setStamps({});
+          setVoids({});
+          const r = await actions.shuffle();
+          if (!r.ok) setNotice(r.error);
         } else if (name === "cancel") {
           const r = await actions.cancel();
           if (!r.ok) setNotice(r.error);
@@ -176,11 +181,11 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to, top?.offerId, top?.priceCents, movedId, stamps, control, flightBooked]);
 
-  // Presenter keys: R reset, C cancel, A agent tries to buy, P price moves.
+  // Presenter keys: R reset, S another flight, C cancel, A agent tries to buy, P price moves.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement)?.closest("input,textarea,button")) return;
-      const map: Record<string, string> = { r: "reset", c: "cancel", a: "agent", p: "price" };
+      const map: Record<string, string> = { r: "reset", s: "shuffle", c: "cancel", a: "agent", p: "price" };
       const name = map[e.key.toLowerCase()];
       if (name) run(name);
     };
@@ -190,6 +195,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
 
   const controls = [
     { id: "reset", key: "R", label: "Reset", enabled: true },
+    { id: "shuffle", key: "S", label: "Another flight", enabled: mode === "live" },
     { id: "cancel", key: "C", label: "Cancel flight", enabled: trip?.status === "scheduled" },
     { id: "agent", key: "A", label: "Agent tries to buy", enabled: !!top && !flightBooked },
     { id: "price", key: "P", label: "Price moves", enabled: !!top && !flightBooked && !priceMoved },
@@ -298,7 +304,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
                   <div className="card p-5">{searchError ? (
                       <SearchFailedPanel text={searchError.text} busy={control === "retry"} onRetry={() => run("retry")} />
                     ) : shopping ? (
-                      <ShoppingPanel />
+                      <ShoppingPanel trip={trip} />
                     ) : (
                       <CalmPanel trip={trip} />
                     )}</div>
