@@ -9,11 +9,17 @@ export function CorridorCanvas({
   offers,
   refusedPulse,
   labelScale,
+  interactive = false,
+  resetKey = 0,
 }: {
   trip: Trip | null;
   offers: Offer[];
   refusedPulse: { offerId: string; n: number } | null;
   labelScale?: number;
+  /** Drag to turn, scroll or pinch to zoom. */
+  interactive?: boolean;
+  /** Bump to return to the default view. */
+  resetKey?: number;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<Corridor | null>(null);
@@ -26,7 +32,7 @@ export function CorridorCanvas({
     // Labels are drawn on canvases, so wait for the sign face before building the stage.
     Promise.all([import("./corridor"), document.fonts.ready]).then(([{ Corridor }]) => {
       if (!alive || !host.current) return;
-      made = new Corridor(host.current, { labelScale });
+      made = new Corridor(host.current, { labelScale, interactive });
       scene.current = made;
       made.update(latest.current.trip, latest.current.offers);
     });
@@ -40,6 +46,10 @@ export function CorridorCanvas({
   useEffect(() => {
     scene.current?.update(trip, offers);
   }, [trip, offers]);
+
+  useEffect(() => {
+    if (resetKey) scene.current?.resetView();
+  }, [resetKey]);
 
   useEffect(() => {
     if (refusedPulse) scene.current?.refuse(refusedPulse.offerId);

@@ -128,10 +128,13 @@ export class Corridor {
   private focus: THREE.Vector3 | null = null;
   private dolly = 0;
   private sweep: THREE.Mesh | null = null;
+  /** The viewer's own turn and zoom, layered on top of the scripted framing. */
+  private view = { yaw: 0, pitch: 0, zoom: 1 };
+  private unbind: (() => void) | null = null;
 
   constructor(
     private host: HTMLElement,
-    private opts: { labelScale?: number } = {},
+    private opts: { labelScale?: number; interactive?: boolean } = {},
   ) {
     this.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -144,6 +147,82 @@ export class Corridor {
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
     this.resize();
+    if (opts.interactive) this.bindControls();
+  }
+
+  /** Drag to turn the scene, scroll or pinch to zoom, double-click to go back to the default view. */
+  private bindControls() {
+    const el = this.renderer.domElement;
+    el.style.cursor = "grab";
+    el.style.touchAction = "none";
+    const pts = new Map<number, { x: number; y: number }>();
+    let pinch = 0;
+    const spread = () => {
+      const [a, b] = [...pts.values()];
+      return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
+    const apply = () => {
+      this.placeCamera();
+      this.render();
+    };
+    const down = (e: PointerEvent) => {
+      el.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      el.style.cursor = "grabbing";
+      if (pts.size === 2) pinch = spread();
+    };
+    const move = (e: PointerEvent) => {
+      const p = pts.get(e.pointerId);
+      if (!p) return;
+      if (pts.size === 2) {
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const d = spread();
+        if (pinch && d) this.zoomBy(pinch / d);
+        pinch = d;
+        apply();
+        return;
+      }
+      this.view.yaw -= (e.clientX - p.x) * 0.004;
+      this.view.pitch = Math.max(-0.5, Math.min(0.55, this.view.pitch + (e.clientY - p.y) * 0.004));
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      apply();
+    };
+    const up = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      pinch = 0;
+      if (!pts.size) el.style.cursor = "grab";
+    };
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      this.zoomBy(Math.exp(e.deltaY * 0.0012));
+      apply();
+    };
+    const dbl = () => this.resetView();
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+    el.addEventListener("wheel", wheel, { passive: false });
+    el.addEventListener("dblclick", dbl);
+    this.unbind = () => {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+      el.removeEventListener("wheel", wheel);
+      el.removeEventListener("dblclick", dbl);
+    };
+  }
+
+  private zoomBy(f: number) {
+    this.view.zoom = Math.max(0.35, Math.min(1.6, this.view.zoom * f));
+  }
+
+  /** Back to the scripted framing. */
+  resetView() {
+    this.view = { yaw: 0, pitch: 0, zoom: 1 };
+    this.placeCamera();
+    this.render();
   }
 
   private buildStage() {
@@ -238,6 +317,14 @@ export class Corridor {
       // Push about a fifth of the way in and lean the view toward the booked route.
       target.lerp(this.focus, 0.45 * this.dolly);
       pos.lerp(this.focus, 0.2 * this.dolly);
+    }
+    const v = this.view;
+    if (v.yaw || v.pitch || v.zoom !== 1) {
+      const s = new THREE.Spherical().setFromVector3(pos.clone().sub(target));
+      s.theta += v.yaw;
+      s.phi = Math.max(0.15, Math.min(1.45, s.phi - v.pitch));
+      s.radius *= v.zoom;
+      pos.setFromSpherical(s).add(target);
     }
     this.camera.position.copy(pos);
     this.camera.lookAt(target);
@@ -630,6 +717,7 @@ export class Corridor {
 
   dispose() {
     this.disposed = true;
+    this.unbind?.();
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.scene.traverse((o) => {

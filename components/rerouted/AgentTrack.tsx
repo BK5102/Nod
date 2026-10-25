@@ -27,7 +27,7 @@ export function AgentTrack({ trip, offers, steps }: { trip: Trip | null; offers:
     { id: "search", word: "Searched", picto: "depart", done: ranked || has(/^searched/i, "search") },
     {
       id: "listings",
-      word: claudeDown ? "Claude offline" : "Listings",
+      word: claudeDown ? "Agent offline" : "Listings",
       picto: "agent",
       done: ranked || claudeDown || has(/listing/i),
       alert: claudeDown,

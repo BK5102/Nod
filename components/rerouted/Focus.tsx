@@ -136,7 +136,7 @@ export function OptionCard({
       ) : null}
       {offer.claudeReason && (lead || offer.kind !== "hotel") ? (
         <p className={`mt-1.5 flex gap-2 ${lead ? "text-[15px] leading-snug" : "text-sm text-muted"}`} title={offer.claudeReason}>
-          <span className="mt-0.5 shrink-0 border border-line px-1.5 text-xs leading-5 font-bold text-muted">Claude</span>
+          <span className="mt-0.5 shrink-0 border border-line px-1.5 text-xs leading-5 font-bold text-muted">Agent</span>
           <span className="line-clamp-1">{offer.claudeReason}</span>
         </p>
       ) : null}
@@ -197,7 +197,7 @@ export function SetAsideShelf({ offers }: { offers: Offer[] }) {
               </p>
               {o.flagged && listing ? (
                 <div className="mt-1 rounded-lg border border-danger bg-danger/5 p-2.5">
-                  <p className="text-[13px] font-bold text-danger">Claude caught it: the listing tried to give the agent orders</p>
+                  <p className="text-[13px] font-bold text-danger">The agent caught it: the listing tried to give the agent orders</p>
                   <blockquote className="mt-1 text-sm leading-snug text-fg">&ldquo;{listing}&rdquo;</blockquote>
                 </div>
               ) : (

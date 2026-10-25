@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { CardObject } from "./CardObject";
@@ -186,6 +187,14 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
 
   const shopping = trip?.status === "canceled" && ranked.length === 0;
   const [view, setView] = useState<View>("trip");
+  const [expanded, setExpanded] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  useEffect(() => {
+    if (!expanded) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setExpanded(false);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [expanded]);
 
   return (
     <div className="dash flex min-h-dvh bg-canvas text-fg lg:h-dvh lg:overflow-hidden">
@@ -202,6 +211,10 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <Link href="/" className="mx-8 mt-4 flex items-center gap-2 self-start text-sm font-bold lg:hidden">
+          <Pictogram name="home" size={24} className="rounded bg-sunk! text-fg!" />
+          Home
+        </Link>
         <SignBand trip={trip} offers={offers} />
 
         {notice || source.seatError ? (
@@ -214,19 +227,38 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
           {view === "trip" ? (
             <div className="grid h-full min-h-0 gap-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_440px]">
               <div className="flex min-h-0 min-w-0 flex-col gap-6">
-                <section aria-labelledby="corridor" className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-xl bg-panel text-white">
-                  <div className="flex items-center justify-between gap-4 px-5 pt-4">
-                    <h2 id="corridor" className="text-[15px] font-bold whitespace-nowrap">
-                      Every way home <span className="font-medium text-soft">· New York time</span>
-                    </h2>
-                    <button type="button" onClick={() => setView("claude")} className="rounded-md border border-white/20 px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap hover:bg-white/10">
-                      What Claude saw
-                    </button>
-                  </div>
-                  <div className="relative min-h-0 flex-1">
-                    <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
-                  </div>
-                </section>
+                <div className="relative min-h-[300px] flex-1">
+                  {expanded ? <div className="fixed inset-0 z-40 bg-ink/60" onClick={() => setExpanded(false)} aria-hidden /> : null}
+                  <section
+                    aria-labelledby="corridor"
+                    role={expanded ? "dialog" : undefined}
+                    aria-modal={expanded || undefined}
+                    className={`flex flex-col overflow-hidden rounded-xl bg-panel text-white ${expanded ? "fixed inset-4 z-50 lg:inset-8" : "absolute inset-0"}`}
+                  >
+                    <div className="flex items-center justify-between gap-4 px-5 pt-4">
+                      <h2 id="corridor" className="text-[15px] font-bold whitespace-nowrap">
+                        Every way home <span className="font-medium text-soft">· New York time</span>
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        <span className="hidden text-[13px] text-soft xl:inline">Drag to turn, scroll to zoom</span>
+                        <button type="button" onClick={() => setResetKey((k) => k + 1)} className="rounded-md border border-white/20 px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap hover:bg-white/10">
+                          Reset view
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpanded((e) => !e)}
+                          aria-expanded={expanded}
+                          className="rounded-md border border-white/20 px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap hover:bg-white/10"
+                        >
+                          {expanded ? "Close" : "Expand"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="relative min-h-0 flex-1">
+                      <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} interactive resetKey={resetKey} />
+                    </div>
+                  </section>
+                </div>
 
                 <div className="grid shrink-0 gap-6 md:grid-cols-2">
                   <div className="card px-5 py-4">
@@ -300,14 +332,14 @@ function CardMeter({ mandate, trip }: { mandate: { tripCapCents: number; askAbov
   return (
     <section aria-label="Card limit" className="card px-5 py-4">
       <p className="flex items-baseline justify-between text-[15px]">
-        <span className="font-bold">Travel card •••• 4242</span>
+        <span className="font-bold whitespace-nowrap">Travel card •••• 4242</span>
         <span className="tabular-nums">
           {spent ? (
             <>
               <span className="display text-lg">{d(spent)}</span> <span className="text-muted">of {d(cap)}</span>
             </>
           ) : (
-            <span className="text-muted">Nothing spent · {d(cap)} cap</span>
+            <span className="whitespace-nowrap text-muted">{d(cap)} cap</span>
           )}
         </span>
       </p>
@@ -323,7 +355,7 @@ const MENU: { id: View; label: string; picto: PictoName }[] = [
   { id: "trip", label: "Trip", picto: "reroute" },
   { id: "card", label: "Card and rules", picto: "card" },
   { id: "activity", label: "Agent activity", picto: "search" },
-  { id: "claude", label: "What Claude saw", picto: "agent" },
+  { id: "claude", label: "What the agent saw", picto: "agent" },
   { id: "receipts", label: "Receipts", picto: "check" },
 ];
 
@@ -351,12 +383,17 @@ function Sidebar({
 }) {
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-card px-4 py-6 lg:flex">
-      <div className="flex items-center gap-2.5 px-2">
-        <Pictogram name="reroute" size={32} label="Rerouted" className="rounded-lg" />
+      <Link href="/" className="flex items-center gap-2.5 rounded-lg px-2" aria-label="Rerouted home">
+        <Pictogram name="reroute" size={32} className="rounded-lg" />
         <span className="text-lg font-extrabold">Rerouted</span>
-      </div>
+      </Link>
 
       <nav aria-label="Dashboard" className="mt-8 flex flex-col gap-1">
+        <Link href="/" className="flex items-center gap-3 rounded-lg px-2 py-2 text-[15px] font-medium text-muted transition-colors hover:bg-sunk hover:text-fg">
+          <Pictogram name="home" size={30} className="rounded-md bg-sunk! text-fg!" />
+          Home
+        </Link>
+        <div className="mx-2 my-1.5 border-t border-line" />
         {MENU.map((m) => {
           const on = view === m.id;
           return (
@@ -376,21 +413,9 @@ function Sidebar({
       </nav>
 
       <div className="mt-auto flex flex-col gap-3">
-        <div className="rounded-xl bg-sunk p-3 text-[13px]">
-          <p className="flex items-center gap-2 font-bold">
-            <Pictogram name="check" size={20} className="rounded bg-fg! text-card!" />
-            You are the traveler
-          </p>
-          <p className="mt-2 flex items-center gap-2 font-semibold text-muted" title="The agent's seat cannot approve a purchase. The database refuses it.">
-            <Pictogram name="lock" size={20} className="rounded bg-card! text-fg!" />
-            Agent: cannot approve
-          </p>
-        </div>
-
         <div className="rounded-xl border border-line p-3">
-          <p className="mb-2 flex items-baseline justify-between text-[13px] font-bold">
-            Demo controls <span className="font-medium text-muted">simulated events</span>
-          </p>
+          <p className="text-[13px] font-bold">Demo controls</p>
+          <p className="mb-2 text-xs text-muted">Each one triggers a simulated event</p>
           <ul className="flex flex-col gap-1">
             {controls.map((c) => (
               <li key={c.id}>

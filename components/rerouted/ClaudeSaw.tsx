@@ -14,9 +14,9 @@ export function ClaudeSaw({ trip, mandate, onClose, inline = false }: { trip: Tr
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 id="saw-h" className="text-[17px] font-extrabold">
-            What Claude saw
+            What the agent saw
           </h3>
-          <p className="text-sm text-muted">One call per cancellation. Claude explains and flags; the card&apos;s rules decide.</p>
+          <p className="text-sm text-muted">One call per cancellation. The agent explains and flags; the card&apos;s rules decide.</p>
         </div>
         <button type="button" onClick={onClose} className="border border-line px-3 py-1 text-sm font-bold hover:bg-sunk">
           Close
@@ -54,7 +54,7 @@ export function ClaudeSaw({ trip, mandate, onClose, inline = false }: { trip: Tr
               </li>
             ))}
           </ul>
-          <p className="text-[13px] leading-snug text-muted">Listing text is third-party data. Claude is told never to follow it, and to flag a listing that tries.</p>
+          <p className="text-[13px] leading-snug text-muted">Listing text is third-party data. The agent is told never to follow it, and to flag a listing that tries.</p>
         </div>
       </div>
     </div>

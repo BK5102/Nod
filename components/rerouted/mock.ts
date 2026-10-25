@@ -99,7 +99,7 @@ export function createMockEngine() {
       if (mine !== run) return ok;
       const claudeOff = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("claude") === "off";
       if (claudeOff) {
-        step("error", "Claude could not write reasons (mock outage). The card's rules still apply, and nothing is bought without your yes.");
+        step("error", "The agent could not write reasons (mock outage). The card's rules still apply, and nothing is bought without your yes.");
         set({ offers: submit(0, new Map()), trip: { ...state.trip!, status: "options_ready" } });
       } else {
         const flags = new Map([["off_skyport", SKYPORT_FLAG]]);
