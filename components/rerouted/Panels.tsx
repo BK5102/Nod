@@ -14,7 +14,9 @@ const SHOWN = 2;
 /** The agent's steps as rows on a departures board. The newest few stay up; older ones fold away. */
 export function Board({ steps, live }: { steps: AgentStep[]; live: boolean }) {
   const [all, setAll] = useState(false);
-  const rows = all ? steps : steps.slice(-SHOWN);
+  const latest = steps.slice(-SHOWN);
+  const pinned = steps.filter((s) => s.kind === "error" && !latest.includes(s));
+  const rows = all ? steps : [...pinned, ...latest];
   const hidden = steps.length - rows.length;
   return (
     <section aria-labelledby="board" className="board">
@@ -130,7 +132,7 @@ export function ReceiptSlip({ receipts, trip, voids = {} }: { receipts: Receipt[
           <p className="mt-2 text-base font-semibold">
             Approved by you · •••• {r.tokenLast4} · <span className="font-mono text-sm">{clockOf(r.at)}</span>
           </p>
-          {voids[r.offerId] ? <p className="mt-1 text-sm font-bold text-ink/70">{money(voids[r.offerId]!.priceCents)} approval voided: price changed</p> : null}
+          {voids[r.offerId] ? <p className="mt-1 text-sm font-bold text-ink/70">{money(voids[r.offerId]!.priceCents)} {voids[r.offerId]!.text === "quote" ? "quote" : "approval"} voided: price changed</p> : null}
           <details className="mt-3 text-sm">
             <summary className="cursor-pointer font-semibold text-ink/70 hover:text-ink">Quote and hashes</summary>
             <dl className="mt-2 grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 font-mono text-xs break-all">

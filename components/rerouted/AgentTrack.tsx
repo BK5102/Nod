@@ -17,13 +17,23 @@ interface Stop {
  */
 export function AgentTrack({ trip, offers, steps }: { trip: Trip | null; offers: Offer[]; steps: AgentStep[] }) {
   const has = (re: RegExp, kind?: AgentStep["kind"]) => steps.some((s) => (!kind || s.kind === kind) && re.test(s.text));
+  // Offers only exist after the agent has shopped, so once they arrive the shopping stops count as
+  // done even if the step wording changes. The agent-blocked stop needs its own refusal row.
+  const ranked = offers.length > 0;
+  const claudeDown = steps.some((s) => s.kind === "error");
   const stops: Stop[] = [
     { id: "cancel", word: "Canceled", picto: "closed", done: !!trip?.canceledAt, alert: true },
-    { id: "free", word: "Free check", picto: "refund", done: has(/free rebooking/i) },
-    { id: "search", word: "Searched", picto: "depart", done: has(/^searched/i) },
-    { id: "listings", word: "Listings", picto: "agent", done: has(/listing/i) },
-    { id: "ranked", word: "Ranked", picto: "reroute", done: offers.length > 0 },
-    { id: "blocked", word: "Agent blocked", picto: "closed", done: has(/agent tried/i, "refusal"), alert: true },
+    { id: "free", word: "Free check", picto: "refund", done: ranked || has(/free rebooking/i) },
+    { id: "search", word: "Searched", picto: "depart", done: ranked || has(/^searched/i, "search") },
+    {
+      id: "listings",
+      word: claudeDown ? "Claude offline" : "Listings",
+      picto: "agent",
+      done: ranked || claudeDown || has(/listing/i),
+      alert: claudeDown,
+    },
+    { id: "ranked", word: "Ranked", picto: "reroute", done: ranked },
+    { id: "blocked", word: "Agent blocked", picto: "closed", done: steps.some((s) => s.kind === "refusal" && /agent/i.test(s.text) && !/^flagged/i.test(s.text)), alert: true },
     { id: "booked", word: "Booked", picto: "arrive", done: !!trip?.bookedAt },
   ];
   const reached = stops.reduce((n, s, i) => (s.done ? i : n), -1);

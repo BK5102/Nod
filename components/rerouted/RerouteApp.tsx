@@ -60,6 +60,16 @@ function RerouteView({ source }: { source: RerouteSource }) {
   // Approvals the database voided because the price moved. Kept after booking: nothing disappears.
   const [voids, setVoids] = useState<Record<string, { priceCents: number; text: string }>>({});
 
+  // A refused approval rolls back, so only the browser that tapped saw it. Every screen can still
+  // see the database's price-change step, so the old quote is shown as voided everywhere.
+  const shownVoids: Record<string, { priceCents: number; text: string }> = { ...voids };
+  for (const s of steps) {
+    const m = /^(.+)'s price changed from \$([\d,]+) to/.exec(s.text);
+    if (!m) continue;
+    const o = offers.find((x) => x.merchant === m[1] && x.status !== "set_aside" && x.kind !== "hotel" && x.rank === 1) ?? offers.find((x) => x.merchant === m[1]);
+    if (o && !shownVoids[o.offerId]) shownVoids[o.offerId] = { priceCents: Number(m[2]!.replace(/,/g, "")) * 100, text: "quote" };
+  }
+
   const ranked = offers.filter((o) => o.rank > 0).sort((a, b) => a.rank - b.rank);
   const aside = offers.filter((o) => o.rank === 0);
   const top = ranked[0];
@@ -106,7 +116,11 @@ function RerouteView({ source }: { source: RerouteSource }) {
           // Sam taps approve on the quote they saw, at the moment the airline moves the price.
           const seen = top.quoteHash;
           const was = top.priceCents;
-          await actions.setPrice(top.offerId, NEW_PRICE);
+          const moved = await actions.setPrice(top.offerId, NEW_PRICE);
+          if (!moved.ok) {
+            setNotice(moved.error);
+            return;
+          }
           setBusy(top.offerId);
           const r = await actions.approve(top.offerId, seen);
           setBusy(null);
@@ -187,14 +201,14 @@ function RerouteView({ source }: { source: RerouteSource }) {
           </div>
 
         <div className="order-1 flex min-w-0 flex-col gap-8 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1">
-          {flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={voids} /> : null}
+          {flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={shownVoids} /> : null}
           {ranked.length ? (
             <section aria-labelledby="choices" className="flex flex-col gap-4">
               <h2 id="choices" className="sr-only">
                 Choices ahead
               </h2>
               {ranked.map((o) => (
-                <OptionPanel key={o.offerId} offer={o} stamp={stamps[o.offerId]} voided={voids[o.offerId]} busy={busy === o.offerId} locked={flightBooked} onApprove={approve} />
+                <OptionPanel key={o.offerId} offer={o} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} locked={flightBooked} onApprove={approve} />
               ))}
             </section>
           ) : (
@@ -206,7 +220,7 @@ function RerouteView({ source }: { source: RerouteSource }) {
             </section>
           )}
 
-          {!flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={voids} /> : null}
+          {!flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={shownVoids} /> : null}
           <SetAside offers={aside} />
           {mandate && trip ? <MandateSign mandate={mandate} trip={trip} /> : null}
         </div>

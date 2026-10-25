@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { clockHours, deadlineDelta, money, timeOnly } from "./format";
 import { Pictogram } from "./Pictogram";
 import { parseRules, type Offer } from "./types";
@@ -21,6 +22,23 @@ const chipWord: Record<string, string> = {
 const AX_FROM = 8; // 8 PM tonight on the clockHours axis
 const AX_TO = 29; // 5 PM tomorrow
 const pct = (h: number) => Math.max(0, Math.min(100, ((h - AX_FROM) / (AX_TO - AX_FROM)) * 100));
+
+/** How long the quoted price is held, from the offer's real expiry. Ticks only while shown. */
+function PriceHold({ expiresAt }: { expiresAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.floor((Date.parse(expiresAt) - now) / 1000);
+  if (!Number.isFinite(left)) return null;
+  if (left <= 0) return <p className="text-sm font-bold">Price expired</p>;
+  return (
+    <p className="text-sm font-bold tabular-nums">
+      Price held {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}
+    </p>
+  );
+}
 
 /** The route as a bar on the same axis as the corridor, with the 9:00 AM deadline as a post. */
 function DeadlineBar({ dep, arr, before, onBlack = false }: { dep: number; arr: number; before: boolean; onBlack?: boolean }) {
@@ -104,6 +122,8 @@ export function OptionPanel({
           </>
         ) : null}
 
+        {lead && !booked ? <div className="mt-1">{<PriceHold expiresAt={offer.expiresAt} />}</div> : null}
+
         {lead && offer.claudeReason && !booked ? <p className="mt-2 line-clamp-2 max-w-[46ch] text-base leading-snug">{offer.claudeReason}</p> : null}
 
         {!booked && (lead || free) && rules.length ? (
@@ -129,7 +149,7 @@ export function OptionPanel({
               <Pictogram name="arrive" size={28} className="bg-yellow! text-ink!" />
               Booked
             </p>
-            {voided ? <p className="text-sm font-bold">{money(voided.priceCents)} approval voided: price changed</p> : null}
+            {voided ? <p className="text-sm font-bold">{money(voided.priceCents)} {voided.text === "quote" ? "quote" : "approval"} voided: price changed</p> : null}
           </div>
         ) : (
           <button

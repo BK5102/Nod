@@ -97,9 +97,15 @@ export function createMockEngine() {
       }
       await sleep(900);
       if (mine !== run) return ok;
-      const flags = new Map([["off_skyport", SKYPORT_FLAG]]);
-      set({ offers: submit(0, flags), trip: { ...state.trip!, status: "options_ready" } });
-      step("refusal", `Flagged Skyport Suites: ${SKYPORT_FLAG}`);
+      const claudeOff = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("claude") === "off";
+      if (claudeOff) {
+        step("error", "Claude could not write reasons (mock outage). The card's rules still apply, and nothing is bought without your yes.");
+        set({ offers: submit(0, new Map()), trip: { ...state.trip!, status: "options_ready" } });
+      } else {
+        const flags = new Map([["off_skyport", SKYPORT_FLAG]]);
+        set({ offers: submit(0, flags), trip: { ...state.trip!, status: "options_ready" } });
+        step("refusal", `Flagged Skyport Suites: ${SKYPORT_FLAG}`);
+      }
       const aside = state.offers.filter((o) => o.status === "set_aside").length;
       step("decision", `${state.offers.length - aside} options ready, ${aside} set aside`);
       return ok;
