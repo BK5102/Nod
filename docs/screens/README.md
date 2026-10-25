@@ -20,3 +20,23 @@ Also found:
 - Three different Approve button styles (black, yellow on black, yellow on yellow).
 - The price-hold countdown and rule chips are about 12px: unreadable from 3 feet.
 - The free-rebooking panel inverts the colour scheme, adding a third focal point.
+
+## Round 3 audit (light dashboard, `v3before-*` / `v3after-*`)
+
+Walked reset, cancel, agent tries to buy, price moves, approve at 1440x900 and 1920x1080 (mock data).
+
+Fixed in this round:
+- Three yellows compete: the active menu item, the presenter's next key and the Approve button. Yellow should be the next action only.
+- The flagged Skyport listing and the agent refusal use the same lock marker in the steps.
+- The refusal step is cut off mid-sentence ("Refused: t..."), and so is "Why #1".
+- Red step markers put near-black glyphs on red (low contrast).
+- The card meter opens on "$0 / $600": zeros are the first number a judge reads.
+- The calm trip card has a gray square between SFO and JFK that reads as a missing image.
+- Keyboard focus is a yellow ring on white (1.6:1), effectively invisible.
+- The type is a default-looking humanist sans with no big moment; prices and the headline share one face.
+- The price-change box reads as a paragraph, not an event.
+- The demo controls are titled "Presenter" with no sign they trigger simulated events.
+
+Already fine: no empty dark strip, no admin email (only a small Sign out at the bottom of the menu), everything for the demo fits at 1440x900 without scrolling.
+
+Left alone: labels of the set-aside routes can overlap inside the 3D scene at 1920 (camera framing; risky to retune before judging).
