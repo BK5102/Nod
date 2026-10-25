@@ -240,7 +240,7 @@ export function ReceiptPanel({ receipts, trip, voids, offers }: { receipts: Rece
         <p className="display text-[2.25rem] leading-none">{money(r.amountCents)}</p>
       </div>
       <p className="text-sm font-bold">
-        {shown} options shown, #{chosen ?? 1} chosen{took ? `, ${took} from cancel to booked` : ""}. Free rebooking checked first.
+        {shown} options shown, #{chosen ?? 1} chosen{took ? `, ${took} from cancel to booked` : ""}.{offers.some((o) => o.priceCents === 0) ? " Free rebooking checked first." : ""}
       </p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-muted">Fingerprint</dt>
