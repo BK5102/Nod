@@ -10,6 +10,8 @@ import { deadlineLabel } from "@/spacetimedb/src/core/policy";
 
 const PACE_MS = 300;
 const pause = () => new Promise((r) => setTimeout(r, PACE_MS));
+/** "Tomorrow 7:05 AM" -> "tomorrow 7:05 AM" (keeps AM/PM in capitals). */
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /**
  * Claude's input: route, deadline, card rules and offers. Built from public data only, so no name,
@@ -74,7 +76,7 @@ export async function runAgent(tripId: string): Promise<RunResult> {
   if (freeOffer) {
     await step(
       "decision",
-      `Free rebooking: departs ${freeOffer.departs.toLowerCase()}, lands ${freeOffer.arrives.toLowerCase()}. ${freeOffer.meetsDeadline ? `Makes your ${deadline} deadline.` : `Misses your ${deadline} deadline.`}`
+      `Free rebooking: departs ${lowerFirst(freeOffer.departs)}, lands ${lowerFirst(freeOffer.arrives)}. ${freeOffer.meetsDeadline ? `Makes your ${deadline} deadline.` : `Misses your ${deadline} deadline.`}`
     );
   }
   await step("search", `Found ${paidFlights} paid flights and ${hotels} hotels from ${found.source}`);

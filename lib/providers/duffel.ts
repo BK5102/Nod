@@ -39,7 +39,8 @@ function dayLabel(local: string, req: SearchRequest): string {
   const date = local.slice(0, 10);
   if (date === req.today) return Number(local.slice(11, 13)) >= 17 ? "Tonight" : "Today";
   if (date === req.tomorrow) return "Tomorrow";
-  return date;
+  const d = new Date(`${date}T12:00:00Z`);
+  return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()]} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
 async function search(token: string, req: SearchRequest, date: string, signal: AbortSignal): Promise<DuffelOffer[]> {
@@ -88,6 +89,8 @@ export async function searchDuffel(req: SearchRequest, timeoutMs = 9_000): Promi
       const first = segs[0];
       const last = segs.at(-1);
       if (!first || !last || o.total_currency !== "USD") continue;
+      // Sandbox data can include departures that already left; a stranded traveler cannot take those.
+      if (first.departing_at < req.departAfter) continue;
       const flights = segs.map((s) => `${s.marketing_carrier.iata_code}${s.marketing_carrier_flight_number}`).join(", ");
       if (seen.has(flights)) continue;
       seen.add(flights);

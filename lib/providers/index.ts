@@ -39,5 +39,25 @@ export function searchRequestFor(route: string, deadlineLabel: string, now = new
   const t = deadlineLabel.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   const hour = t ? (Number(t[1]) % 12) + (t[3]!.toUpperCase() === "PM" ? 12 : 0) : 9;
   const minute = t ? t[2]! : "00";
-  return { origin, destination, today, tomorrow, arriveBy: `${tomorrow}T${String(hour).padStart(2, "0")}:${minute}:00` };
+  return {
+    origin,
+    destination,
+    today,
+    tomorrow,
+    arriveBy: `${tomorrow}T${String(hour).padStart(2, "0")}:${minute}:00`,
+    departAfter: localIso(new Date(now.getTime() + GATE_BUFFER_MS), "America/Los_Angeles"),
+  };
+}
+
+/** A traveler needs time to get to a new gate, so flights leaving sooner than this are not offered. */
+const GATE_BUFFER_MS = 60 * 60 * 1000;
+
+/** The wall-clock time in a time zone as YYYY-MM-DDTHH:MM:SS, the format Duffel uses for local times. */
+function localIso(d: Date, timeZone: string): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value])
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
 }

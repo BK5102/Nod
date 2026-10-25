@@ -15,6 +15,8 @@ export interface SearchRequest {
   tomorrow: string;
   /** Latest acceptable local arrival at the destination, YYYY-MM-DDTHH:MM:SS. */
   arriveBy: string;
+  /** Earliest bookable local departure at the origin (now plus time to get to the gate), YYYY-MM-DDTHH:MM:SS. */
+  departAfter: string;
 }
 
 export interface SearchResult {
