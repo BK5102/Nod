@@ -14,12 +14,12 @@
   --on-yellow-soft: #3d3300; /* secondary text on yellow, 9:1 */
   --alert: #ff5a4e; /* only on black */
   /* Dashboard (light): calm canvas, white cards, one accent for the next action. */
-  --d-bg: #f4f5f7;
+  --d-bg: #f3f4f7;
   --d-card: #ffffff;
   --d-sunk: #f1f2f4;
-  --d-line: #e3e5e9;
-  --d-fg: #111318;
-  --d-muted: #5a606b; /* 6.4:1 on white */
+  --d-line: #e1e4ea;
+  --d-fg: #10131a;
+  --d-muted: #565d6b; /* 6.6:1 on white, 6.0:1 on the canvas */
   --d-danger: #c42f1f; /* 5.6:1 on white */
   --d-tint: #fff6cc; /* active menu item, the accent at rest */
   --go: #3ddc84; /* booked, only on black */
@@ -47,6 +47,7 @@
   --color-tint: var(--d-tint);
   --font-sans: var(--font-sign), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-board), ui-monospace, monospace;
+  --font-display: var(--ff-display), var(--font-sign), sans-serif;
 }
 
 html {
@@ -74,6 +75,10 @@ body {
   outline: 3px solid var(--sign-yellow);
   outline-offset: 3px;
 }
+/* Yellow fails on the light dashboard (1.6:1), so focus there is near-black. */
+.dash :focus-visible {
+  outline-color: var(--d-fg);
+}
 .on-yellow :focus-visible,
 .on-yellow:focus-visible {
   outline-color: var(--sign-black);
@@ -89,6 +94,14 @@ body {
     background: var(--d-card);
     border: 1px solid var(--d-line);
     border-radius: 12px;
+  }
+  /* The one big moment per screen: condensed, heavy, tabular. */
+  .display {
+    font-family: var(--ff-display), var(--font-sign), sans-serif;
+    font-stretch: 84%;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
   .card-focus {
     box-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 8px 24px -8px rgb(16 24 40 / 0.14);

@@ -188,7 +188,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
   const [view, setView] = useState<View>("trip");
 
   return (
-    <div className="flex min-h-dvh bg-canvas text-fg lg:h-dvh lg:overflow-hidden">
+    <div className="dash flex min-h-dvh bg-canvas text-fg lg:h-dvh lg:overflow-hidden">
       <Sidebar
         view={view}
         onView={setView}
@@ -359,9 +359,9 @@ function Sidebar({
               type="button"
               onClick={() => onView(m.id)}
               aria-current={on ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-lg px-2 py-2 text-left text-[15px] transition-colors ${on ? "bg-tint font-bold" : "font-medium text-muted hover:bg-sunk hover:text-fg"}`}
+              className={`flex items-center gap-3 rounded-lg px-2 py-2 text-left text-[15px] transition-colors ${on ? "bg-sunk font-bold" : "font-medium text-muted hover:bg-sunk hover:text-fg"}`}
             >
-              <Pictogram name={m.picto} size={30} className={`rounded-md ${on ? "bg-fg! text-yellow!" : "bg-sunk! text-fg!"}`} />
+              <Pictogram name={m.picto} size={30} className={`rounded-md ${on ? "bg-fg! text-card!" : "bg-sunk! text-fg!"}`} />
               {m.label}
               {m.id === "receipts" && receipts ? <span className="ml-auto rounded-full bg-fg px-2 text-xs leading-5 font-bold text-card">{receipts}</span> : null}
             </button>
@@ -373,11 +373,11 @@ function Sidebar({
         <div className="rounded-xl bg-sunk p-3 text-[13px]">
           <p className="flex items-center gap-2 font-bold">
             <Pictogram name="check" size={20} className="rounded bg-fg! text-card!" />
-            You, traveler
+            You are the traveler
           </p>
           <p className="mt-2 flex items-center gap-2 font-semibold text-muted" title="The agent's seat cannot approve a purchase. The database refuses it.">
             <Pictogram name="lock" size={20} className="rounded bg-card! text-fg!" />
-            Agent, locked
+            Agent: cannot approve
           </p>
         </div>
 
@@ -390,7 +390,7 @@ function Sidebar({
                   type="button"
                   disabled={!c.enabled || !!running}
                   onClick={() => onRun(c.id)}
-                  className={`flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[13px] disabled:opacity-40 ${nextKey === c.id ? "bg-tint font-bold" : "text-muted hover:bg-sunk"}`}
+                  className={`flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[13px] disabled:opacity-40 ${nextKey === c.id ? "bg-sunk font-bold text-fg" : "text-muted hover:bg-sunk"}`}
                 >
                   <kbd className={`grid h-5 w-5 place-items-center rounded font-mono text-[11px] ${nextKey === c.id ? "bg-fg text-card" : "border border-line"}`}>{c.key}</kbd>
                   {running === c.id ? "Working" : c.label}

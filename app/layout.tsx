@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Source_Code_Pro, Source_Sans_3 } from "next/font/google";
+import { Archivo, Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-// Airport signs are set in Frutiger-cut humanist sans; Source Sans 3 is in that lineage and has
-// tabular figures for times and prices. Source Code Pro is only for board cells and hashes.
-const sans = Source_Sans_3({ subsets: ["latin"], weight: ["400", "600", "700", "800", "900"], variable: "--font-sign" });
-const mono = Source_Code_Pro({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-board" });
+// Archivo's width axis gives the big moments a departures-board cut; Hanken Grotesk carries the text;
+// IBM Plex Mono is only for clock times, fingerprints and receipt ids. All three have tabular figures.
+const display = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--ff-display" });
+const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-sign" });
+const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-board" });
 
 export const metadata: Metadata = {
   title: "Rerouted",
@@ -16,7 +17,7 @@ export const viewport: Viewport = { themeColor: "#FFCC00" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>{children}</body>
     </html>
   );
