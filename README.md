@@ -43,6 +43,10 @@ At a hackathon, none of this is a moat yet. These are the parts that would get h
 2. **Quote-bound approvals with a receipt chain.** That is the record a card issuer needs for disputes, so issuers could offer Rerouted to their own cardholders.
 3. **Traveler-side, across airlines.** An airline will not recommend a competitor's seat.
 
+## Why merchants and issuers would care (reasoning, not measurement)
+
+This section is our reasoning. We have not measured dispute rates, talked to an issuer or airline, or tested this with any merchant. When a purchase made by an agent is disputed, the hard questions are whether the cardholder agreed to it, to this merchant and at this price, and whether software bought something on its own. In Rerouted every approval is bound to a quote hash for one offer at one price, and a changed price voids it, so a yes can never stretch to cover a different amount. Each booking appends a hash-chained receipt that records the merchant, the amount, the quote hash, the tier and the rules that fired, that the traveler (not the agent) approved, the card's last 4, and the time. The database refuses the agent's own approval on its identity. A merchant could point to that record to show the charge matches what the cardholder approved, and an issuer could check it against the card's rules without relying on anyone's memory of the gate line. Whether this would actually lower disputes or chargebacks is untested.
+
 ## How the backend works
 
 SpacetimeDB holds every rule, role check and receipt in reducers and tables. Next.js server routes hold the secrets, the Claude call and the demo controls.
