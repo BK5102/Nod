@@ -238,7 +238,7 @@ Frozen at the end of milestone B1. After that, a change needs a message to the f
 
 | Reducer | Notes |
 | --- | --- |
-| `take_seat(actorId: "traveler")` | |
+| `take_seat(actorId: "act_traveler")` | The actor ids are `act_traveler`, `act_agent` and `act_operator`. Only `act_traveler` can be taken from a browser |
 | `approve_offer(offerId, quoteHash)` | Throws a plain-English error on refusal. Show the message as is |
 
 ### Server routes the browser calls (JSON in and out)
