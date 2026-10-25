@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -139,8 +139,10 @@ export function Landing() {
       <section className="sign on-yellow border-b-4 border-ink">
         <div className="mx-auto grid max-w-[1440px] items-center gap-10 px-4 pt-10 pb-16 md:px-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14 lg:pt-14 lg:pb-20">
           <Reveal from="left">
-            <h1 className="text-[3.25rem] leading-[0.92] font-black tracking-[-0.04em] [text-wrap:balance] md:text-[4.25rem] xl:text-[5.5rem]">Canceled? Rerouted.</h1>
-            <p className="mt-5 max-w-[30ch] text-xl leading-snug font-semibold text-yellow-soft">An agent shops your way home inside your card&apos;s rules. You approve with one tap.</p>
+            <h1 className="[text-wrap:balance]">
+              <span className="block text-[3.25rem] leading-[0.92] font-black tracking-[-0.04em] md:text-[4.25rem] xl:text-[5.5rem]">Flight canceled?</span>
+              <span className="mt-5 block max-w-[26ch] text-2xl leading-snug font-bold md:text-[2rem]">Rerouted finds your way home, and you approve with one tap!</span>
+            </h1>
             <Link
               href="/login"
               className="mt-8 inline-flex items-center gap-3 bg-ink py-3 pr-5 pl-3 text-lg font-extrabold text-white transition-[transform,background-color] hover:bg-panel-2 active:scale-[0.985]"
