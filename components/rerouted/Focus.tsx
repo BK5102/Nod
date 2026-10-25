@@ -104,9 +104,19 @@ export function OptionCard({
         <span className={`leading-[0.85] font-black tabular-nums ${lead ? "text-[2.4rem]" : "text-[1.45rem] text-soft"}`}>{offer.rank}</span>
         <div className="min-w-0 flex-1">
           <h3 className={`truncate font-extrabold ${lead ? "text-[1.45rem] leading-tight" : "text-lg"}`}>{offer.title}</h3>
-          <p className="text-base text-soft">
-            {times}
+          <p className="flex items-baseline gap-2 text-base text-soft">
+            <span>{times}</span>
             {delta ? <span className={`ml-2 font-bold ${misses ? "text-soft" : "text-white"}`}>{misses ? "misses 9:00 AM" : `${delta.text.replace(" before 9:00 AM", "")} early`}</span> : null}
+            {!lead ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onApprove(offer)}
+                className="ml-auto shrink-0 font-bold text-white underline decoration-rule underline-offset-4 hover:decoration-white disabled:cursor-wait"
+              >
+                {busy ? "Checking" : "Approve"}
+              </button>
+            ) : null}
           </p>
         </div>
         <p className={`text-right leading-none font-black tabular-nums ${lead ? "text-[2rem]" : "text-[1.45rem]"}`}>
@@ -120,10 +130,10 @@ export function OptionCard({
           <span className="font-bold">Why #1:</span> {whyRank(offer, delta)}
         </p>
       ) : null}
-      {offer.claudeReason ? (
+      {offer.claudeReason && (lead || offer.kind !== "hotel") ? (
         <p className={`mt-1.5 flex gap-2 ${lead ? "text-lg leading-snug" : "text-base text-soft"}`} title={offer.claudeReason}>
           <span className="mt-0.5 shrink-0 border border-rule px-1.5 text-xs leading-5 font-bold text-soft">Claude</span>
-          <span className={lead ? "line-clamp-2" : "line-clamp-1"}>{offer.claudeReason}</span>
+          <span className="line-clamp-1">{offer.claudeReason}</span>
         </p>
       ) : null}
 
@@ -155,16 +165,6 @@ export function OptionCard({
         </button>
       ) : null}
       {lead ? <p className="mt-1.5 text-center text-sm text-soft">Charges card •••• 4242 exactly {price}. Nothing else is bought.</p> : null}
-      {lead ? null : (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onApprove(offer)}
-          className="mt-2 text-base font-bold text-white underline decoration-rule underline-offset-4 hover:decoration-white disabled:cursor-wait"
-        >
-          {busy ? "Checking your card" : `Approve ${offer.priceCents === 0 ? "free rebooking" : price}`}
-        </button>
-      )}
     </article>
   );
 }
