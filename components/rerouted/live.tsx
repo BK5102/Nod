@@ -111,6 +111,7 @@ export function useLive(): RerouteSource {
     () => ({
       reset: () => post("/api/demo", { action: "reset" }),
       shuffle: () => post("/api/demo", { action: "shuffle" }),
+      randomizeCard: () => post("/api/demo", { action: "card" }),
       cancel: () => post("/api/demo", { action: "cancel" }),
       setPrice: (offerId: string, priceCents: number) => post("/api/demo", { action: "price", offerId, priceCents }),
       async agentTryApprove(offerId: string): Promise<ActionResult> {

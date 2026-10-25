@@ -8,7 +8,7 @@ import { Pictogram, type PictoName } from "@/components/rerouted/Pictogram";
 import { airportsOf, arrivalDelta, deadlineOf, money, roughly, timeOnly } from "@/components/rerouted/format";
 import fixture from "@/data/fixtures/demo.json";
 import { rankOffers } from "@/spacetimedb/src/core/policy";
-import { DEMO_TRIP } from "@/spacetimedb/src/core/seed";
+import { DEMO_MANDATE, DEMO_TRIP } from "@/spacetimedb/src/core/seed";
 
 type Engine = ReturnType<typeof createMockEngine>;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -132,7 +132,7 @@ function Reveal({ from, children, className = "" }: { from: "left" | "right"; ch
 /** The story, one sign per beat, alternating sides as you scroll. */
 const story: { picto: PictoName; tone: "yellow" | "alert"; big: string; head: string; line: string }[] = [
   { picto: "search", tone: "yellow", big: "Live", head: "Real flights, ranked", line: "It searches current fares across airlines and ranks them against the time you need to land." },
-  { picto: "card", tone: "yellow", big: "$600", head: "Your card decides", line: "Trip cap, ask-first limit and allowed categories, enforced in the database." },
+  { picto: "card", tone: "yellow", big: money(DEMO_MANDATE.tripCapCents), head: "Your card decides", line: "Trip cap, ask-first limit and allowed categories, enforced in the database." },
   { picto: "agent", tone: "alert", big: "No", head: "The agent cannot pay itself", line: "Only your tap buys, at the exact price you saw." },
   { picto: "arrive", tone: "yellow", big: money(DEMO_TRIP.fareCents), head: "Your refund, counted", line: "Every purchase leaves a receipt that cannot be quietly changed." },
 ];

@@ -102,7 +102,7 @@ The traveler approves one option with one tap. It is bought only if it fits the 
 The agent and operator seats are assigned by the admin only and can never take the traveler seat.
 
 **Flow:**
-1. `POST /api/demo {action: "reset"}` calls `reset_demo`. `{action: "shuffle"}` calls `set_trip` with a random real flight (a live search of a random route between major US airports, or the recorded search) and a random arrive-by time tomorrow (operator only).
+1. `POST /api/demo {action: "reset"}` calls `reset_demo`. `{action: "shuffle"}` calls `set_trip` with a random real flight (a live search of a random route between major US airports, or the recorded search) and a random arrive-by time tomorrow (operator only). `{action: "card"}` calls `set_card` with a random trip cap and ask-first threshold; options on the table are checked again.
 2. `POST /api/demo {action: "cancel"}`:
    1. `cancel_flight`
    2. Agent steps through `log_step`.

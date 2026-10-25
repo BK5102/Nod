@@ -40,6 +40,7 @@ import CancelFlightReducer from "./cancel_flight_reducer";
 import FlagOfferReducer from "./flag_offer_reducer";
 import LogStepReducer from "./log_step_reducer";
 import ResetDemoReducer from "./reset_demo_reducer";
+import SetCardReducer from "./set_card_reducer";
 import SetPriceReducer from "./set_price_reducer";
 import SetTripReducer from "./set_trip_reducer";
 import SubmitOffersReducer from "./submit_offers_reducer";
@@ -147,6 +148,7 @@ const reducersSchema = __reducers(
   __reducerSchema("flag_offer", FlagOfferReducer),
   __reducerSchema("log_step", LogStepReducer),
   __reducerSchema("reset_demo", ResetDemoReducer),
+  __reducerSchema("set_card", SetCardReducer),
   __reducerSchema("set_price", SetPriceReducer),
   __reducerSchema("set_trip", SetTripReducer),
   __reducerSchema("submit_offers", SubmitOffersReducer),

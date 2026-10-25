@@ -100,6 +100,8 @@ export interface RerouteActions {
   reset(): Promise<ActionResult>;
   /** Switch the demo to another real flight (recorded Google Flights search), scheduled and untouched. */
   shuffle(): Promise<ActionResult>;
+  /** A random card (SIMULATED): new trip cap and ask-first threshold; options on the table are checked again. */
+  randomizeCard(): Promise<ActionResult>;
   cancel(): Promise<ActionResult>;
   agentTryApprove(offerId: string): Promise<ActionResult>;
   setPrice(offerId: string, priceCents: number): Promise<ActionResult>;

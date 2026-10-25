@@ -83,6 +83,10 @@ export function createMockEngine() {
       return fail("Another flight needs the live database. Open the dashboard without ?mock=1.");
     },
 
+    async randomizeCard() {
+      return fail("New card limits need the live database. Open the dashboard without ?mock=1.");
+    },
+
     async cancel() {
       if (state.trip?.status !== "scheduled") return fail("This flight is already canceled. Reset the demo first.");
       const mine = ++run;

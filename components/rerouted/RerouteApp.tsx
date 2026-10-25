@@ -112,6 +112,9 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
           setStamps({});
           setVoids({});
           await actions.reset();
+        } else if (name === "card") {
+          const r = await actions.randomizeCard();
+          if (!r.ok) setNotice(r.error);
         } else if (name === "shuffle") {
           setStamps({});
           setVoids({});
@@ -181,11 +184,11 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to, top?.offerId, top?.priceCents, movedId, stamps, control, flightBooked]);
 
-  // Presenter keys: R reset, S another flight, C cancel, A agent tries to buy, P price moves.
+  // Presenter keys: R reset, S another flight, L new card limits, C cancel, A agent tries to buy, P price moves.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement)?.closest("input,textarea,button")) return;
-      const map: Record<string, string> = { r: "reset", s: "shuffle", c: "cancel", a: "agent", p: "price" };
+      const map: Record<string, string> = { r: "reset", s: "shuffle", l: "card", c: "cancel", a: "agent", p: "price" };
       const name = map[e.key.toLowerCase()];
       if (name) run(name);
     };
@@ -196,6 +199,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
   const controls = [
     { id: "reset", key: "R", label: "Reset", enabled: true },
     { id: "shuffle", key: "S", label: "Another flight", enabled: mode === "live" },
+    { id: "card", key: "L", label: "New card limits", enabled: mode === "live" && trip?.status !== "booked" },
     { id: "cancel", key: "C", label: "Cancel flight", enabled: trip?.status === "scheduled" },
     { id: "agent", key: "A", label: "Agent tries to buy", enabled: !!top && !flightBooked },
     { id: "price", key: "P", label: "Price moves", enabled: !!top && !flightBooked && !priceMoved },

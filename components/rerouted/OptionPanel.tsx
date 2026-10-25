@@ -12,7 +12,7 @@ export interface Stamp {
 
 // Short chip words for the rules that matter to a decision. The full reason is on hover.
 const chipWord: Record<string, string> = {
-  above_ask_threshold: "Over $250",
+  above_ask_threshold: "Over ask limit",
   free_option_exists: "Free option exists",
   misses_deadline: "Misses 9 AM",
   over_trip_cap: "Over cap",

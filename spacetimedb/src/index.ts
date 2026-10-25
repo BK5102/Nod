@@ -192,6 +192,36 @@ export const setTrip = spacetimedb.reducer(
   }
 );
 
+/**
+ * SIMULATED card change: a new trip cap and ask-first threshold (picked by the server). The public
+ * mandate and the private mock token change together, and every option still on the table is checked
+ * again, so tiers, ranks and rule reasons follow the new limits at once. Not after a booking.
+ */
+export const setCard = spacetimedb.reducer({ tripCapCents: t.u32(), askAboveCents: t.u32() }, (ctx, { tripCapCents, askAboveCents }) => {
+  requireRole(ctx, ['operator'], 'change the card rules');
+  const id = DEMO_TRIP.tripId;
+  const tr = getTrip(ctx, id);
+  if (tr.status === 'booked') throw new SenderError('This trip is already booked. Reset the demo first.');
+  if (tripCapCents < 10_000 || tripCapCents > 500_000) throw new SenderError('The trip cap must be between $100 and $5,000.');
+  if (askAboveCents >= tripCapCents) throw new SenderError('The ask-first threshold must be below the trip cap.');
+  const m = ctx.db.mandate.tripId.find(id);
+  if (!m) throw new SenderError('The demo is not seeded. Reset it first.');
+  const summary = `Up to ${dollars(tripCapCents)} on this trip. Ask me above ${dollars(askAboveCents)}. Airlines and hotels only.`;
+  ctx.db.mandate.tripId.update({ ...m, tripCapCents, askAboveCents, summary });
+  const tok = ctx.db.paymentToken.tripId.find(id);
+  if (tok) ctx.db.paymentToken.tripId.update({ ...tok, capCents: tripCapCents });
+
+  const rows = offersOf(ctx, id);
+  const all = rows.map(toInput);
+  for (const o of rows) {
+    if (o.status === 'booked') continue;
+    const { tier, rules } = retier(ctx, tr, toInput(o), all, flagHits(o));
+    ctx.db.offer.offerId.update({ ...o, tier, rulesJson: JSON.stringify(rules) });
+  }
+  rerank(ctx, id);
+  addStep(ctx, id, 'info', `Card rules changed (simulated): ${summary}`);
+});
+
 /** SIMULATED cancellation. The refund for the canceled ticket is owed from this moment. */
 export const cancelFlight = spacetimedb.reducer({ tripId: t.string() }, (ctx, { tripId }) => {
   requireRole(ctx, ['operator'], 'cancel a flight');

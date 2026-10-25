@@ -251,6 +251,7 @@ All four return `{ ok: true, result: {...} }` or `{ ok: false, error, refused }`
 | Route | Returns |
 | --- | --- |
 | `POST /api/demo {action: "reset"}` | |
+| `POST /api/demo {action: "card"}` | `result: { tripCapCents, askAboveCents }`. A random card (SIMULATED): cap $300 to $1,500, ask above $100 to $500 and below the cap. The operator calls `set_card`, which updates the mandate and the private token together, checks every option on the table again (tiers, ranks, rule reasons) and writes a step. Refused after a booking |
 | `POST /api/demo {action: "shuffle"}` | `result: { route, flight, departs, fareCents, deadline, source }`. The trip row updates through the subscription; then call cancel as usual |
 | `POST /api/demo {action: "cancel"}` | Returns when offers are ready. Steps stream through the subscription meanwhile |
 | `POST /api/demo {action: "price", offerId, priceCents}` | |
