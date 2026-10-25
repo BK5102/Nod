@@ -1,8 +1,10 @@
 # Rerouted
 
-Your flight got canceled. Rerouted shops your way home within your card's rules, and you approve with one tap.
+Flight canceled? Rerouted finds your way home, and you approve with one tap.
 
-A prototype built at Cal Hacks 13.0 for Visa's **Best use of Reimagining Shopping** track. This README covers the backend. Frontend notes are added by the frontend teammate.
+A prototype built at Cal Hacks 13.0 for Visa's **Best use of Reimagining Shopping** track.
+
+**Who it is for:** one person, the traveler whose flight was just canceled. Every screen, rule and receipt is built for them.
 
 ## The problem
 
@@ -10,13 +12,13 @@ When your flight is canceled, you have about 20 minutes to buy your way home bef
 
 ## The idea
 
-Rerouted is a shopping agent for the worst 20 minutes of a trip. When a flight is canceled, the agent:
-1. checks the airline's free rebooking first
-2. compares paid flights and a hotel
-3. ranks them against your deadline
+Rerouted is a shopping agent for the worst 20 minutes of a trip. When your flight is canceled, the agent:
+1. searches real, current flights across airlines (Google Flights, through SerpApi)
+2. ranks them against the time you need to land
+3. checks each one against the rules on your card (trip cap, ask-first threshold, allowed categories)
 4. explains each in one sentence
 
-You approve one option with one tap. It is bought only if it fits the rules on your card (trip cap, ask-first threshold, allowed categories) at the exact price you approved.
+You approve one option with one tap. It is bought only if it fits your card's rules, at the exact price you approved.
 
 ## Why now
 
@@ -24,9 +26,9 @@ You approve one option with one tap. It is bought only if it fits the rules on y
 - **Cancellations are rising.** The US cancellation rate was 1.5% in 2025, up from 1.4% in 2024, per the DOT ([Business Travel Executive](https://www.businesstravelexecutive.com/news/us-air-cancellation-rates-up-in-december-and-for-all-of-2025-says-dot/)). PIRG calls 2025 the worst on-time year since 2014 ([PIRG](https://pirg.org/colorado/media-center/new-report-on-time-arrivals-in-2025-hit-worst-level-since-2014/)).
 - **The refund is now automatic, so the hard part is the replacement purchase.** Since October 2024 the DOT requires automatic refunds for canceled flights ([ABC11](https://abc11.com/amp/post/us-airlines-required-automatically-refund-significantly-changed-canceled-flight/15483534/)).
 
-## How it is solved today
+## How a traveler handles it today
 
-| Who | What they do | What is left open |
+| Option | What it does | What is left open |
 | --- | --- | --- |
 | The airline | Free rebooking on its own flights | Often the next day, never a competitor's seat |
 | Airline AI assistants | Status and rebooking help | Same airline, same incentive |
@@ -34,24 +36,24 @@ You approve one option with one tap. It is bought only if it fits the rules on y
 | Visa Intelligent Commerce | Agents pay within user caps and approvals | Rails, not a product for this moment |
 | DOT refund rule | Refunds the canceled ticket | Says nothing about getting home tonight |
 
-We did not find a product that compares the free rebooking with paid options against your deadline, across airlines, and buys within your card's rules. We have not checked exhaustively.
+We did not find a product that searches across airlines against your deadline and buys only within your card's rules, on your tap. We have not checked exhaustively.
 
 ## Moat
 
 At a hackathon, none of this is a moat yet. These are the parts that would get harder to copy:
 1. **Rules enforced below the agent.** Caps and approvals live in database reducers keyed to the caller's identity, not in a prompt.
-2. **Quote-bound approvals with a receipt chain.** That is the record a card issuer needs for disputes, so issuers could offer Rerouted to their own cardholders.
-3. **Traveler-side, across airlines.** An airline will not recommend a competitor's seat.
+2. **Quote-bound approvals with a receipt chain.** Each yes covers one flight at one price, and the traveler keeps a tamper-evident record of it.
+3. **On the traveler's side, across airlines.** An airline will not recommend a competitor's seat.
 
-## Why merchants and issuers would care (reasoning, not measurement)
+## Why the receipt matters to the traveler (reasoning, not measurement)
 
-This section is our reasoning. We have not measured dispute rates, talked to an issuer or airline, or tested this with any merchant. When a purchase made by an agent is disputed, the hard questions are whether the cardholder agreed to it, to this merchant and at this price, and whether software bought something on its own. In Rerouted every approval is bound to a quote hash for one offer at one price, and a changed price voids it, so a yes can never stretch to cover a different amount. Each booking appends a hash-chained receipt that records the merchant, the amount, the quote hash, the tier and the rules that fired, that the traveler (not the agent) approved, the card's last 4, and the time. The database refuses the agent's own approval on its identity. A merchant could point to that record to show the charge matches what the cardholder approved, and an issuer could check it against the card's rules without relying on anyone's memory of the gate line. Whether this would actually lower disputes or chargebacks is untested.
+This section is our reasoning. We have not measured disputes or tested this with any card issuer. If an agent can shop with your card, the questions you would ask afterwards are: did I agree to this, to this airline, at this price, and did software buy anything on its own? In Rerouted every approval is bound to a quote hash for one offer at one price, and a changed price voids it, so your yes can never stretch to cover a different amount. Each booking appends a hash-chained receipt with the airline, the amount, the quote hash, the rules that fired, that you (not the agent) approved, the card's last 4 and the time, plus the refund you are owed for the canceled ticket. The database refuses the agent's own approval on its identity. That gives you a record to point to if a charge is ever wrong. Whether a card issuer would accept it in a dispute is untested.
 
 ## How the backend works
 
-SpacetimeDB holds every rule, role check and receipt in reducers and tables. Next.js server routes hold the secrets, the Claude call and the demo controls.
+SpacetimeDB holds every rule, role check and receipt in reducers and tables. Next.js server routes hold the secrets, the flight search, the Claude call and the demo controls.
 
-1. **Cancel.** The operator cancels the flight. The agent loads the replayed flight and hotel offers and streams its steps as rows.
+1. **Cancel.** The operator cancels the flight (simulated). The agent searches real flights and streams its steps as rows. If the search fails, it says so and stops: no options, nothing bought, no made-up flights.
 2. **Explain and flag.** One Claude call writes a one-sentence reason per offer and flags suspicious listings. Claude never sets a tier or a rank.
 3. **Tier and rank.** The `submit_offers` reducer runs the policy engine against the card's rules:
    - **BLOCK** if over the cap or the wrong category.
@@ -66,9 +68,19 @@ SpacetimeDB holds every rule, role check and receipt in reducers and tables. Nex
    - one flight per trip
    - the mock card token
 
-   Then it books and appends a hash-chained receipt. If any check fails, nothing changes.
+   Then it books (simulated) and appends a hash-chained receipt. If any check fails, nothing changes.
 
-Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: section 9.
+Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: section 9. Frontend: [docs/FRONTEND.md](docs/FRONTEND.md).
+
+## The app
+
+| Route | What it is |
+| --- | --- |
+| `/` | Landing page: the problem, a replay of the demo, what the traveler gets, and the route ahead |
+| `/login` | Sign in to the dashboard (one admin account from env vars, signed session cookie) |
+| `/dashboard` | The traveler's screen: the trip, every way home on a 3D time axis against the deadline (drag to turn, scroll to zoom, expand), ranked options with one-tap approve, the agent's steps, the card and its rules, what the agent saw, and receipts |
+
+`/dashboard?mock=1` runs the same screen on the saved demo offers in the browser, with no database.
 
 ## Security, reliability, privacy
 
@@ -76,13 +88,14 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 - The agent identity can never approve a purchase. This is enforced in the reducer on the caller's identity and refused live in the demo.
 - Each approval is bound to one quote hash, so a price change voids it.
 - Caps are checked by the policy engine, by `approve_offer`, and again by the mock card token.
-- Listing text is untrusted. One seeded hotel listing tries to instruct the agent, and it is flagged and set aside.
+- Listing text is untrusted. In the saved demo offers, one hotel listing tries to instruct the agent, and it is flagged and set aside.
 - Secrets are server-only env vars. `scripts/secret-check.sh` runs before submission.
 
 **Reliability**
 - Default to no. Every failed check reverts the whole transaction.
 - If Claude fails, the error is shown, the rules still work, and nothing is bought without a tap.
-- The demo is deterministic. Fixtures are replayed, reset is one reducer, and `scripts/demo-check.ts` replays the whole demo against the live database.
+- If the flight search fails, the screen says so, nothing is bought, and the traveler can search again.
+- Reset is one reducer, and `scripts/demo-check.ts` replays the whole demo against the live database, with live flights or the saved offers.
 
 **Privacy**
 - Name, email, booking reference, loyalty number and card data live only in private tables.
@@ -99,40 +112,38 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 | Claude reasons and listing flags | Real when `ANTHROPIC_API_KEY` is set; errors shown, never faked |
 | Cancellation | Simulated, triggered by the operator |
 | Flights | Real. With FLIGHT_PROVIDER=serpapi, the agent shows only real, current flights from Google Flights via SerpApi (search only, it cannot book). If the search fails, no options are shown and nothing is bought; made-up offers never stand in. FLIGHT_PROVIDER=duffel gives Duffel sandbox fares |
-| Free rebooking, hotels, Skyport Suites | Not shown in live mode. They exist only in the saved demo offers (FLIGHT_PROVIDER unset), used offline and in tests; Skyport Suites is the planted prompt-injection listing |
+| Free rebooking, hotels, Skyport Suites | Not shown in live mode. They exist only in the saved demo offers (FLIGHT_PROVIDER unset), used offline, in the landing page replay and in tests; Skyport Suites is the planted prompt-injection listing |
+| Price change | Simulated: the operator raises the top fare by $23 to show that a changed price voids the old approval |
 | Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
-| Traveler | Fictional |
+| Traveler, trip and card | Fictional |
 
 ## Known limitations
 
-- No real booking, live fares or Visa integration. Visa Intelligent Commerce access goes through a partner program.
+- No real booking or Visa integration. Visa Intelligent Commerce access goes through a partner program.
 - One scenario: one traveler, one US domestic cancellation, one deadline.
-- No real sign-in. Any visitor can take the traveler seat; the agent and operator seats are locked.
-- The airline's free rebooking is taken as given.
+- One admin sign-in for the dashboard, not traveler accounts. Any signed-in visitor takes the traveler seat; the agent and operator seats are locked.
+- The airline's free rebooking and hotels are not searched live.
 - The refund line assumes the DOT automatic refund rule still applies.
-- No savings or accuracy figures. Every number in the demo comes from seeded data.
-- Claude needs an API key and a network connection.
+- No savings or accuracy figures. Every number on screen comes from the live search or the seeded trip and card.
+- Claude and the flight search need API keys and a network connection.
 
 ## The demo (about 90 seconds)
 
 **Seed:**
-- Sam (fictional) is on Bayline Air 412, SFO to JFK, 6:40 PM.
-- Sam must land by 9:00 AM.
+- A fictional traveler is on Bayline Air 412, SFO to JFK, 6:40 PM.
+- They must land at JFK by 9:00 AM.
 - The card allows $600 for the trip, asks above $250, and covers airlines and hotels only.
 
-**Beats:**
+**Beats (live flights):**
 1. The flight is canceled.
-2. The agent's steps stream in.
-3. Ranked options appear:
-   - Harbor Air red-eye, $389
-   - Bayline's free rebooking, which lands too late
-   - Coastal, which lands too late
-   - Airport Inn
-   - Set aside: business class (over cap), and Skyport Suites (its listing tried to instruct the agent)
-4. The agent tries to buy the flight itself and the database refuses it.
-5. The price changes to $412, so the old approval is refused. Sam approves $412.
-6. Booked, with a receipt, and $412 of $600 spent.
+2. The agent's steps stream in while it searches real flights.
+3. Ranked real flights appear on the time axis, against the 9:00 AM deadline. Anything over the $600 cap is set aside.
+4. The agent tries to buy the top flight itself, and the database refuses it.
+5. The fare goes up $23 as the traveler taps approve, so the old approval is refused. The traveler approves the new price.
+6. Booked, with a receipt, and the spend against $600.
 7. The $318 refund owed on the canceled ticket.
+
+With the saved demo offers (FLIGHT_PROVIDER unset), the same beats show the free rebooking, a hotel, and the Skyport listing caught trying to instruct the agent. The price change there is $389 to $412.
 
 ## Run the live demo (teammate quickstart)
 
@@ -143,17 +154,23 @@ The backend is already live on Maincloud as the database `rerouted-calhacks13`. 
    git pull
    pnpm install
    ```
-2. Create `.env.local` in the repo root with these 7 values. The first four are not secret and are shown here. Get the last three from the backend teammate through a private channel. Never commit them or paste them in a public chat.
+2. Create `.env.local` in the repo root. The first five values are not secret and are shown here. Get the rest through a private channel. Never commit them or paste them in a public chat.
    ```bash
    SPACETIMEDB_HOST=wss://maincloud.spacetimedb.com
    SPACETIMEDB_DB_NAME=rerouted-calhacks13
    NEXT_PUBLIC_SPACETIMEDB_HOST=wss://maincloud.spacetimedb.com
    NEXT_PUBLIC_SPACETIMEDB_DB_NAME=rerouted-calhacks13
-   SPACETIMEDB_AGENT_TOKEN=<from backend teammate>
-   SPACETIMEDB_OPERATOR_TOKEN=<from backend teammate>
-   ANTHROPIC_API_KEY=<from backend teammate, or your own key>
+   FLIGHT_PROVIDER=serpapi
+   SPACETIMEDB_AGENT_TOKEN=<private>
+   SPACETIMEDB_OPERATOR_TOKEN=<private>
+   ANTHROPIC_API_KEY=<private>
+   SERPAPI_KEY=<private>
+   REROUTED_ADMIN_EMAIL=<private>
+   REROUTED_ADMIN_PASSWORD_HASH=<private, scrypt:salt:hash>
+   REROUTED_AUTH_SECRET=<private>
    ```
-3. Start the app on http://localhost:3001:
+   Restart `pnpm dev` after any change to `.env.local`; the server reads it only at start.
+3. Start the app on http://localhost:3001 and sign in at `/login`:
    ```bash
    pnpm dev
    ```
@@ -163,22 +180,23 @@ The backend is already live on Maincloud as the database `rerouted-calhacks13`. 
    pnpm demo:reset
    ```
 
-**What a working end-to-end run looks like.** Each step is driven by the backend:
+**What a working end-to-end run looks like (live flights).** Each step is driven by the backend:
 
 | Step | What happens | Backend call |
 | --- | --- | --- |
 | 1. Reset | Bayline Air 412, SFO to JFK, 6:40 PM, is scheduled | `POST /api/demo {"action":"reset"}` |
-| 2. Cancel | The flight is canceled, and about 7 agent steps stream in over 6 to 10 seconds | `POST /api/demo {"action":"cancel"}` |
-| 3. Options appear | Ranks 1 to 4: Harbor Air red-eye $389, Bayline free rebooking, Coastal 6:00 AM, Airport Inn. Set aside: business class ($1,140, over cap) and Skyport Suites (flagged by Claude for instructing the agent) | `offer` rows |
-| 4. Agent tries to buy | The red-eye purchase is refused: "Refused: the agent cannot approve its own purchase." | `POST /api/agent/try-approve {"offerId":"off_harbor_redeye"}` |
-| 5. Price change | The red-eye goes to $412. Approving the old quote is refused with "The price changed to $412. Approve the new price to continue." | `POST /api/demo {"action":"price","offerId":"off_harbor_redeye","priceCents":41200}` |
-| 6. Approve | The traveler approves $412 and it books. One receipt; spend is $412 of $600 | `approve_offer(offerId, quoteHash)` from the browser, as the traveler seat |
+| 2. Cancel | The flight is canceled; the agent searches real flights and its steps stream in over a few seconds | `POST /api/demo {"action":"cancel"}` |
+| 3. Options appear | Real flights, ranked: those landing before 9:00 AM first, then cheaper first. Over the cap is set aside | `offer` rows |
+| 4. Agent tries to buy | The top flight's purchase is refused: "Refused: the agent cannot approve its own purchase." | `POST /api/agent/try-approve {"offerId":"<top offer>"}` |
+| 5. Price change | The top fare goes up $23. Approving the old quote is refused with "The price changed to ... Approve the new price to continue." | `POST /api/demo {"action":"price","offerId":"<top offer>","priceCents":<fare + 2300>}` |
+| 6. Approve | The traveler approves the new price and it books. One receipt; spend shown against $600 | `approve_offer(offerId, quoteHash)` from the browser, as the traveler seat |
 | 7. Refund | $318 refund owed, plus the canceled and booked times | `trip` row |
 
 **Notes:**
-- **Who changes the data:** both laptops connect to the same live database, so a reset or cancel on one laptop changes what the other sees. During judging, only one person should drive the demo.
+- **Who changes the data:** every laptop connects to the same live database, so a reset or cancel on one changes what the others see. During judging, only one person should drive the demo.
 - **Mock fallback:** if the page falls back to the mock, `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` is missing or the dev server was started before `.env.local` existed. Restart `pnpm dev`.
-- **Claude missing or out of credits:** cancel still works. You get an `error` step and no Claude reasons, and Skyport is not flagged. The rules still tier everything, and nothing is bought without a tap.
+- **Flight search failed:** the dashboard says so, shows no options and buys nothing. Press "Search again". Check `SERPAPI_KEY`, or unset `FLIGHT_PROVIDER` to use the saved demo offers.
+- **Claude missing or out of credits:** cancel still works. You get an `error` step and no Claude reasons. The rules still tier everything, and nothing is bought without a tap.
 - **Routes:** every route returns `{ ok: true, result }` or `{ ok: false, error, refused }`. Show `error` as is. The full contract is in [docs/PLAN.md](docs/PLAN.md) section 9.
 
 ## Run it (backend, one-time setup, already done)

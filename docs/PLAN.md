@@ -10,6 +10,8 @@ Written October 24, 2026, at Cal Hacks 13.0. Submission is due in 18 hours (Sund
 
 This doc covers the backend only. It describes the data the frontend reads and the calls it makes, never how anything is drawn.
 
+**Audience: travelers only.** The one user is the traveler whose flight was just canceled. Card issuers, airlines and hotels are not target audiences.
+
 **Goal: a working hackathon prototype, not production.** Build the smallest backend that makes the demo real and the rubric visible. If a piece does not show up in the 90-second demo or in a judge's question, it is cut.
 
 ## 1. Problem (one line)
@@ -19,23 +21,23 @@ When your flight is canceled, you have about 20 minutes to buy your way home bef
 ## 2. The idea (locked)
 
 **Rerouted is a shopping agent for the worst 20 minutes of a trip.** When a flight is canceled, the agent does the shopping:
-- It checks the airline's free rebooking first.
-- It compares paid flights and a hotel.
-- It ranks everything against the traveler's deadline.
+- It searches real, current flights across airlines (Google Flights via SerpApi, FLIGHT_PROVIDER=serpapi).
+- It ranks them against the traveler's deadline.
+- It checks each against the card's rules.
 - It explains each option in one sentence.
 
 The traveler approves one option with one tap. The purchase goes through only if it fits the rules on the traveler's card (trip cap, ask-first threshold, allowed categories) and the exact price they approved.
 
-Free rebooking is always on the list. The agent recommends spending money only when the free option misses the deadline.
+Live mode shows real flights only. The saved demo offers (FLIGHT_PROVIDER unset) add the airline's free rebooking, a hotel and the Skyport listing; there, free rebooking is always on the list and spending is recommended only when it misses the deadline.
 
 ## 3. What the backend must prove (the Visa rubric)
 
 | Criterion | Weight | Backend proof |
 | --- | --- | --- |
-| Innovation | 25% | The card's own rules filter the shopping. Free first, paid only when needed |
-| User experience | 25% | Agent steps stream as rows. Ranked options in under 10 seconds. Approve-and-pay is one call |
+| Innovation | 25% | The card's own rules filter real flight search, and only the traveler's tap buys |
+| User experience | 20% | Agent steps stream as rows. Ranked options in under 10 seconds. Approve-and-pay is one call |
 | Technical execution | 20% | Rules in SpacetimeDB reducers, one Claude call with zod validation, quote-bound atomic purchase, hash-chained receipts |
-| Commerce impact | 15% | Every row needed to show: canceled at, booked at, options shown, option chosen, spend vs cap, refund owed. All measured live |
+| Commerce impact | 20% | Every row needed to show: canceled at, booked at, options shown, option chosen, spend vs cap, refund owed. All measured live |
 | Trust and responsibility | 15% | Agent refused live when it tries to buy for itself. Price change voids the approval. Injected listing flagged. No personal data in public tables or sent to Claude |
 
 ## 4. Why now
@@ -54,13 +56,13 @@ Free rebooking is always on the list. The agent recommends spending money only w
 | Visa Intelligent Commerce | Lets agents pay within user caps, categories and approvals | Rails, not a product for this moment |
 | DOT automatic refund rule | Refunds the canceled ticket | Says nothing about getting home tonight |
 
-We did not find a product that compares the free rebooking with paid options against your deadline, across airlines, and buys within your card's rules. We have not checked exhaustively, so we say "we did not find", never "nobody does".
+We did not find a product that searches across airlines against your deadline and buys only within your card's rules, on the traveler's tap. We have not checked exhaustively, so we say "we did not find", never "nobody does".
 
 ## 6. Moat
 
 At a hackathon nothing is a moat yet. What would get harder to copy:
 1. **Rules enforced below the agent.** Caps and approvals live in database reducers keyed to the caller's identity. A prompt, a merchant listing or a client cannot talk its way past them.
-2. **Quote-bound approvals with a receipt chain.** Each yes covers one merchant and one price. That record is what a card issuer needs for disputes, which makes Rerouted something an issuer could offer its own cardholders.
+2. **Quote-bound approvals with a receipt chain.** Each yes covers one flight at one price, and the traveler keeps a tamper-evident record of what they approved.
 3. **Traveler-side, across airlines.** An airline will not recommend a competitor's seat. The cardholder's agent can.
 
 ## 7. Scope (working prototype, about 7 hours of backend)
@@ -72,7 +74,7 @@ At a hackathon nothing is a moat yet. What would get harder to copy:
   - no views
 - One pure policy function with 6 rules plus the Claude flag merge.
 - One Claude call per run. It explains each offer and flags suspicious listings; it never ranks or tiers.
-- One fixture file of replayed offers.
+- Live flight search (SerpApi or Duffel, search only), plus one fixture file of saved offers for offline runs and tests.
 - A mock card token checked inside the purchase reducer.
 - Hash-chained receipts.
 - One reset reducer.
@@ -302,7 +304,7 @@ Pure TypeScript in `spacetimedb/src/core/`, used by reducers and tests. Tiers ar
 ## 12. Locked demo (about 90 seconds)
 
 **Seed:**
-- Traveler: Sam (fictional).
+- Traveler: fictional, never named on screen.
 - Trip: Bayline Air 412, SFO to JFK, 6:40 PM.
 - Deadline: arrive JFK by 9:00 AM.
 - Fare: $318.
@@ -313,7 +315,7 @@ Pure TypeScript in `spacetimedb/src/core/`, used by reducers and tests. Tiers ar
   - auto ceiling $0
 - Mock token ending 4242.
 
-**Offers** (fictional names; all from `data/fixtures/demo.json`):
+**Offers.** In live mode (FLIGHT_PROVIDER=serpapi) the offers are real current flights, and the price beat raises the top fare by $23. The saved offers below (fictional names, `data/fixtures/demo.json`) are used offline, in the landing page replay and in the tests:
 
 | Offer | Price | Expected tier | Rank |
 | --- | --- | --- | --- |
@@ -332,7 +334,7 @@ Pure TypeScript in `spacetimedb/src/core/`, used by reducers and tests. Tiers ar
 | 10 to 25s | Steps stream: free rebooking checked and misses 9 AM; 4 flights and 2 hotels searched; Skyport flagged | `log_step`, Claude call |
 | 25 to 40s | Ranked options, 2 set aside with reasons | `offer` rows |
 | 40 to 50s | Agent tries to buy the red-eye itself: refused live | `/api/agent/try-approve`, `refusal` step |
-| 50 to 65s | Sam approves $389. The price changes to $412 first, so the approval is refused. Sam approves $412 | `set_price`, quote hash mismatch, `approve_offer` |
+| 50 to 65s | The traveler approves $389. The price changes to $412 first, so the approval is refused. The traveler approves $412 | `set_price`, quote hash mismatch, `approve_offer` |
 | 65 to 80s | Booked. Receipt. $412 of $600 spent | `trip`, `receipt` |
 | 80 to 90s | "Your $318 refund for the canceled ticket is owed within 7 business days." Time from cancel to booked | `trip.refundOwedCents`, `canceledAt`, `bookedAt` |
 
@@ -343,12 +345,13 @@ Pure TypeScript in `spacetimedb/src/core/`, used by reducers and tests. Tiers ar
 - Every purchase check (seat, tier, quote hash, expiry, cap, one-flight rule, token) runs inside one atomic reducer.
 - The mock token re-checks the cap and category independently of the mandate.
 - Claude can only raise a tier. Listings are delimited and treated as untrusted, and the Skyport listing is in the seed and the tests.
-- `ANTHROPIC_API_KEY`, `SPACETIMEDB_AGENT_TOKEN` and `SPACETIMEDB_OPERATOR_TOKEN` are server-only env vars. `scripts/secret-check.sh` runs before submission.
+- `ANTHROPIC_API_KEY`, `SPACETIMEDB_AGENT_TOKEN`, `SPACETIMEDB_OPERATOR_TOKEN` and `SERPAPI_KEY` are server-only env vars, as are the dashboard sign-in values (`REROUTED_ADMIN_EMAIL`, `REROUTED_ADMIN_PASSWORD_HASH`, `REROUTED_AUTH_SECRET`). `scripts/secret-check.sh` runs before submission.
 
 **Reliability**
 - **Default to no.** Any failed check throws, and the transaction reverts. Expired or changed quotes never move money.
 - **Claude failure** leaves the rules working. The error is shown as a step, and nothing is bought without a tap.
-- **Deterministic demo:** fixtures are replayed, `reset_demo` is one reducer, and we never run `spacetime publish -c` on the live database.
+- **Repeatable demo:** live fares change run to run, and the saved offers make an offline run deterministic. `reset_demo` is one reducer, and we never run `spacetime publish -c` on the live database.
+- **Failed search:** no options are shown, nothing is bought, and the traveler can search again. Made-up offers never stand in.
 - **Proof without a UI:** `scripts/demo-check.ts` replays every beat against the live database.
 
 **Privacy**

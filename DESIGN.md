@@ -1,6 +1,6 @@
 ---
 name: Rerouted
-description: Your flight got canceled. Rerouted shops your way home within your card's rules, and you approve with one tap.
+description: Flight canceled? Rerouted finds your way home, and you approve with one tap! Built for one audience, the traveler.
 colors:
   sign-yellow: "#ffcc00"
   sign-black: "#0b0b0b"
@@ -14,49 +14,49 @@ colors:
   go: "#3ddc84"
 typography:
   display:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
+    fontFamily: "Archivo (condensed, 84% width), Hanken Grotesk, sans-serif"
     fontSize: "clamp(2.4rem, 5vw, 4.25rem)"
     fontWeight: 900
     lineHeight: 0.95
     letterSpacing: "-0.03em"
   numeral:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
+    fontFamily: "Archivo (condensed, 84% width), Hanken Grotesk, sans-serif"
     fontSize: "4.5rem"
     fontWeight: 900
     lineHeight: 0.8
     letterSpacing: "-0.04em"
     fontFeature: "\"tnum\""
   headline:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
+    fontFamily: "Archivo (condensed, 84% width), Hanken Grotesk, sans-serif"
     fontSize: "2rem"
     fontWeight: 900
     lineHeight: 1
     letterSpacing: "-0.02em"
     fontFeature: "\"tnum\""
   title:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk, Segoe UI, system-ui, sans-serif"
     fontSize: "1.45rem"
     fontWeight: 800
     lineHeight: 1.25
     letterSpacing: "-0.01em"
   section:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk, Segoe UI, system-ui, sans-serif"
     fontSize: "1.25rem"
     fontWeight: 800
     lineHeight: 1.4
   body:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk, Segoe UI, system-ui, sans-serif"
     fontSize: "17px"
     fontWeight: 400
     lineHeight: 1.45
     fontFeature: "\"tnum\""
   label:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk, Segoe UI, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 600
     lineHeight: 1.4
   board:
-    fontFamily: "Source Code Pro, ui-monospace, monospace"
+    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
     fontSize: "0.875rem"
     fontWeight: 600
     lineHeight: 1.4
@@ -132,11 +132,15 @@ Rerouted is an airport wayfinding system rebuilt for the way home after a cancel
 
 Density is high but legible at a distance: heavy humanist sans at sign scale, tabular figures everywhere, hairline rules between board rows, and square corners throughout. Depth comes from the one three.js scene, the deadline corridor, which stays on a black ground and uses the same yellow, white and red as the flat page. State changes behave like a departures board: a message flaps in, a row wipes in, a refusal is stamped, and closed options shrink to a board row instead of disappearing.
 
-The world refuses the dashboard shell (sidebar, stat cards, chart, table), the chat transcript, gradients, glow and glass.
+The landing page refuses the dashboard shell (sidebar, stat cards, chart, table), the chat transcript, gradients, glow and glass.
+
+**Two surfaces.** This sign system is the landing page (`/`). The dashboard (`/dashboard`) is an operating surface for the traveler and is light: a `#f3f4f7` canvas, white cards with a hairline edge, a left menu, near-black text, and the 3D time axis as the one dark tile. The same yellow `#FFCC00` is its only accent, on the next action (the top Approve button) and the top route, and red is kept for refusals, voids and errors. Its full description is in `docs/FRONTEND.md` section 4.
+
+**Audience.** One: the traveler whose flight was just canceled. Every surface is written for them.
 
 **Key Characteristics:**
 - Yellow is the path home and nothing else; black carries information.
-- Source Sans 3 at weights 800 and 900 for anything that must be read at a glance; Source Code Pro only for board cells, card digits, times on the receipt and hashes.
+- Archivo, condensed and heavy, for the one thing read at a glance on each screen; Hanken Grotesk for text; IBM Plex Mono only for board cells, card digits, times on the receipt and hashes.
 - Filled white pictograms in black inset squares, drawn for this system.
 - Square corners, flat surfaces, borders of 2px or 4px sign black where a panel needs an edge.
 - Motion is mechanical and short (320 to 420ms, expo-out), and all of it stops under reduced motion.
@@ -170,8 +174,8 @@ A two-voice signage palette: yellow panels and sign black, with white and one al
 
 ## Typography
 
-**Display Font:** Source Sans 3 (with Segoe UI, system-ui)
-**Label/Mono Font:** Source Code Pro (with ui-monospace), weights 500 and 600
+**Display Font:** Archivo at 84% width (with Hanken Grotesk). **Text Font:** Hanken Grotesk
+**Label/Mono Font:** IBM Plex Mono (with ui-monospace), weights 500 and 600
 
 **Character:** A Frutiger-lineage humanist sans pushed to black weight and tight tracking, so lines read like overhead signs; a quiet mono for the cells that are real data.
 
@@ -183,12 +187,12 @@ A two-voice signage palette: yellow panels and sign black, with white and one al
 - **Section** (800, 1.25rem): every panel heading, and the wordmark at 1.25rem to 1.5rem.
 - **Body** (400, 17px, 1.45): explanations, capped near 44 to 48ch. Emphasis lines run at 1.125rem weight 700.
 - **Label** (600 to 700, 0.875rem): captions, tier words, meter labels.
-- **Board** (Source Code Pro 600, 0.875rem, 0.06em, uppercase words): board timestamps and step kinds (INFO, SEARCH, DECIDED, REFUSED, ERROR), card digits, receipt times and hashes (hashes break anywhere).
+- **Board** (IBM Plex Mono 600, 0.875rem, 0.06em, uppercase words): board timestamps and step kinds (INFO, SEARCH, DECIDED, REFUSED, ERROR), card digits, receipt times and hashes (hashes break anywhere).
 
 ### Named Rules
 **The Tabular Rule.** The body sets tabular figures globally. Every time, price and count lines up; never turn it off.
 
-**The Mono Is Data Rule.** Source Code Pro appears only where the text is a machine value or a board cell. Headings, buttons and prose are always the sans.
+**The Mono Is Data Rule.** IBM Plex Mono appears only where the text is a machine value or a board cell. Headings, buttons and prose are always the sans.
 
 ## Layout
 
@@ -261,7 +265,7 @@ Renders only while something moves. Routes draw in along their length over 900ms
 ### Do:
 - **Do** reserve terminal yellow for routes and actions: the band, option panels, the deadline frame, the booked route.
 - **Do** put alert red and go green only on sign black or the board panel.
-- **Do** set anything read at a glance in Source Sans 3 at 800 or 900 with negative tracking, and keep tabular figures on.
+- **Do** set anything read at a glance in Archivo, condensed, at 800 with negative tracking, and keep tabular figures on.
 - **Do** mark every icon as a filled white pictogram in a black inset square, switching the square to yellow (path, card) or alert (refusal) on black panels.
 - **Do** keep closed or voided things visible: shrink to a board row, strike through, or stamp.
 - **Do** keep corners square and surfaces flat; use 2px or 4px colour edges and hairline rules for separation.
@@ -271,6 +275,6 @@ Renders only while something moves. Routes draw in along their length over 900ms
 - **Don't** use gradients, glow, glass, blur or drop shadows anywhere on the page.
 - **Don't** round corners.
 - **Don't** set red text on yellow or white grounds.
-- **Don't** use Source Code Pro for headings, buttons or prose.
+- **Don't** use IBM Plex Mono for headings, buttons or prose.
 - **Don't** add icon-library icons or text glyphs as icons; draw a pictogram in the system's weight.
 - **Don't** introduce a sidebar, stat cards, a chat transcript, or small uppercase labels above headings.
