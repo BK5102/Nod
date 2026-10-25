@@ -48,6 +48,10 @@ async function main() {
     "cancel: route returned",
     c.error ?? `${c.result?.ms} ms, ${source}${c.result?.fallbackReason ? ` (fell back: ${c.result.fallbackReason})` : ""}, claude ${c.result?.claudeOk ? "ok" : `failed: ${c.result?.claudeError}`}`
   );
+  if (live && c.result?.fallbackReason) {
+    console.log(`\nLive flight search failed (${c.result.fallbackReason}). Nothing to check; no offers were shown.`);
+    process.exit(1);
+  }
   await waitFor(() => traveler.db.trip.tripId.find(DEMO_TRIP_ID)?.status === "options_ready" && offers(traveler).length > 0, "options");
 
   if (!live) {
@@ -67,12 +71,12 @@ async function main() {
   } else {
     // Live flights: the same guarantees, whatever the search returned.
     const flights = offers(traveler).filter((o) => /^(duf|serp)_/.test(o.offerId));
-    check(flights.length > 0, "cancel: live flights arrived", `${flights.length} flights`);
+    check(flights.length > 0 && flights.length === offers(traveler).length, "cancel: only real flights, nothing simulated", `${flights.length} of ${offers(traveler).length} offers`);
     const ranks = offers(traveler).filter((o) => o.rank > 0).map((o) => o.rank).sort((a, b) => a - b);
     check(ranks.every((r, i) => r === i + 1), "cancel: ranks are 1..n with no gaps", ranks.join(","));
     check(offers(traveler).every((o) => o.tier !== "BLOCK" || o.rank === 0), "cancel: every BLOCK offer is set aside");
   }
-  check(!!offer(traveler, "off_skyport")?.flagged, "cancel: Skyport's injected instruction was flagged", offer(traveler, "off_skyport")?.flagReason);
+  if (!live) check(!!offer(traveler, "off_skyport")?.flagged, "cancel: Skyport's injected instruction was flagged", offer(traveler, "off_skyport")?.flagReason);
   check(steps(traveler).length >= 5, "cancel: agent steps streamed", `${steps(traveler).length} steps`);
 
   // The flight the traveler buys: the top-ranked paid flight that fits under the cap after a price rise.
@@ -114,15 +118,24 @@ async function main() {
   const receipts = [...traveler.db.receipt.iter()].filter((x) => x.tripId === DEMO_TRIP_ID);
   check(trip.spendCents === newPrice && receipts.length === 1, `booked at ${newDollars}, one receipt`, `spend ${trip.spendCents}, ${receipts.length} receipts`);
 
-  // 7. one flight per trip (the $0 free rebooking, so the cap check cannot be the reason)
-  const freeRebook = offer(traveler, "off_bayline_free")!;
-  const second = await refused(traveler.reducers.approveOffer({ offerId: freeRebook.offerId, quoteHash: freeRebook.quoteHash }));
-  check(!!second && /already have a flight/.test(second), "a second flight is refused", second ?? "was NOT refused");
+  // 7. a second flight is refused. Saved offers use the $0 free rebooking, so only the one-flight rule can
+  // be the reason; live flights have no $0 option, so the cap may refuse first.
+  const other = live
+    ? offers(traveler).find((o) => o.kind === "flight" && o.status === "open" && o.tier !== "BLOCK")
+    : offer(traveler, "off_bayline_free");
+  if (other) {
+    const second = await refused(traveler.reducers.approveOffer({ offerId: other.offerId, quoteHash: other.quoteHash }));
+    check(!!second && (live ? /already have a flight|over your/ : /already have a flight/).test(second), "a second flight is refused", second ?? "was NOT refused");
+  }
 
-  // 8. blocked options stay blocked (business class in the saved offers, Skyport in both modes)
-  const biz = offer(traveler, live ? "off_skyport" : "off_harbor_business")!;
-  const blocked = await refused(traveler.reducers.approveOffer({ offerId: biz.offerId, quoteHash: biz.quoteHash }));
-  check(!!blocked && /blocked/.test(blocked), `${biz.title} (blocked) is refused`, blocked ?? "was NOT refused");
+  // 8. blocked options stay blocked (business class in the saved offers; live, whichever search result is blocked)
+  const biz = live ? offers(traveler).find((o) => o.tier === "BLOCK") : offer(traveler, "off_harbor_business");
+  if (biz) {
+    const blocked = await refused(traveler.reducers.approveOffer({ offerId: biz.offerId, quoteHash: biz.quoteHash }));
+    check(!!blocked && /blocked/.test(blocked), `${biz.title} (blocked) is refused`, blocked ?? "was NOT refused");
+  } else {
+    console.log("        no blocked option in this search, so the blocked check was skipped");
+  }
 
   // 9. receipt chain
   const chain = verifyReceipts(receipts);

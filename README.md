@@ -98,8 +98,8 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 | Quote-bound atomic purchase, hash-chained receipts | Real |
 | Claude reasons and listing flags | Real when `ANTHROPIC_API_KEY` is set; errors shown, never faked |
 | Cancellation | Simulated, triggered by the operator |
-| Flights | Real search. FLIGHT_PROVIDER=serpapi returns real, current fares from Google Flights via SerpApi (search only, it cannot book). FLIGHT_PROVIDER=duffel returns Duffel test-mode sandbox fares. Saved demo offers are the default and the fallback |
-| Free rebooking, hotels | Simulated, fictional names (the free rebooking comes from the airline, not a search API) |
+| Flights | Real. With FLIGHT_PROVIDER=serpapi, the agent shows only real, current flights from Google Flights via SerpApi (search only, it cannot book). If the search fails, no options are shown and nothing is bought; made-up offers never stand in. FLIGHT_PROVIDER=duffel gives Duffel sandbox fares |
+| Free rebooking, hotels, Skyport Suites | Not shown in live mode. They exist only in the saved demo offers (FLIGHT_PROVIDER unset), used offline and in tests; Skyport Suites is the planted prompt-injection listing |
 | Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Traveler | Fictional |
 

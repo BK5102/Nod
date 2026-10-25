@@ -153,8 +153,8 @@ AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
 | Quote-bound atomic purchase, receipts | Real |
 | Claude reasons and flags | Real when the key is set |
 | Cancellation | Simulated, triggered by the operator |
-| Flights | Real search. FLIGHT_PROVIDER=serpapi returns real, current fares from Google Flights via SerpApi (search only, it cannot book). FLIGHT_PROVIDER=duffel returns Duffel test-mode sandbox fares. Saved demo offers are the default and the fallback |
-| Free rebooking, hotels | Simulated, fictional names (the free rebooking comes from the airline, not a search API) |
+| Flights | Real. With FLIGHT_PROVIDER=serpapi, the agent shows only real, current flights from Google Flights via SerpApi (search only, it cannot book). If the search fails, no options are shown and nothing is bought; made-up offers never stand in. FLIGHT_PROVIDER=duffel gives Duffel sandbox fares |
+| Free rebooking, hotels, Skyport Suites | Not shown in live mode. They exist only in the saved demo offers (FLIGHT_PROVIDER unset), used offline and in tests; Skyport Suites is the planted prompt-injection listing |
 | Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Traveler | Fictional |
 
@@ -217,5 +217,5 @@ Submit a working Devpost entry by hour 12, then use the buffer to improve it.
 - the agent refusal
 - the quote-bound approval
 - the receipts
-- the Skyport flag
+- the Skyport flag (saved offers and tests; live mode shows real flights only)
 - reset

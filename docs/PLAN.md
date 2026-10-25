@@ -367,8 +367,8 @@ Pure TypeScript in `spacetimedb/src/core/`, used by reducers and tests. Tiers ar
 | Claude explanations and flags | Real when the key is set; errors shown, never faked |
 | Receipts | Real, hash-chained, verified by `demo-check.ts` |
 | Cancellation | Simulated, by the operator |
-| Flights | Real search. FLIGHT_PROVIDER=serpapi returns real, current fares from Google Flights via SerpApi (search only, it cannot book). FLIGHT_PROVIDER=duffel returns Duffel test-mode sandbox fares. Saved demo offers are the default and the fallback |
-| Free rebooking, hotels | Simulated, fictional names (the free rebooking comes from the airline, not a search API) |
+| Flights | Real. With FLIGHT_PROVIDER=serpapi, the agent shows only real, current flights from Google Flights via SerpApi (search only, it cannot book). If the search fails, no options are shown and nothing is bought; made-up offers never stand in. FLIGHT_PROVIDER=duffel gives Duffel sandbox fares |
+| Free rebooking, hotels, Skyport Suites | Not shown in live mode. They exist only in the saved demo offers (FLIGHT_PROVIDER unset), used offline and in tests; Skyport Suites is the planted prompt-injection listing |
 | Card token | Simulated: a mock of the controls Visa publicly describes. No Visa API |
 | Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Traveler | Fictional |
@@ -423,7 +423,7 @@ Pure TypeScript in `spacetimedb/src/core/`, used by reducers and tests. Tiers ar
 - the agent refusal
 - the quote-bound approval
 - the receipts
-- the Skyport flag
+- the Skyport flag (saved offers and tests; live mode shows real flights only)
 - reset
 
 ## 18. Reused from Nod (written at this event)

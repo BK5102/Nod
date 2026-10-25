@@ -23,6 +23,6 @@ export interface SearchResult {
   offers: ProviderOffer[];
   /** Plain description of where the offers came from, shown as an agent step. */
   source: string;
-  /** Set when the live search failed and the run fell back to saved offers. */
+  /** Set when the live search failed; offers is then empty. */
   fallbackReason: string | null;
 }

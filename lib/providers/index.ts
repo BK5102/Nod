@@ -13,25 +13,23 @@ const PROVIDERS = {
 } as const;
 
 /**
- * Where offers come from. FLIGHT_PROVIDER=serpapi (real current fares) or duffel (sandbox fares) searches
- * live flights; anything else, or any failure, uses the replayed fixture. The airline's free rebooking and
- * the hotels always come from the fixture (SIMULATED): free rebooking is offered by the airline, not a
- * search API, and hotel search is not wired. Offers keep the same shape either way, so the database
- * contract never changes. No provider is ever asked to book.
+ * Where offers come from. FLIGHT_PROVIDER=serpapi (real current fares) or duffel (sandbox fares) returns
+ * real search results only: flights, no simulated free rebooking or hotels. If that search fails, there
+ * are no offers and the reason is reported; made-up offers never stand in for a failed live search.
+ * With FLIGHT_PROVIDER unset, the saved demo offers (SIMULATED) are used, for offline development and
+ * the policy tests. Offers keep the same shape either way. No provider is ever asked to book.
  */
 export async function findOffers(req: SearchRequest): Promise<SearchResult> {
-  const saved = "saved demo offers (SIMULATED)";
   const name = process.env.FLIGHT_PROVIDER;
-  if (name !== "serpapi" && name !== "duffel") return { offers: FIXTURE, source: saved, fallbackReason: null };
+  if (name !== "serpapi" && name !== "duffel") return { offers: FIXTURE, source: "saved demo offers (SIMULATED)", fallbackReason: null };
   const provider = PROVIDERS[name];
-  if (!provider.configured()) return { offers: FIXTURE, source: saved, fallbackReason: `${provider.keyName} is not set` };
+  if (!provider.configured()) return { offers: [], source: provider.source, fallbackReason: `${provider.keyName} is not set` };
   try {
     const flights = await provider.search(req);
     if (flights.length === 0) throw new Error(`no USD flights from ${req.origin} to ${req.destination} tonight or tomorrow`);
-    const keep = FIXTURE.filter((o) => o.kind !== "flight");
-    return { offers: [...keep.filter((o) => o.kind === "free_rebooking"), ...flights, ...keep.filter((o) => o.kind === "hotel")], source: provider.source, fallbackReason: null };
+    return { offers: flights, source: provider.source, fallbackReason: null };
   } catch (e) {
-    return { offers: FIXTURE, source: saved, fallbackReason: (e as Error).message };
+    return { offers: [], source: provider.source, fallbackReason: (e as Error).message };
   }
 }
 

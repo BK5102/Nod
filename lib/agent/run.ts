@@ -48,7 +48,7 @@ export interface RunResult {
 }
 
 /**
- * The agent's run after a cancellation. Finds offers (live flight search or saved offers), writes its
+ * The agent's run after a cancellation. Finds offers (live flight search, or saved offers offline), writes its
  * steps as rows (streamed to the traveler), asks Claude once for reasons and flags, and hands the
  * offers to the database, which sets tier and rank.
  */
@@ -64,11 +64,14 @@ export async function runAgent(tripId: string): Promise<RunResult> {
   };
   const deadline = deadlineLabel(trip.deadlineText);
 
-  const airline = trip.flight.replace(/\s+\d+$/, "");
-  await step("search", `Checking ${airline}'s free rebooking and searching flights ${trip.route}`);
+  await step("search", `Searching flights ${trip.route}`);
   const found = await findOffers(searchRequestFor(trip.route, deadline));
   const offers = found.offers;
-  if (found.fallbackReason) await step("error", `Live flight search unavailable (${found.fallbackReason}). Using saved demo offers instead.`);
+  if (found.fallbackReason) {
+    // No made-up offers stand in for a failed live search: report it and stop. Nothing is bought.
+    await agent.reducers.logStep({ tripId, kind: "error", text: `Flight search failed (${found.fallbackReason}). No options to show, and nothing is bought. Try again.` });
+    return { ms: Date.now() - start, source: found.source, fallbackReason: found.fallbackReason, claudeOk: false, claudeError: null, flagged: [], options: 0, setAside: 0 };
+  }
 
   const freeOffer = offers.find((o) => o.kind === "free_rebooking");
   const paidFlights = offers.filter((o) => o.kind === "flight").length;
@@ -79,7 +82,7 @@ export async function runAgent(tripId: string): Promise<RunResult> {
       `Free rebooking: departs ${lowerFirst(freeOffer.departs)}, lands ${lowerFirst(freeOffer.arrives)}. ${freeOffer.meetsDeadline ? `Makes your ${deadline} deadline.` : `Misses your ${deadline} deadline.`}`
     );
   }
-  await step("search", `Found ${paidFlights} paid flights and ${hotels} hotels from ${found.source}`);
+  await step("search", `Found ${paidFlights} paid flights${hotels ? ` and ${hotels} hotels` : ""} from ${found.source}`);
   await step("info", "Checking listings and writing a reason for each option");
 
   let answer: AgentAnswer = { reasons: [], flags: [] };
