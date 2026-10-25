@@ -65,7 +65,7 @@ export async function runAgent(tripId: string): Promise<RunResult> {
   const deadline = deadlineLabel(trip.deadlineText);
 
   await step("search", `Searching flights ${trip.route}`);
-  const found = await findOffers(searchRequestFor(trip.route, deadline));
+  const found = await findOffers(searchRequestFor(trip.route, deadline), trip);
   const offers = found.offers;
   if (found.fallbackReason) {
     // No made-up offers stand in for a failed live search: report it and stop. Nothing is bought.

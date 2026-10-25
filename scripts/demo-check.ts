@@ -121,7 +121,7 @@ async function main() {
   check(chain.ok, "receipt chain recomputes to the stored hash", chain.reason ?? "");
 
   // 10. commerce numbers
-  check(trip.refundOwedCents === DEMO_TRIP.fareCents && !!trip.canceledAt && !!trip.bookedAt, `refund owed $${DEMO_TRIP.fareCents / 100}, canceled and booked times set`, `${trip.canceledAt} to ${trip.bookedAt}`);
+  check(trip.refundOwedCents === trip.fareCents && !!trip.canceledAt && !!trip.bookedAt, `refund owed $${trip.fareCents / 100}, canceled and booked times set`, `${trip.canceledAt} to ${trip.bookedAt}`);
   if (trip.canceledAt && trip.bookedAt) {
     const secs = Math.round((Date.parse(trip.bookedAt) - Date.parse(trip.canceledAt)) / 1000);
     console.log(`        cancel to booked: ${secs} s (this run, including the scripted pauses)`);
@@ -134,6 +134,19 @@ async function main() {
   );
   const leaks = [DEMO_PROFILE.name, "Rivera", DEMO_PROFILE.email, DEMO_PROFILE.bookingRef, DEMO_PROFILE.loyaltyNumber, "tok_mock_demo"].filter((s) => publicText.includes(s));
   check(leaks.length === 0, "no personal data or token reference in public rows", leaks.join(", "));
+
+  // 12. shuffle: another real flight from the recorded search, a clean slate, and the operator only
+  const sh = await post("/api/demo", { action: "shuffle" });
+  const picked = sh.result as { route?: string; flight?: string; fareCents?: number } | undefined;
+  await waitFor(() => {
+    const tr = traveler.db.trip.tripId.find(DEMO_TRIP_ID);
+    return tr?.status === "scheduled" && tr.flight === picked?.flight && offers(traveler).length === 0 ? tr : null;
+  }, "shuffle");
+  const shuffled = traveler.db.trip.tripId.find(DEMO_TRIP_ID)!;
+  check(sh.ok && shuffled.flight !== DEMO_TRIP.flight && shuffled.fareCents === picked?.fareCents && shuffled.spendCents === 0, "shuffle: another real flight, scheduled, nothing booked", `${shuffled.flight}, ${shuffled.route}, ${shuffled.departs}, $${shuffled.fareCents / 100}, ${shuffled.deadlineText}`);
+  const travelerShuffle = await refused(traveler.reducers.setTrip({ route: "SFO to JFK", flight: "Test 1", departs: "4:15 PM", fareCents: 100 }));
+  check(!!travelerShuffle, "traveler cannot change the demo flight", travelerShuffle ?? "was NOT refused");
+  await post("/api/demo", { action: "reset" });
 
   console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) failed.`);
   process.exit(failures === 0 ? 0 : 1);

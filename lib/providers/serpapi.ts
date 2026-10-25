@@ -7,14 +7,14 @@ import type { ProviderOffer, SearchRequest } from "./types";
 const URL = "https://serpapi.com/search";
 const MAX_FLIGHTS = 4;
 
-interface SerpSegment {
+export interface SerpSegment {
   departure_airport: { id: string; time: string };
   arrival_airport: { id: string; time: string };
   airline: string;
   flight_number: string;
 }
 
-interface SerpItinerary {
+export interface SerpItinerary {
   flights: SerpSegment[];
   price?: number;
 }
@@ -24,12 +24,12 @@ export function serpapiConfigured(): boolean {
 }
 
 /** "2026-10-25 06:45" (local airport time) -> "2026-10-25T06:45:00", the format SearchRequest uses. */
-function iso(local: string): string {
+export function iso(local: string): string {
   return `${local.replace(" ", "T")}:00`;
 }
 
 /** "2026-10-25T06:45:00" -> "6:45 AM". */
-function clock(local: string): string {
+export function clock(local: string): string {
   const [h, m] = local.slice(11, 16).split(":").map(Number) as [number, number];
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
@@ -66,50 +66,57 @@ async function search(key: string, req: SearchRequest, date: string, signal: Abo
 }
 
 /**
- * Searches tonight and tomorrow, maps each itinerary into the offer table's shape, and keeps the best
- * few: those that land before the deadline first, then cheapest. Google Flights does not say whether a
- * fare is refundable, so every offer is treated as non-refundable.
+ * Maps Google Flights itineraries into the offer table's shape and keeps the best few: those that land
+ * before the deadline first, then cheapest. Google Flights does not say whether a fare is refundable, so
+ * every offer is treated as non-refundable. `exclude` drops one flight by its title (the canceled one).
  */
-export async function searchSerpapi(req: SearchRequest, timeoutMs = 9_000): Promise<ProviderOffer[]> {
+export function mapItineraries(itineraries: readonly SerpItinerary[], req: SearchRequest, fareNote: string, exclude = ""): ProviderOffer[] {
+  const seen = new Set<string>();
+  const mapped: ProviderOffer[] = [];
+  for (const it of itineraries) {
+    const segs = it.flights ?? [];
+    const first = segs[0];
+    const last = segs.at(-1);
+    if (!first || !last || typeof it.price !== "number") continue;
+    const departs = iso(first.departure_airport.time);
+    const arrives = iso(last.arrival_airport.time);
+    if (departs < req.departAfter) continue;
+    const flights = segs.map((s) => s.flight_number).join(", "); // "B6 16", as Google Flights writes it
+    if (seen.has(flights)) continue;
+    seen.add(flights);
+    const airlines = [...new Set(segs.map((s) => s.airline))].join(" / ");
+    const title = `${airlines} ${flights}`;
+    if (title === exclude) continue;
+    const stops = segs.length === 1 ? "Nonstop" : `${segs.length - 1} stop via ${segs.slice(0, -1).map((s) => s.arrival_airport.id).join(", ")}`;
+    mapped.push({
+      offerId: `serp_${departs.slice(0, 10)}_${flights.replace(/[^A-Za-z0-9]+/g, "_")}`,
+      kind: "flight",
+      merchant: airlines,
+      title,
+      departs: `${dayLabel(departs, req)} ${clock(departs)}`,
+      arrives: `${dayLabel(arrives, req)} ${clock(arrives)}`,
+      meetsDeadline: arrives <= req.arriveBy,
+      priceCents: Math.round(it.price * 100),
+      refundable: false,
+      category: "airline",
+      mcc: "4511",
+      listingText: `${stops}, ${req.origin} to ${req.destination}, economy. Refund rules not shown. ${fareNote}`,
+    });
+  }
+  return mapped
+    .sort((a, b) => Number(b.meetsDeadline) - Number(a.meetsDeadline) || a.priceCents - b.priceCents)
+    .slice(0, MAX_FLIGHTS);
+}
+
+/** Searches tonight and tomorrow and maps the results (see mapItineraries). */
+export async function searchSerpapi(req: SearchRequest, timeoutMs = 9_000, exclude = ""): Promise<ProviderOffer[]> {
   const key = process.env.SERPAPI_KEY;
   if (!key) throw new Error("SERPAPI_KEY is not set");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const batches = await Promise.all([req.today, req.tomorrow].map((d) => search(key, req, d, controller.signal)));
-    const seen = new Set<string>();
-    const mapped: ProviderOffer[] = [];
-    for (const it of batches.flat()) {
-      const segs = it.flights ?? [];
-      const first = segs[0];
-      const last = segs.at(-1);
-      if (!first || !last || typeof it.price !== "number") continue;
-      const departs = iso(first.departure_airport.time);
-      const arrives = iso(last.arrival_airport.time);
-      if (departs < req.departAfter) continue;
-      const flights = segs.map((s) => s.flight_number).join(", "); // "B6 16", as Google Flights writes it
-      if (seen.has(flights)) continue;
-      seen.add(flights);
-      const airlines = [...new Set(segs.map((s) => s.airline))].join(" / ");
-      const stops = segs.length === 1 ? "Nonstop" : `${segs.length - 1} stop via ${segs.slice(0, -1).map((s) => s.arrival_airport.id).join(", ")}`;
-      mapped.push({
-        offerId: `serp_${departs.slice(0, 10)}_${flights.replace(/[^A-Za-z0-9]+/g, "_")}`,
-        kind: "flight",
-        merchant: airlines,
-        title: `${airlines} ${flights}`,
-        departs: `${dayLabel(departs, req)} ${clock(departs)}`,
-        arrives: `${dayLabel(arrives, req)} ${clock(arrives)}`,
-        meetsDeadline: arrives <= req.arriveBy,
-        priceCents: Math.round(it.price * 100),
-        refundable: false,
-        category: "airline",
-        mcc: "4511",
-        listingText: `${stops}, ${req.origin} to ${req.destination}, economy. Refund rules not shown. Current fare from Google Flights via SerpApi.`,
-      });
-    }
-    return mapped
-      .sort((a, b) => Number(b.meetsDeadline) - Number(a.meetsDeadline) || a.priceCents - b.priceCents)
-      .slice(0, MAX_FLIGHTS);
+    return mapItineraries(batches.flat(), req, "Current fare from Google Flights via SerpApi.", exclude);
   } catch (e) {
     if ((e as Error).name === "AbortError") throw new Error(`SerpApi did not answer within ${timeoutMs / 1000} seconds`);
     throw e;

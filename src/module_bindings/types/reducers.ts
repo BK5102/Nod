@@ -13,6 +13,7 @@ import FlagOfferReducer from "../flag_offer_reducer";
 import LogStepReducer from "../log_step_reducer";
 import ResetDemoReducer from "../reset_demo_reducer";
 import SetPriceReducer from "../set_price_reducer";
+import SetTripReducer from "../set_trip_reducer";
 import SubmitOffersReducer from "../submit_offers_reducer";
 import TakeSeatReducer from "../take_seat_reducer";
 
@@ -23,6 +24,7 @@ export type FlagOfferParams = __Infer<typeof FlagOfferReducer>;
 export type LogStepParams = __Infer<typeof LogStepReducer>;
 export type ResetDemoParams = __Infer<typeof ResetDemoReducer>;
 export type SetPriceParams = __Infer<typeof SetPriceReducer>;
+export type SetTripParams = __Infer<typeof SetTripReducer>;
 export type SubmitOffersParams = __Infer<typeof SubmitOffersReducer>;
 export type TakeSeatParams = __Infer<typeof TakeSeatReducer>;
 

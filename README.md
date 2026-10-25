@@ -186,6 +186,7 @@ The backend is already live on Maincloud as the database `rerouted-calhacks13`. 
 | Step | What happens | Backend call |
 | --- | --- | --- |
 | 1. Reset | Delta DL 363, SFO to JFK, 4:15 PM, is scheduled | `POST /api/demo {"action":"reset"}` |
+| 1b. Shuffle (optional) | Another real flight from the recorded search replaces it, for example United UA 1278, SFO to ORD | `POST /api/demo {"action":"shuffle"}` |
 | 2. Cancel | The flight is canceled; the agent searches real flights and its steps stream in over a few seconds | `POST /api/demo {"action":"cancel"}` |
 | 3. Options appear | Real flights, ranked: those landing before 9:00 AM first, then cheaper first. Over the cap is set aside | `offer` rows |
 | 4. Agent tries to buy | The top flight's purchase is refused: "Refused: the agent cannot approve its own purchase." | `POST /api/agent/try-approve {"offerId":"<top offer>"}` |

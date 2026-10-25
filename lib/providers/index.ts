@@ -1,31 +1,34 @@
 import "server-only";
-import fixture from "@/data/fixtures/demo.json";
 import { duffelConfigured, searchDuffel } from "./duffel";
+import { recordedOffers } from "./recorded";
 import { searchSerpapi, serpapiConfigured } from "./serpapi";
-import type { ProviderOffer, SearchRequest, SearchResult } from "./types";
-
-const FIXTURE = fixture.offers as ProviderOffer[];
+import type { SearchRequest, SearchResult } from "./types";
 
 /** Live flight providers, chosen with FLIGHT_PROVIDER. Each returns flights in the offer table's shape. */
 const PROVIDERS = {
-  serpapi: { configured: serpapiConfigured, search: searchSerpapi, keyName: "SERPAPI_KEY", source: "live flight search (Google Flights via SerpApi)" },
-  duffel: { configured: duffelConfigured, search: searchDuffel, keyName: "DUFFEL_ACCESS_TOKEN", source: "live flight search (Duffel test mode)" },
+  serpapi: { configured: serpapiConfigured, search: (req: SearchRequest, exclude: string) => searchSerpapi(req, 9_000, exclude), keyName: "SERPAPI_KEY", source: "live flight search (Google Flights via SerpApi)" },
+  duffel: { configured: duffelConfigured, search: (req: SearchRequest, _exclude: string) => searchDuffel(req), keyName: "DUFFEL_ACCESS_TOKEN", source: "live flight search (Duffel test mode)" },
 } as const;
 
 /**
  * Where offers come from. FLIGHT_PROVIDER=serpapi (real current fares) or duffel (sandbox fares) returns
  * real search results only: flights, no simulated free rebooking or hotels. If that search fails, there
  * are no offers and the reason is reported; made-up offers never stand in for a failed live search.
- * With FLIGHT_PROVIDER unset, a recorded real search (data/fixtures/demo.json) is replayed, for offline
- * development and rehearsal without spending searches. Offers keep the same shape either way. No provider is ever asked to book.
+ * With FLIGHT_PROVIDER unset, a recorded real search (data/fixtures/recorded-flights.json) is replayed,
+ * for offline development and rehearsal without spending searches. The canceled flight itself is never
+ * offered. Offers keep the same shape either way. No provider is ever asked to book.
  */
-export async function findOffers(req: SearchRequest): Promise<SearchResult> {
+export async function findOffers(req: SearchRequest, canceled: { route: string; flight: string }): Promise<SearchResult> {
   const name = process.env.FLIGHT_PROVIDER;
-  if (name !== "serpapi" && name !== "duffel") return { offers: FIXTURE, source: "recorded flight search (Google Flights via SerpApi, Oct 25, 2026)", fallbackReason: null };
+  if (name !== "serpapi" && name !== "duffel") {
+    const offers = recordedOffers(canceled.route, canceled.flight, req);
+    const source = "recorded flight search (Google Flights via SerpApi, Oct 25, 2026)";
+    return { offers, source, fallbackReason: offers.length ? null : `no recorded flights for ${canceled.route}` };
+  }
   const provider = PROVIDERS[name];
   if (!provider.configured()) return { offers: [], source: provider.source, fallbackReason: `${provider.keyName} is not set` };
   try {
-    const flights = await provider.search(req);
+    const flights = await provider.search(req, canceled.flight);
     if (flights.length === 0) throw new Error(`no USD flights from ${req.origin} to ${req.destination} tonight or tomorrow`);
     return { offers: flights, source: provider.source, fallbackReason: null };
   } catch (e) {
@@ -38,7 +41,7 @@ export function searchRequestFor(route: string, deadlineLabel: string, now = new
   const m = route.match(/^([A-Z]{3}) to ([A-Z]{3})$/);
   const origin = m?.[1] ?? "SFO";
   const destination = m?.[2] ?? "JFK";
-  // The demo trip departs SFO, so "tonight" is the Pacific date.
+  // Every demo route departs the West Coast, so "tonight" is the Pacific date.
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(now);
   const tomorrow = new Date(Date.parse(`${today}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
   const t = deadlineLabel.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
