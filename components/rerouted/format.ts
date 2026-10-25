@@ -1,3 +1,5 @@
+import { hoursAhead } from "@/lib/airports";
+
 /** "SFO to JFK" -> { from: "SFO", to: "JFK" }. The trip row carries the route; the demo can switch flights. */
 export function airportsOf(route: string | undefined): { from: string; to: string } {
   const m = /^([A-Z]{3}) to ([A-Z]{3})$/.exec(route ?? "");
@@ -45,14 +47,42 @@ export function clockHours(text: string, after?: number): number | null {
 
 export const DEADLINE_H = 21; // 9:00 AM tomorrow on the clockHours axis
 
+/** The trip's arrive-by time tomorrow: its label and its place on the clockHours axis. */
+export interface Deadline {
+  h: number;
+  label: string;
+}
+
+/** "Arrive JFK by 9:30 AM" -> { h: 21.5, label: "9:30 AM" }. The demo can switch to another deadline. */
+export function deadlineOf(deadlineText?: string): Deadline {
+  const m = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(deadlineText ?? "");
+  if (!m) return { h: DEADLINE_H, label: "9:00 AM" };
+  const ampm = m[3]!.toUpperCase();
+  const h24 = (Number(m[1]) % 12) + (ampm === "PM" ? 12 : 0) + Number(m[2]) / 60;
+  return { h: h24 + 12, label: `${Number(m[1])}:${m[2]} ${ampm}` };
+}
+
 /** "2 h 15 min before 9:00 AM" or "6 h 30 min after 9:00 AM". */
-export function deadlineDelta(arrivesH: number): { before: boolean; text: string } {
-  const diff = Math.round((DEADLINE_H - arrivesH) * 60);
+export function deadlineDelta(arrivesH: number, deadline: Deadline = deadlineOf()): { before: boolean; text: string } {
+  const diff = Math.round((deadline.h - arrivesH) * 60);
   const abs = Math.abs(diff);
   const h = Math.floor(abs / 60);
   const min = abs % 60;
   const span = [h ? `${h} h` : "", min ? `${min} min` : ""].filter(Boolean).join(" ") || "0 min";
-  return { before: diff >= 0, text: `${span} ${diff >= 0 ? "before" : "after"} 9:00 AM` };
+  return { before: diff >= 0, text: `${span} ${diff >= 0 ? "before" : "after"} ${deadline.label}` };
+}
+
+/**
+ * A flight's arrival against the trip's deadline. Departures are printed in the origin's time and
+ * arrivals in the destination's, so an arrival is kept after its departure on the destination's clock.
+ */
+export function arrivalDelta(o: { kind: string; departs: string; arrives: string }, trip: { route: string; deadlineText: string } | null) {
+  if (o.kind === "hotel") return null;
+  const dep = clockHours(o.departs);
+  if (dep === null) return null;
+  const { from, to } = airportsOf(trip?.route);
+  const arr = clockHours(o.arrives, dep + (from && to ? hoursAhead(from, to) : 3));
+  return arr === null ? null : deadlineDelta(arr, deadlineOf(trip?.deadlineText));
 }
 
 export function elapsed(fromIso: string, toMs: number): string {

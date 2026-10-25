@@ -108,19 +108,26 @@ export function mapItineraries(itineraries: readonly SerpItinerary[], req: Searc
     .slice(0, MAX_FLIGHTS);
 }
 
-/** Searches tonight and tomorrow and maps the results (see mapItineraries). */
-export async function searchSerpapi(req: SearchRequest, timeoutMs = 9_000, exclude = ""): Promise<ProviderOffer[]> {
+export const LIVE_FARE_NOTE = "Current fare from Google Flights via SerpApi.";
+
+/** The raw itineraries for tonight and tomorrow: two searches, run in parallel. */
+export async function searchItineraries(req: SearchRequest, timeoutMs = 9_000): Promise<SerpItinerary[]> {
   const key = process.env.SERPAPI_KEY;
   if (!key) throw new Error("SERPAPI_KEY is not set");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const batches = await Promise.all([req.today, req.tomorrow].map((d) => search(key, req, d, controller.signal)));
-    return mapItineraries(batches.flat(), req, "Current fare from Google Flights via SerpApi.", exclude);
+    return batches.flat();
   } catch (e) {
     if ((e as Error).name === "AbortError") throw new Error(`SerpApi did not answer within ${timeoutMs / 1000} seconds`);
     throw e;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Searches tonight and tomorrow and maps the results (see mapItineraries). */
+export async function searchSerpapi(req: SearchRequest, timeoutMs = 9_000, exclude = ""): Promise<ProviderOffer[]> {
+  return mapItineraries(await searchItineraries(req, timeoutMs), req, LIVE_FARE_NOTE, exclude);
 }

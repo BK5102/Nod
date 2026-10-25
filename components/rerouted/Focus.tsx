@@ -2,7 +2,7 @@
 
 import fixture from "@/data/fixtures/demo.json";
 import { verifyReceipts } from "@/spacetimedb/src/core/receipt";
-import { airportsOf, clockHours, clockOf, deadlineDelta, money, roughly, timeOnly, timeSpan } from "./format";
+import { airportsOf, arrivalDelta, clockOf, deadlineOf, money, roughly, timeOnly, timeSpan } from "./format";
 import { Pictogram } from "./Pictogram";
 import { parseRules, type Offer, type Receipt, type Trip } from "./types";
 
@@ -20,19 +20,12 @@ export interface Void {
 const listingOf = new Map(fixture.offers.map((o) => [o.offerId, o.listingText]));
 
 /** Why an option sits where it does: the ranking rule first, then the card rule that asks you. */
-function whyRank(o: Offer, delta: ReturnType<typeof deadlineDelta> | null): string {
+function whyRank(o: Offer, delta: ReturnType<typeof arrivalDelta>): string {
   const ask = parseRules(o.rulesJson).find((r) => r.tier === "ASK" && r.id !== "above_auto_ceiling");
   const place = o.kind === "hotel" ? "Hotels rank after flights" : delta?.before ? "Lands before your deadline" : o.priceCents === 0 ? "Costs nothing, but misses your deadline" : "Misses your deadline";
   return ask ? `${place}. ${ask.reason}` : `${place}.`;
 }
 
-function landing(o: Offer) {
-  if (o.kind === "hotel") return null;
-  const dep = clockHours(o.departs);
-  if (dep === null) return null;
-  const arr = clockHours(o.arrives, dep + 3);
-  return arr === null ? null : deadlineDelta(arr);
-}
 
 /** Before anything goes wrong: the trip, in plain terms. */
 export function CalmPanel({ trip }: { trip: Trip | null }) {
@@ -54,7 +47,7 @@ export function CalmPanel({ trip }: { trip: Trip | null }) {
         </div>
         <div className="text-right">
           <p className="display text-[2.75rem] leading-none">{to}</p>
-          <p className="mt-1 text-[15px] text-muted">Arrive by 9:00 AM</p>
+          <p className="mt-1 text-[15px] text-muted">Arrive by {deadlineOf(trip?.deadlineText).label}</p>
         </div>
       </div>
       <dl className="divide-y divide-line border-y border-line text-[15px]">
@@ -77,7 +70,7 @@ export function ShoppingPanel({ trip }: { trip: Trip | null }) {
   return (
     <section className="flex flex-col gap-3" aria-live="polite">
       <h2 className="text-[15px] font-extrabold">Shopping for you</h2>
-      <p className="text-[15px] leading-snug text-muted">Searching flights to {airportsOf(trip?.route).to} and ranking them against 9:00 AM.</p>
+      <p className="text-[15px] leading-snug text-muted">Searching flights to {airportsOf(trip?.route).to} and ranking them against {deadlineOf(trip?.deadlineText).label}.</p>
     </section>
   );
 }
@@ -107,6 +100,7 @@ export function SearchFailedPanel({ text, busy, onRetry }: { text: string; busy:
 /** One way home. The winner is larger and carries the one accent: its Approve button. */
 export function OptionCard({
   offer,
+  trip,
   lead,
   stamp,
   voided,
@@ -114,13 +108,15 @@ export function OptionCard({
   onApprove,
 }: {
   offer: Offer;
+  trip: Trip | null;
   lead: boolean;
   stamp?: Stamp;
   voided?: Void;
   busy: boolean;
   onApprove: (o: Offer) => void;
 }) {
-  const delta = landing(offer);
+  const delta = arrivalDelta(offer, trip);
+  const by = deadlineOf(trip?.deadlineText).label;
   const price = offer.priceCents === 0 ? "Free" : money(offer.priceCents);
   const times = offer.kind === "hotel" ? "Tonight, near the airport" : timeSpan(offer.departs, offer.arrives);
   const misses = delta && !delta.before;
@@ -133,7 +129,7 @@ export function OptionCard({
           <h3 className={`truncate font-extrabold ${lead ? "text-lg leading-tight" : "text-[15px]"}`}>{offer.title}</h3>
           <p className="flex items-baseline gap-2 text-sm text-muted">
             <span className="whitespace-nowrap">{times}</span>
-            {delta ? <span className={`font-bold whitespace-nowrap ${misses ? "text-muted" : "text-fg"}`}>{misses ? "misses 9:00 AM" : `${roughly(delta.text.replace(" before 9:00 AM", ""))} early`}</span> : null}
+            {delta ? <span className={`font-bold whitespace-nowrap ${misses ? "text-muted" : "text-fg"}`}>{misses ? `misses ${by}` : `${roughly(delta.text.replace(` before ${by}`, ""))} early`}</span> : null}
             {!lead ? (
               <button
                 type="button"

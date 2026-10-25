@@ -1,12 +1,19 @@
 import "server-only";
+import { tzOf } from "@/lib/airports";
 import { duffelConfigured, searchDuffel } from "./duffel";
 import { recordedOffers } from "./recorded";
-import { searchSerpapi, serpapiConfigured } from "./serpapi";
+import { LIVE_FARE_NOTE, mapItineraries, searchItineraries, serpapiConfigured } from "./serpapi";
+import { afterCanceled, shuffledSearch } from "./shuffle";
 import type { SearchRequest, SearchResult } from "./types";
 
 /** Live flight providers, chosen with FLIGHT_PROVIDER. Each returns flights in the offer table's shape. */
 const PROVIDERS = {
-  serpapi: { configured: serpapiConfigured, search: (req: SearchRequest, exclude: string) => searchSerpapi(req, 9_000, exclude), keyName: "SERPAPI_KEY", source: "live flight search (Google Flights via SerpApi)" },
+  serpapi: { configured: serpapiConfigured, search: async (req: SearchRequest, exclude: string) => {
+      // Reuse the search a shuffle just ran for this flight; otherwise search now. Only flights leaving
+      // after the canceled one are offered.
+      const itineraries = shuffledSearch(req.origin + " to " + req.destination, exclude) ?? (await searchItineraries(req));
+      return mapItineraries(itineraries, afterCanceled(itineraries, exclude, req), LIVE_FARE_NOTE, exclude);
+    }, keyName: "SERPAPI_KEY", source: "live flight search (Google Flights via SerpApi)" },
   duffel: { configured: duffelConfigured, search: (req: SearchRequest, _exclude: string) => searchDuffel(req), keyName: "DUFFEL_ACCESS_TOKEN", source: "live flight search (Duffel test mode)" },
 } as const;
 
@@ -41,8 +48,9 @@ export function searchRequestFor(route: string, deadlineLabel: string, now = new
   const m = route.match(/^([A-Z]{3}) to ([A-Z]{3})$/);
   const origin = m?.[1] ?? "SFO";
   const destination = m?.[2] ?? "JFK";
-  // Every demo route departs the West Coast, so "tonight" is the Pacific date.
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(now);
+  // "Tonight" is the date at the origin airport.
+  const zone = tzOf(origin);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: zone }).format(now);
   const tomorrow = new Date(Date.parse(`${today}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
   const t = deadlineLabel.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   const hour = t ? (Number(t[1]) % 12) + (t[3]!.toUpperCase() === "PM" ? 12 : 0) : 9;
@@ -53,7 +61,7 @@ export function searchRequestFor(route: string, deadlineLabel: string, now = new
     today,
     tomorrow,
     arriveBy: `${tomorrow}T${String(hour).padStart(2, "0")}:${minute}:00`,
-    departAfter: localIso(new Date(now.getTime() + GATE_BUFFER_MS), "America/Los_Angeles"),
+    departAfter: localIso(new Date(now.getTime() + GATE_BUFFER_MS), zone),
   };
 }
 

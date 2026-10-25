@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { createMockEngine } from "@/components/rerouted/mock";
 import { Pictogram, type PictoName } from "@/components/rerouted/Pictogram";
-import { airportsOf, clockHours, deadlineDelta, money, roughly, timeOnly } from "@/components/rerouted/format";
+import { airportsOf, arrivalDelta, deadlineOf, money, roughly, timeOnly } from "@/components/rerouted/format";
 import fixture from "@/data/fixtures/demo.json";
 import { rankOffers } from "@/spacetimedb/src/core/policy";
 import { DEMO_TRIP } from "@/spacetimedb/src/core/seed";
@@ -29,22 +29,19 @@ const RANKS = rankOffers(fixture.offers.map((o) => ({ ...o, tier: "ASK" as const
 const TOP = fixture.offers.find((o) => RANKS.get(o.offerId) === 1)!;
 const PRICE_STEP = 2300; // the same simulated price move as the dashboard and demo-check
 const MOVED = TOP.priceCents + PRICE_STEP;
-const TOP_DELTA = (() => {
-  const dep = clockHours(TOP.departs);
-  const arr = dep === null ? null : clockHours(TOP.arrives, dep + 3);
-  return arr === null ? null : deadlineDelta(arr);
-})();
+const BY = deadlineOf(DEMO_TRIP.deadlineText).label;
+const TOP_DELTA = arrivalDelta(TOP, DEMO_TRIP);
 
 const BEATS: Beat[] = [
   { id: "scheduled", head: `${DEMO_TRIP.flight} to ${TO}`, sub: `Departs ${FROM} at ${DEMO_TRIP.departs}`, tone: "white" },
   { id: "canceled", head: "Canceled", sub: "The agent starts shopping", tone: "alert" },
-  { id: "options", head: `${fixture.offers.length} ways home`, sub: "Ranked against your 9:00 AM deadline", tone: "yellow" },
+  { id: "options", head: `${fixture.offers.length} ways home`, sub: `Ranked against your ${BY} deadline`, tone: "yellow" },
   { id: "refused", head: "Agent refused", sub: "It cannot approve its own purchase", tone: "alert" },
   { id: "price", head: `${money(TOP.priceCents)} to ${money(MOVED)}`, sub: "The price moved, so the old quote is void", tone: "yellow" },
   {
     id: "booked",
     head: `Booked, ${money(MOVED)}`,
-    sub: `Lands ${timeOnly(TOP.arrives)}${TOP_DELTA?.before ? `, ${roughly(TOP_DELTA.text.replace(" before 9:00 AM", ""))} early` : ""}`,
+    sub: `Lands ${timeOnly(TOP.arrives)}${TOP_DELTA?.before ? `, ${roughly(TOP_DELTA.text.replace(` before ${BY}`, ""))} early` : ""}`,
     tone: "yellow",
   },
 ];

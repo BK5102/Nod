@@ -144,7 +144,7 @@ async function main() {
   }, "shuffle");
   const shuffled = traveler.db.trip.tripId.find(DEMO_TRIP_ID)!;
   check(sh.ok && shuffled.flight !== DEMO_TRIP.flight && shuffled.fareCents === picked?.fareCents && shuffled.spendCents === 0, "shuffle: another real flight, scheduled, nothing booked", `${shuffled.flight}, ${shuffled.route}, ${shuffled.departs}, $${shuffled.fareCents / 100}, ${shuffled.deadlineText}`);
-  const travelerShuffle = await refused(traveler.reducers.setTrip({ route: "SFO to JFK", flight: "Test 1", departs: "4:15 PM", fareCents: 100 }));
+  const travelerShuffle = await refused(traveler.reducers.setTrip({ route: "SFO to JFK", flight: "Test 1", departs: "4:15 PM", fareCents: 100, deadline: "9:00 AM" }));
   check(!!travelerShuffle, "traveler cannot change the demo flight", travelerShuffle ?? "was NOT refused");
   await post("/api/demo", { action: "reset" });
 

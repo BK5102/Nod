@@ -115,7 +115,7 @@ A role passed as an argument is never trusted.
 **Flow:**
 
 1. **Reset.** `POST /api/demo {action: "reset"}`: the operator calls `reset_demo`, which deletes trip data and seeds the trip, mandate, private profile and private token.
-   - **Shuffle (optional).** `POST /api/demo {action: "shuffle"}`: the server picks another real flight at random from the recorded search (`data/fixtures/recorded-flights.json`: 18 evening nonstops on SFO to JFK, LAX to JFK, SEA to BOS and SFO to ORD) and the operator calls `set_trip(route, flight, departs, fareCents)`. That is the same reset with a different trip row (deadline "Arrive <destination> by 9:00 AM"); the card rules stay. Cancel then shows that flight's real alternatives.
+   - **Shuffle (optional).** `POST /api/demo {action: "shuffle"}`: the server picks a random real flight and a random deadline, and the operator calls `set_trip(route, flight, departs, fareCents, deadline)`. That is the same reset with a different trip row; the card rules stay. With FLIGHT_PROVIDER=serpapi it searches a random route between 16 major US airports (`lib/airports.ts`, two searches), takes a random flight leaving at 2 PM or later today as the canceled one, and sets "Arrive <destination> by <6:00 AM to 12:00 PM tomorrow>". The cancel that follows reuses that search (no extra searches) and offers only flights leaving at least 30 minutes after the canceled one. Without SerpApi it picks from the recorded search (`data/fixtures/recorded-flights.json`).
 2. **Cancel.** `POST /api/demo {action: "cancel"}` (the operator):
    1. Calls `cancel_flight`. The trip status becomes `canceled` and a step says the cancellation is simulated.
    2. Runs the agent in the same request. The route connects as the agent:
@@ -251,7 +251,7 @@ All four return `{ ok: true, result: {...} }` or `{ ok: false, error, refused }`
 | Route | Returns |
 | --- | --- |
 | `POST /api/demo {action: "reset"}` | |
-| `POST /api/demo {action: "shuffle"}` | `result: { route, flight, departs, fareCents, choices }`. The trip row updates through the subscription; then call cancel as usual |
+| `POST /api/demo {action: "shuffle"}` | `result: { route, flight, departs, fareCents, deadline, source }`. The trip row updates through the subscription; then call cancel as usual |
 | `POST /api/demo {action: "cancel"}` | Returns when offers are ready. Steps stream through the subscription meanwhile |
 | `POST /api/demo {action: "price", offerId, priceCents}` | |
 | `POST /api/agent/try-approve {offerId}` | `result: { refused: true, reason }` |

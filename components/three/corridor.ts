@@ -1,11 +1,12 @@
 // The deadline corridor. One shared time axis (the destination's time, tonight to tomorrow afternoon).
-// The 9:00 AM deadline stands as a yellow overhead sign frame. Every way home is an arc from its
+// The trip's arrive-by deadline stands as an overhead sign frame. Every way home is an arc from its
 // departure to its arrival, so routes that make it land in front of the frame and late ones land
 // past it. The canceled flight breaks and falls; blocked routes drop through the floor; the booked
 // route turns yellow and a plane flies it once. Renders on demand: no frames while nothing moves.
 
 import * as THREE from "three";
-import { airportsOf, clockHours } from "@/components/rerouted/format";
+import { airportsOf, clockHours, deadlineOf, type Deadline } from "@/components/rerouted/format";
+import { hoursAhead } from "@/lib/airports";
 import type { Offer, Trip } from "@/components/rerouted/types";
 
 const YELLOW = 0xffcc00;
@@ -14,11 +15,8 @@ const SOFT = 0x8a8a8a;
 const ALERT = 0xff5a4e;
 const GROUND = 0x1a1a1a;
 
-// Departures are printed in West Coast (Pacific) time, arrivals in the destination's time: New York and
-// Boston are 3 hours ahead, Chicago 2. The axis runs on the destination's clock.
-const HOURS_AHEAD: Record<string, number> = { ORD: 2 };
-const hoursAhead = (dest: string) => HOURS_AHEAD[dest] ?? 3;
-const DEADLINE_ET = 21; // 9:00 AM tomorrow on the clockHours axis
+// Departures are printed in the origin's time, arrivals in the destination's. The axis runs on the
+// destination's clock, and the deadline frame stands at the trip's arrive-by time.
 const AXIS_TO = 29; // 5 PM tomorrow
 /**
  * The axis starts at 8 PM tonight. With live flights it starts at the current hour in New York when
@@ -279,7 +277,7 @@ export class Corridor {
     }
 
     // The deadline: an overhead sign frame in yellow, standing across every lane.
-    const x = xOf(DEADLINE_ET);
+    const x = xOf(deadlineOf().h);
     const frame = new THREE.Group();
     const postMat = new THREE.MeshBasicMaterial({ color: WHITE });
     const postGeo = new THREE.BoxGeometry(0.1, 4.2, 0.1);
@@ -299,7 +297,7 @@ export class Corridor {
     veil.position.set(0, 2.1, -1);
     frame.add(veil);
     this.signFrame = frame;
-    this.setDestination("JFK");
+    this.setDestination("JFK", deadlineOf());
     frame.position.x = x;
     this.scene.add(frame);
   }
@@ -484,7 +482,7 @@ export class Corridor {
   }
 
   /** The deadline sign names the destination; the demo can switch to a flight on another route. */
-  private setDestination(dest: string) {
+  private setDestination(dest: string, deadline: Deadline) {
     if (this.deadlineSign) {
       this.signFrame?.remove(this.deadlineSign);
       disposeSprite(this.deadlineSign);
@@ -492,13 +490,14 @@ export class Corridor {
     const sign = textSprite(
       [
         { text: `Arrive ${dest} by`, weight: 700, size: 26, color: "#0b0b0b" },
-        { text: "9:00 AM", weight: 900, size: 58, color: "#0b0b0b" },
+        { text: deadline.label, weight: 900, size: 58, color: "#0b0b0b" },
       ],
       { bg: "#ffffff", pad: 14, height: 1.6 },
     );
     sign.center.set(0.5, 0);
     sign.position.set(0, 4.35, -1);
     this.signFrame?.add(sign);
+    if (this.signFrame) this.signFrame.position.x = xOf(deadline.h);
     this.deadlineSign = sign;
   }
 
@@ -506,14 +505,14 @@ export class Corridor {
   update(trip: Trip | null, offers: Offer[]) {
     if (!trip) return;
     // A different flight (the demo's shuffle) starts the scene over, on that route's clock.
-    const key = `${trip.route}|${trip.flight}`;
+    const key = `${trip.route}|${trip.flight}|${trip.deadlineText}`;
     if (key !== this.tripKey) {
       if (this.tripKey) this.resetScene();
       this.tripKey = key;
       const { from, to } = airportsOf(trip.route);
       this.origin = from || "SFO";
-      this.tz = hoursAhead(to);
-      this.setDestination(to || "JFK");
+      this.tz = from && to ? hoursAhead(from, to) : 3;
+      this.setDestination(to || "JFK", deadlineOf(trip.deadlineText));
     }
     if (trip.status === "scheduled" && this.status !== "scheduled") this.resetScene();
     if (!this.original) this.buildOriginal(trip);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { airportsOf, clockHours, deadlineDelta, elapsed, timeOnly } from "./format";
+import { airportsOf, arrivalDelta, deadlineOf, elapsed, timeOnly } from "./format";
 import type { Offer, Trip } from "./types";
 
 /** The one thing to know right now, at sign scale. Neutral except the canceled state. */
@@ -20,6 +20,7 @@ export function SignBand({ trip, offers }: { trip: Trip | null; offers: Offer[] 
   const making = ranked.filter((o) => o.meetsDeadline && o.kind !== "hotel").length;
 
   const { from, to } = airportsOf(trip?.route);
+  const by = deadlineOf(trip?.deadlineText).label;
   let big = "";
   let detail: React.ReactNode = "";
   let alert = false;
@@ -36,17 +37,16 @@ export function SignBand({ trip, offers }: { trip: Trip | null; offers: Offer[] 
           <span className="line-through decoration-danger decoration-2">
             {trip.flight}, {trip.departs}
           </span>
-          <span className="ml-3">You need to be at {to} by 9:00 AM.</span>
+          <span className="ml-3">You need to be at {to} by {by}.</span>
         </>
       );
       break;
     case "options_ready":
-      big = `${making} way${making === 1 ? "" : "s"} home by 9:00 AM`;
+      big = `${making} way${making === 1 ? "" : "s"} home by ${by}`;
       detail = `${ranked.length} options inside your card's rules${aside ? `, ${aside} set aside` : ""}.`;
       break;
     case "booked": {
-      const arr = booked ? clockHours(booked.arrives, 0) : null;
-      const d = arr !== null ? deadlineDelta(arr) : null;
+      const d = booked ? arrivalDelta(booked, trip) : null;
       big = booked ? `Booked. Lands ${timeOnly(booked.arrives)}` : "Booked";
       detail = booked ? `${booked.title}${d ? `, ${d.text}` : ""}.` : "";
       break;

@@ -1,8 +1,7 @@
 import { connection } from "@/lib/stdb/server";
 import { body, fail, ok } from "@/lib/server/http";
 import { runAgent } from "@/lib/agent/run";
-import { searchRequestFor } from "@/lib/providers";
-import { cancelableFlights } from "@/lib/providers/recorded";
+import { pickTrip } from "@/lib/providers/shuffle";
 import { DEMO_TRIP_ID } from "@/spacetimedb/src/core/seed";
 
 export const runtime = "nodejs";
@@ -21,13 +20,11 @@ export async function POST(req: Request) {
       return ok({ tripId: DEMO_TRIP_ID });
     }
     if (b.action === "shuffle") {
-      // Another real flight from the recorded search, never the current one. Its cancellation is still simulated.
+      // A random real flight and a random deadline, never the current flight. Its cancellation is still simulated.
       const current = op.db.trip.tripId.find(DEMO_TRIP_ID);
-      const pool = cancelableFlights((route) => searchRequestFor(route, "9:00 AM")).filter((f) => f.flight !== current?.flight);
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      if (!pick) throw new Error("No other recorded flight to switch to.");
-      await op.reducers.setTrip({ route: pick.route, flight: pick.flight, departs: pick.departs, fareCents: pick.fareCents });
-      return ok({ tripId: DEMO_TRIP_ID, route: pick.route, flight: pick.flight, departs: pick.departs, fareCents: pick.fareCents, choices: pool.length + 1 });
+      const pick = await pickTrip(current?.flight ?? "");
+      await op.reducers.setTrip({ route: pick.route, flight: pick.flight, departs: pick.departs, fareCents: pick.fareCents, deadline: pick.deadline });
+      return ok({ tripId: DEMO_TRIP_ID, ...pick });
     }
     if (b.action === "cancel") {
       await op.reducers.cancelFlight({ tripId: DEMO_TRIP_ID });

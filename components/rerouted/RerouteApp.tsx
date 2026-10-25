@@ -298,7 +298,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
                   </>
                 ) : ranked.length ? (
                   ranked.map((o, i) => (
-                    <OptionCard key={o.offerId} offer={o} lead={i === 0} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} onApprove={approve} />
+                    <OptionCard key={o.offerId} offer={o} trip={trip} lead={i === 0} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} onApprove={approve} />
                   ))
                 ) : (
                   <div className="card p-5">{searchError ? (

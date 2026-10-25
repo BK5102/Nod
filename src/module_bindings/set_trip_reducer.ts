@@ -15,4 +15,5 @@ export default {
   flight: __t.string(),
   departs: __t.string(),
   fareCents: __t.u32(),
+  deadline: __t.string(),
 };

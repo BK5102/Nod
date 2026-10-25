@@ -175,18 +175,20 @@ export const resetDemo = spacetimedb.reducer((ctx) => {
 });
 
 /**
- * Resets the demo onto another real flight (picked by the server from the recorded search). Same reset as
- * reset_demo; only the trip's route, flight, departure, deadline and fare change. The card rules stay.
+ * Resets the demo onto another real flight (picked by the server from a real search) and an arrive-by
+ * time tomorrow. Same reset as reset_demo; only the trip's route, flight, departure, deadline and fare
+ * change. The card rules stay.
  */
 export const setTrip = spacetimedb.reducer(
-  { route: t.string(), flight: t.string(), departs: t.string(), fareCents: t.u32() },
-  (ctx, { route, flight, departs, fareCents }) => {
+  { route: t.string(), flight: t.string(), departs: t.string(), fareCents: t.u32(), deadline: t.string() },
+  (ctx, { route, flight, departs, fareCents, deadline }) => {
     requireRole(ctx, ['operator'], 'change the demo flight');
     const m = route.match(/^[A-Z]{3} to ([A-Z]{3})$/);
     if (!m) throw new SenderError('Route must look like "SFO to JFK".');
     if (!flight.trim() || flight.length > 60 || !/^\d{1,2}:\d{2} (AM|PM)$/.test(departs)) throw new SenderError('Flight and departure ("4:15 PM") are required.');
     if (fareCents <= 0 || fareCents > 1_000_000) throw new SenderError('Fare must be between $0.01 and $10,000.');
-    reseed(ctx, { route, flight: flight.trim(), departs, deadlineText: `Arrive ${m[1]} by 9:00 AM`, fareCents });
+    if (!/^\d{1,2}:\d{2} (AM|PM)$/.test(deadline)) throw new SenderError('Deadline must look like "9:00 AM".');
+    reseed(ctx, { route, flight: flight.trim(), departs, deadlineText: `Arrive ${m[1]} by ${deadline}`, fareCents });
   }
 );
 
