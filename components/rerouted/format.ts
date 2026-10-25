@@ -1,19 +1,38 @@
 export const money = (cents: number) =>
   `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: cents % 100 ? 2 : 0, minimumFractionDigits: cents % 100 ? 2 : 0 })}`;
 
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
 /**
- * Hours after noon on the evening of the cancellation, so tonight, tomorrow morning and tomorrow
- * afternoon share one axis. "6:40 PM" is 6.67, "6:45 AM" is 18.75, a 3:30 PM landing after a
- * morning departure is 27.5. Pass the departure to keep an arrival after it.
+ * Which day a time label is on, counted from today on the Pacific date (the stranded traveler is at
+ * SFO): "Today" and "Tonight" are 0, "Tomorrow" is 1, a date such as "Mon Oct 26" counts the days.
+ * Null when the label names no day.
+ */
+function dayOf(text: string): number | null {
+  if (/^\s*(today|tonight)\b/i.test(text)) return 0;
+  if (/^\s*tomorrow\b/i.test(text)) return 1;
+  const d = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+(\d{1,2})\b/i.exec(text);
+  if (!d) return null;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date());
+  const [y, mo, da] = today.split("-").map(Number) as [number, number, number];
+  const base = Date.UTC(y, mo - 1, da);
+  let t = Date.UTC(y, MONTHS.indexOf(d[1]!.toLowerCase()), Number(d[2]));
+  if (t < base - 180 * 86_400_000) t = Date.UTC(y + 1, MONTHS.indexOf(d[1]!.toLowerCase()), Number(d[2]));
+  return Math.round((t - base) / 86_400_000);
+}
+
+/**
+ * Hours after noon today (Pacific date), so this afternoon, tonight, tomorrow morning and tomorrow
+ * afternoon share one axis. "Tonight 6:40 PM" is 6.67, "Tomorrow 6:45 AM" is 18.75, "Today 11:45 AM"
+ * is -0.25. Live flights carry a day label; a label without one is read as tonight (PM) or tomorrow
+ * morning (AM). Pass the departure to keep an arrival after it.
  */
 export function clockHours(text: string, after?: number): number | null {
   const m = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(text);
   if (!m) return null;
-  const h = (Number(m[1]) % 12) + Number(m[2]) / 60;
-  const pm = (m[3] ?? "").toUpperCase() === "PM";
-  // Evening of day 0 is PM; mornings belong to the next day.
-  let v = pm ? h : h + 12;
-  if (/tomorrow/i.test(text) && pm) v += 24;
+  const h24 = (Number(m[1]) % 12) + ((m[3] ?? "").toUpperCase() === "PM" ? 12 : 0) + Number(m[2]) / 60;
+  const day = dayOf(text);
+  let v = day !== null ? h24 - 12 + 24 * day : h24 >= 12 ? h24 - 12 : h24 + 12;
   if (after !== undefined) while (v < after) v += 24;
   return v;
 }
@@ -39,5 +58,8 @@ export function clockOf(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
 
-/** "Tomorrow 6:45 AM" -> "6:45 AM": the day is already clear from the deadline line beside it. */
-export const timeOnly = (text: string) => text.replace(/^(tonight|tomorrow|today)\s+/i, "");
+/**
+ * "Tomorrow 6:45 AM" -> "6:45 AM": tonight and tomorrow are clear from the deadline line beside it.
+ * "Today" is kept short as "today", and a dated label such as "Mon Oct 26 7:00 AM" keeps its date.
+ */
+export const timeOnly = (text: string) => text.replace(/^(tonight|tomorrow)\s+/i, "").replace(/^today\s+(.+)$/i, "$1 today");

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { CardObject } from "./CardObject";
 import { ClaudeSaw } from "./ClaudeSaw";
-import { CalmPanel, ClosedOptions, OptionCard, ReceiptPanel, SetAsideShelf, ShoppingPanel, type Stamp } from "./Focus";
+import { CalmPanel, ClosedOptions, OptionCard, ReceiptPanel, SearchFailedPanel, SetAsideShelf, ShoppingPanel, type Stamp } from "./Focus";
 import { Pictogram, type PictoName } from "./Pictogram";
 import { SignBand } from "./SignBand";
 import { StepsList } from "./StepsList";
@@ -13,7 +13,8 @@ import { LiveProvider, STDB_DB, useLive } from "./live";
 import type { Offer, RerouteSource } from "./types";
 import { useMock } from "./useRerouted";
 
-const NEW_PRICE = 41200;
+/** The simulated airline price move: the top fare goes up $23 ($389 to $412 on the saved offers), the same move demo-check makes. */
+const PRICE_STEP = 2300;
 
 /**
  * Live when the browser has a database name, unless ?mock=1. If the live database sends no trip
@@ -66,12 +67,17 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
   // A refused approval rolls back, so only the browser that tapped saw it. Every screen can still
   // see the database's price-change step, so the old quote is shown as voided everywhere.
   const shownVoids: Record<string, { priceCents: number; text: string }> = { ...voids };
+  let movedId: string | null = null;
+  const cents = (d: string) => Math.round(Number(d.replace(/,/g, "")) * 100);
   for (const s of steps) {
-    const m = /^(.+)'s price changed from \$([\d,]+) to/.exec(s.text);
+    const m = /^(.+)'s price changed from \$([\d,.]+) to \$([\d,.]+)/.exec(s.text);
     if (!m) continue;
-    const o = offers.find((x) => x.merchant === m[1] && x.status !== "set_aside" && x.kind !== "hotel" && x.rank === 1) ?? offers.find((x) => x.merchant === m[1]);
-    if (o && !shownVoids[o.offerId]) shownVoids[o.offerId] = { priceCents: Number(m[2]!.replace(/,/g, "")) * 100, text: "quote" };
+    const o = offers.find((x) => x.merchant === m[1] && x.priceCents === cents(m[3]!)) ?? offers.find((x) => x.merchant === m[1]);
+    if (!o) continue;
+    movedId = o.offerId;
+    if (!shownVoids[o.offerId]) shownVoids[o.offerId] = { priceCents: cents(m[2]!), text: "quote" };
   }
+  const priceMoved = movedId !== null || Object.keys(voids).length > 0;
 
   const ranked = offers.filter((o) => o.rank > 0).sort((a, b) => a.rank - b.rank);
   const aside = offers.filter((o) => o.rank === 0);
@@ -109,17 +115,24 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
         } else if (name === "cancel") {
           const r = await actions.cancel();
           if (!r.ok) setNotice(r.error);
+        } else if (name === "retry") {
+          // A failed search leaves the trip canceled with no options: start the trip over and search again.
+          setStamps({});
+          setVoids({});
+          await actions.reset();
+          const r = await actions.cancel();
+          if (!r.ok) setNotice(r.error);
         } else if (name === "agent" && top) {
           const r = await actions.agentTryApprove(top.offerId);
           if (!r.ok) {
             stamp(top.offerId, { by: "agent", text: r.error });
             setPulse({ offerId: top.offerId, n: Date.now() });
           }
-        } else if (name === "price" && top && top.priceCents !== NEW_PRICE) {
+        } else if (name === "price" && top && !priceMoved) {
           // The traveler taps approve on the quote they saw, at the moment the airline moves the price.
           const seen = top.quoteHash;
           const was = top.priceCents;
-          const moved = await actions.setPrice(top.offerId, NEW_PRICE);
+          const moved = await actions.setPrice(top.offerId, was + PRICE_STEP);
           if (!moved.ok) {
             setNotice(moved.error);
             return;
@@ -136,7 +149,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
         setControl(null);
       }
     },
-    [actions, approve, control, top],
+    [actions, approve, control, top, priceMoved],
   );
 
   // Rehearsal aid: ?to=options|agent|price|booked fast-forwards the demo to that beat on load.
@@ -155,12 +168,13 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
   useEffect(() => {
     if (!to || !top || control) return;
     const upto = ["options", "agent", "price", "booked"].indexOf(to);
-    const agentDone = stamps[top.offerId]?.by === "agent" || top.priceCents === NEW_PRICE;
+    const agentDone = stamps[top.offerId]?.by === "agent" || priceMoved;
+    const moved = offers.find((o) => o.offerId === movedId);
     if (upto >= 1 && !agentDone) run("agent");
-    else if (upto >= 2 && top.priceCents !== NEW_PRICE) setTimeout(() => run("price"), 600);
-    else if (upto >= 3 && !flightBooked && top.priceCents === NEW_PRICE && !busy) setTimeout(() => approve(top), 900);
+    else if (upto >= 2 && !priceMoved) setTimeout(() => run("price"), 600);
+    else if (upto >= 3 && !flightBooked && moved && moved.rank > 0 && !busy) setTimeout(() => approve(moved), 900);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [to, top?.offerId, top?.priceCents, stamps, control, flightBooked]);
+  }, [to, top?.offerId, top?.priceCents, movedId, stamps, control, flightBooked]);
 
   // Presenter keys: R reset, C cancel, A agent tries to buy, P price moves.
   useEffect(() => {
@@ -178,14 +192,16 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
     { id: "reset", key: "R", label: "Reset", enabled: true },
     { id: "cancel", key: "C", label: "Cancel flight", enabled: trip?.status === "scheduled" },
     { id: "agent", key: "A", label: "Agent tries to buy", enabled: !!top && !flightBooked },
-    { id: "price", key: "P", label: "Price moves", enabled: !!top && !flightBooked && top.priceCents !== NEW_PRICE },
+    { id: "price", key: "P", label: "Price moves", enabled: !!top && !flightBooked && !priceMoved },
   ];
   // The presenter's next key is marked, so nobody has to remember the order.
   const agentTried = !!top && (stamps[top.offerId]?.by === "agent" || steps.some((s) => s.kind === "refusal" && /agent tried/i.test(s.text)));
   const nextKey =
-    trip?.status === "scheduled" ? "cancel" : top && !flightBooked && !agentTried ? "agent" : top && !flightBooked && top.priceCents !== NEW_PRICE ? "price" : flightBooked ? "reset" : null;
+    trip?.status === "scheduled" ? "cancel" : top && !flightBooked && !agentTried ? "agent" : top && !flightBooked && !priceMoved ? "price" : flightBooked ? "reset" : null;
 
   const shopping = trip?.status === "canceled" && ranked.length === 0;
+  // The backend stops with an error step and no offers when the live flight search fails.
+  const searchError = shopping ? steps.find((s) => s.kind === "error" && /^Flight search failed/i.test(s.text)) : undefined;
   const [view, setView] = useState<View>("trip");
   const [expanded, setExpanded] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -279,7 +295,13 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
                     <OptionCard key={o.offerId} offer={o} lead={i === 0} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} onApprove={approve} />
                   ))
                 ) : (
-                  <div className="card p-5">{shopping ? <ShoppingPanel /> : <CalmPanel trip={trip} />}</div>
+                  <div className="card p-5">{searchError ? (
+                      <SearchFailedPanel text={searchError.text} busy={control === "retry"} onRetry={() => run("retry")} />
+                    ) : shopping ? (
+                      <ShoppingPanel />
+                    ) : (
+                      <CalmPanel trip={trip} />
+                    )}</div>
                 )}
                 {!flightBooked && aside.length ? <CardMeter mandate={mandate} trip={trip} /> : null}
               </div>
@@ -301,7 +323,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
             </div>
           ) : view === "claude" ? (
             <div className="card relative max-w-5xl overflow-hidden">
-              <ClaudeSaw trip={trip} mandate={mandate} onClose={() => setView("trip")} inline />
+              <ClaudeSaw trip={trip} mandate={mandate} offers={offers} onClose={() => setView("trip")} inline />
             </div>
           ) : (
             <div className="max-w-xl">

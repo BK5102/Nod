@@ -66,7 +66,7 @@ export function CalmPanel({ trip }: { trip: Trip | null }) {
           <dd className="font-bold tabular-nums">{trip ? money(trip.fareCents) : ""}</dd>
         </div>
       </dl>
-      <p className="text-[15px] leading-snug text-muted">If it is canceled, the agent checks the airline&apos;s free rebooking first, then shops inside your card&apos;s rules. Nothing is bought until you tap.</p>
+      <p className="text-[15px] leading-snug text-muted">If it is canceled, the agent searches real flights to JFK, ranks them against your deadline and checks each one against your card&apos;s rules. Nothing is bought until you tap.</p>
     </section>
   );
 }
@@ -76,7 +76,29 @@ export function ShoppingPanel() {
   return (
     <section className="flex flex-col gap-3" aria-live="polite">
       <h2 className="text-[15px] font-extrabold">Shopping for you</h2>
-      <p className="text-[15px] leading-snug text-muted">Free rebooking first, then paid flights and a hotel, ranked against 9:00 AM.</p>
+      <p className="text-[15px] leading-snug text-muted">Searching flights to JFK and ranking them against 9:00 AM.</p>
+    </section>
+  );
+}
+
+/** The live flight search failed. The backend shows no options and buys nothing; say so, and offer a retry. */
+export function SearchFailedPanel({ text, busy, onRetry }: { text: string; busy: boolean; onRetry: () => void }) {
+  return (
+    <section role="alert" className="flex flex-col gap-3">
+      <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-danger">
+        <Pictogram name="closed" size={24} className="rounded bg-danger! text-white!" />
+        The flight search failed
+      </h2>
+      <p className="text-[15px] leading-snug">{text}</p>
+      <p className="text-[13px] text-muted">Nothing was bought. No made-up flights stand in for a failed search.</p>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onRetry}
+        className="mt-1 self-start rounded-lg border border-fg px-4 py-2 text-[15px] font-bold hover:bg-sunk disabled:cursor-wait disabled:opacity-60"
+      >
+        {busy ? "Searching again" : "Search again"}
+      </button>
     </section>
   );
 }
