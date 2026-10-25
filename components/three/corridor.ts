@@ -177,7 +177,7 @@ export class Corridor {
     // The deadline: an overhead sign frame in yellow, standing across every lane.
     const x = xOf(DEADLINE_ET);
     const frame = new THREE.Group();
-    const postMat = new THREE.MeshBasicMaterial({ color: YELLOW });
+    const postMat = new THREE.MeshBasicMaterial({ color: WHITE });
     const postGeo = new THREE.BoxGeometry(0.1, 4.2, 0.1);
     for (const z of [-6.2, 4.2]) {
       const p = new THREE.Mesh(postGeo, postMat);
@@ -189,7 +189,7 @@ export class Corridor {
     frame.add(beam);
     const veil = new THREE.Mesh(
       new THREE.PlaneGeometry(10.4, 4.2),
-      new THREE.MeshBasicMaterial({ color: YELLOW, transparent: true, opacity: 0.035, side: THREE.DoubleSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.03, side: THREE.DoubleSide, depthWrite: false }),
     );
     veil.rotation.y = Math.PI / 2;
     veil.position.set(0, 2.1, -1);
@@ -199,7 +199,7 @@ export class Corridor {
         { text: "Arrive JFK by", weight: 700, size: 26, color: "#0b0b0b" },
         { text: "9:00 AM", weight: 900, size: 58, color: "#0b0b0b" },
       ],
-      { bg: "#ffcc00", pad: 14, height: 1.6 },
+      { bg: "#ffffff", pad: 14, height: 1.6 },
     );
     sign.center.set(0.5, 0);
     sign.position.set(0, 4.35, -1);
@@ -333,7 +333,7 @@ export class Corridor {
     if (!this.sweep) {
       this.sweep = new THREE.Mesh(
         new THREE.PlaneGeometry(0.08, 10.4),
-        new THREE.MeshBasicMaterial({ color: YELLOW, transparent: true, opacity: 0.85, depthWrite: false }),
+        new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.7, depthWrite: false }),
       );
       this.sweep.rotation.x = -Math.PI / 2;
       this.sweep.position.set(xOf(AXIS_FROM), 0.03, -1);
@@ -490,7 +490,7 @@ export class Corridor {
       const arr = clockHours(o.arrives, dep) ?? dep + 5;
       curve = this.arc(dep, arr, z);
     }
-    const color = o.rank === 0 ? SOFT : o.kind === "hotel" ? 0xc8c8c8 : WHITE;
+    const color = o.rank === 0 ? SOFT : o.rank === 1 ? YELLOW : o.kind === "hotel" ? 0x9a9a9a : 0xc8c8c8;
     const tube = this.tube(curve, color, o.kind === "hotel" ? 0.09 : 0.055);
     group.add(tube);
 

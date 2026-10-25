@@ -15,9 +15,8 @@ export default async function DashboardPage() {
   return (
     <RerouteApp
       account={
-        <form action={signOut} className="flex items-center gap-3">
-          <span className="hidden text-sm text-soft sm:inline">{session.sub}</span>
-          <button type="submit" className="px-3 py-1.5 text-sm font-bold text-white ring-2 ring-rule ring-inset hover:bg-panel-2">
+        <form action={signOut}>
+          <button type="submit" className="text-sm font-semibold text-soft hover:text-white">
             Sign out
           </button>
         </form>

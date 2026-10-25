@@ -42,7 +42,7 @@ body {
   margin: 0;
   background: var(--sign-black);
   font-family: var(--font-sans);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.45;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
@@ -160,7 +160,44 @@ body {
   animation: print 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* An option slides in from the timeline side as it is ranked. */
+@keyframes slide-in {
+  from {
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.slide-in {
+  animation: slide-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A changed price flashes red, then settles to the new value. */
+@keyframes price-flip {
+  0% {
+    transform: perspective(500px) rotateX(-90deg);
+    color: var(--alert);
+  }
+  55% {
+    transform: none;
+    color: var(--alert);
+  }
+  100% {
+    transform: none;
+    color: inherit;
+  }
+}
+.price-flip {
+  transform-origin: 50% 0;
+  animation: price-flip 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .slide-in,
+  .price-flip,
   .bar-in,
   .print,
   .flap,

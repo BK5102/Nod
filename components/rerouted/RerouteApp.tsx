@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CorridorCanvas } from "@/components/three/CorridorCanvas";
-import { AgentTrack } from "./AgentTrack";
-import { OptionPanel, SetAside, type Stamp } from "./OptionPanel";
-import { Board, MandateSign, ReceiptSlip } from "./Panels";
+import { CardObject } from "./CardObject";
+import { CalmPanel, ClosedOptions, OptionCard, ReceiptPanel, SetAsideShelf, ShoppingPanel, type Stamp } from "./Focus";
+import { Pictogram } from "./Pictogram";
 import { SignBand } from "./SignBand";
+import { StepsList } from "./StepsList";
 import { LiveProvider, STDB_DB, useLive } from "./live";
 import type { Offer, RerouteSource } from "./types";
 import { useMock } from "./useRerouted";
@@ -173,142 +174,123 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
 
   const controls = [
     { id: "reset", key: "R", label: "Reset", enabled: true },
-    { id: "cancel", key: "C", label: "Cancel the flight", enabled: trip?.status === "scheduled" },
-    { id: "agent", key: "A", label: "Agent tries to buy", enabled: !!top && !flightBooked },
-    { id: "price", key: "P", label: "Price moves as you tap approve", enabled: !!top && !flightBooked && top.priceCents !== NEW_PRICE },
+    { id: "cancel", key: "C", label: "Cancel flight", enabled: trip?.status === "scheduled" },
+    { id: "agent", key: "A", label: "Agent buys", enabled: !!top && !flightBooked },
+    { id: "price", key: "P", label: "Price moves", enabled: !!top && !flightBooked && top.priceCents !== NEW_PRICE },
   ];
+  // The presenter's next key is marked, so nobody has to remember the order.
+  const agentTried = !!top && (stamps[top.offerId]?.by === "agent" || steps.some((s) => s.kind === "refusal" && /agent tried/i.test(s.text)));
+  const nextKey =
+    trip?.status === "scheduled" ? "cancel" : top && !flightBooked && !agentTried ? "agent" : top && !flightBooked && top.priceCents !== NEW_PRICE ? "price" : flightBooked ? "reset" : null;
+
+  const shopping = trip?.status === "canceled" && ranked.length === 0;
 
   return (
-    <div className="min-h-dvh bg-ink pb-10">
-      <DashBar trip={trip} account={account} />
+    <div className="flex min-h-dvh flex-col bg-ink lg:h-dvh lg:overflow-hidden">
+      <TopBar trip={trip} account={account} controls={controls} nextKey={nextKey} running={control} onRun={run} note={mode === "mock" ? `Mock data${source.fallbackReason ? `: ${source.fallbackReason}` : ""}` : null} />
       <SignBand trip={trip} offers={offers} />
-      <TripStrip offers={offers} spentCents={trip?.spendCents ?? 0} capCents={mandate?.tripCapCents ?? 0} refundCents={trip?.refundOwedCents ?? 0} />
 
-      {/* Phone order: choices, corridor, board. Desktop: corridor and board left, choices right. */}
-      <main className="mx-auto grid max-w-[1600px] gap-8 px-4 pt-8 md:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-10 lg:gap-y-8 lg:pt-10">
-          <section id="trip" aria-labelledby="corridor" className="scroll-mt-40 board order-2 min-w-0 lg:order-none lg:col-start-1 lg:row-start-1">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 pt-3 md:px-6">
-              <h2 id="corridor" className="text-lg font-extrabold">
-                Every way home
-              </h2>
-              <p className="text-sm text-soft">Takeoff to landing, New York time</p>
-            </div>
-            <div className="relative h-[240px] sm:h-[400px] lg:h-[520px]">
-              <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
-            </div>
-          </section>
-          <div className="order-3 flex min-w-0 flex-col gap-8 lg:order-none lg:col-start-1 lg:row-start-2 lg:self-start">
-            <AgentTrack trip={trip} offers={offers} steps={steps} />
-            <Board steps={steps} live={mode === "live"} />
+      <main className="grid min-h-0 flex-1 gap-6 p-4 md:p-6 lg:grid-cols-[280px_minmax(0,1fr)_420px] xl:grid-cols-[320px_minmax(0,1fr)_480px] xl:gap-8 xl:px-10">
+        <div className="order-2 flex min-h-0 flex-col gap-6 lg:order-none">
+          <CardObject mandate={mandate} trip={trip} />
+          <StepsList steps={steps} idle={trip?.status === "scheduled"} />
+          {notice || source.seatError ? (
+            <p role="alert" className="mt-auto text-base font-bold text-alert">
+              {notice ?? `Could not take the traveler seat: ${source.seatError}`}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="order-3 flex min-h-0 min-w-0 flex-col gap-4 lg:order-none">
+        <section aria-labelledby="corridor" className="board flex min-h-[300px] min-w-0 flex-1 flex-col">
+          <div className="flex items-baseline justify-between gap-4 px-5 pt-4">
+            <h2 id="corridor" className="text-lg font-extrabold">
+              Every way home, against 9:00 AM
+            </h2>
+            <p className="text-base text-soft">New York time</p>
           </div>
+          <div className="relative min-h-0 flex-1">
+            <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
+          </div>
+        </section>
+        {!flightBooked ? <SetAsideShelf offers={aside} /> : null}
+        </div>
 
-        <div className="order-1 flex min-w-0 flex-col gap-8 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1">
-          {flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={shownVoids} /> : null}
-          {ranked.length ? (
-            <section id="options" aria-labelledby="choices" className="scroll-mt-40 flex flex-col gap-4">
-              <h2 id="choices" className="sr-only">
-                Choices ahead
-              </h2>
-              {ranked.map((o) => (
-                <OptionPanel key={o.offerId} offer={o} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} locked={flightBooked} onApprove={approve} />
+        <div className="order-1 flex min-h-0 flex-col gap-3 lg:order-none lg:overflow-y-auto">
+          {flightBooked && trip ? (
+            <>
+              <ReceiptPanel receipts={receipts} trip={trip} voids={shownVoids} />
+              <ClosedOptions offers={ranked.filter((o) => o.status !== "booked")} />
+            </>
+          ) : ranked.length ? (
+            <>
+              {ranked.map((o, i) => (
+                <OptionCard key={o.offerId} offer={o} lead={i === 0} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} onApprove={approve} />
               ))}
-            </section>
+            </>
+          ) : shopping ? (
+            <ShoppingPanel />
           ) : (
-            <section className="sign on-yellow p-5">
-              <h2 className="text-[2rem] leading-tight font-black tracking-[-0.01em]">
-                {trip?.status === "canceled" ? "Shopping for you" : "Your ways home appear here"}
-              </h2>
-              <p className="mt-1 text-lg text-yellow-soft">{trip?.status === "canceled" ? "Free rebooking first." : "Nothing is bought until you approve."}</p>
-            </section>
+            <CalmPanel trip={trip} />
           )}
-
-          {!flightBooked && receipts.length && trip ? <ReceiptSlip receipts={receipts} trip={trip} voids={shownVoids} /> : null}
-          <SetAside offers={aside} />
-          {mandate && trip ? <MandateSign mandate={mandate} trip={trip} /> : null}
         </div>
       </main>
+    </div>
+  );
+}
 
-      {mode === "mock" || source.seatError ? (
-        <p className="mx-auto mt-16 max-w-[1600px] px-4 text-sm text-soft md:px-8">
-          {mode === "mock" ? `Mock data${source.fallbackReason ? `: ${source.fallbackReason}` : "."}` : null}
-          {source.seatError ? ` Could not take the traveler seat: ${source.seatError}` : null}
-        </p>
-      ) : null}
+/** Where you are, who you are, and the presenter's keys. The agent's seat is shown locked. */
+function TopBar({
+  trip,
+  account,
+  controls,
+  nextKey,
+  running,
+  onRun,
+  note,
+}: {
+  trip: { route: string; flight: string } | null;
+  account?: ReactNode;
+  controls: { id: string; key: string; label: string; enabled: boolean }[];
+  nextKey: string | null;
+  running: string | null;
+  onRun: (id: string) => void;
+  note: string | null;
+}) {
+  return (
+    <div className="flex h-14 shrink-0 items-center gap-4 border-b border-rule px-4 md:px-6 xl:px-10">
+      <span className="flex items-center gap-2.5">
+        <Pictogram name="reroute" size={32} label="Rerouted" className="bg-white! text-ink!" />
+        <span className="text-lg font-extrabold">Rerouted</span>
+      </span>
+      <span className="hidden text-base text-soft md:inline">{trip ? `${trip.flight}, ${trip.route}` : ""}</span>
 
-      <nav aria-label="Demo controls" className="mx-auto mt-6 max-w-[1600px] px-4 md:px-8">
-        <div className="flex flex-wrap items-center gap-1 border-2 border-yellow px-2 py-2">
-          <p className="mr-2 px-2 text-sm leading-tight text-soft">
-            Demo controls
-          </p>
-          {controls.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              disabled={!c.enabled || !!control}
-              onClick={() => run(c.id)}
-              className="flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-bold text-white hover:bg-panel-2 disabled:text-white/55 disabled:hover:bg-transparent"
-            >
-              <kbd className="grid h-6 w-6 place-items-center bg-yellow font-mono text-xs text-ink">{c.key}</kbd>
-              {control === c.id ? "Working" : c.label}
-            </button>
-          ))}
-        </div>
-        {notice ? <p className="px-4 pb-2 text-sm text-alert">{notice}</p> : null}
+      <span className="ml-2 hidden items-center gap-2 border border-rule px-2.5 py-1 text-sm font-bold sm:flex">
+        <Pictogram name="check" size={18} className="bg-white! text-ink!" />
+        You, traveler
+      </span>
+      <span className="hidden items-center gap-2 border border-rule px-2.5 py-1 text-sm font-bold text-soft sm:flex" title="The agent's seat cannot approve a purchase. The database refuses it.">
+        <Pictogram name="lock" size={18} className="bg-panel-2!" />
+        Agent, locked
+      </span>
+
+      {note ? <span className="hidden truncate text-sm text-soft lg:inline">{note}</span> : null}
+      <nav aria-label="Presenter keys" className="ml-auto flex items-center gap-1">
+        {controls.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            disabled={!c.enabled || !!running}
+            onClick={() => onRun(c.id)}
+            title={`${c.label} (${c.key})`}
+            className={`flex items-center gap-1.5 px-2 py-1 text-sm font-semibold transition-colors disabled:opacity-40 ${nextKey === c.id ? "text-white" : "text-soft hover:text-white"}`}
+          >
+            <kbd className={`grid h-6 w-6 place-items-center font-mono text-xs ${nextKey === c.id ? "bg-white text-ink" : "border border-rule"}`}>{c.key}</kbd>
+            <span className="hidden xl:inline">{running === c.id ? "Working" : c.label}</span>
+          </button>
+        ))}
+        <span className="ml-2 border-l border-rule pl-3">{account}</span>
       </nav>
-    </div>
-  );
-}
-
-/** The dashboard's own bar: where you are, what is connected, and your account. */
-function DashBar({ trip, account }: { trip: { route: string; flight: string } | null; account?: ReactNode }) {
-  const links = [
-    ["Trip", "#trip"],
-    ["Options", "#options"],
-    ["Card", "#mandate"],
-  ] as const;
-  return (
-    <div className="board border-b border-rule">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 md:px-8">
-        <p className="text-sm font-bold">
-          Dashboard <span className="font-semibold text-soft">· {trip ? `${trip.flight}, ${trip.route}` : "Loading trip"}</span>
-        </p>
-        <nav aria-label="Sections" className="flex gap-1">
-          {links.map(([label, href]) => (
-            <a key={href} href={href} className="px-2.5 py-1 text-sm font-semibold text-soft hover:bg-panel-2 hover:text-white">
-              {label}
-            </a>
-          ))}
-        </nav>
-        <div className="ml-auto">{account}</div>
-      </div>
-    </div>
-  );
-}
-
-/** The trip at a glance: four readouts straight from the database rows, flush-bordered. */
-function TripStrip({ offers, spentCents, capCents, refundCents }: { offers: Offer[]; spentCents: number; capCents: number; refundCents: number }) {
-  const ranked = offers.filter((o) => o.rank > 0);
-  const making = ranked.filter((o) => o.meetsDeadline && o.kind !== "hotel").length;
-  const dollars = (c: number) => `$${Math.round(c / 100).toLocaleString("en-US")}`;
-  const cells: { label: string; value: string; hint?: string }[] = [
-    { label: "Ways home", value: ranked.length ? String(ranked.length) : "0", hint: offers.length - ranked.length ? `${offers.length - ranked.length} set aside` : undefined },
-    { label: "Land by 9:00 AM", value: String(making) },
-    { label: "Spent", value: dollars(spentCents), hint: capCents ? `of ${dollars(capCents)} cap` : undefined },
-    { label: "Refund owed", value: dollars(refundCents), hint: refundCents ? "canceled ticket" : undefined },
-  ];
-  return (
-    <div className="board border-b border-rule">
-    <dl className="mx-auto grid max-w-[1600px] grid-cols-2 md:grid-cols-4 md:divide-x md:divide-rule">
-      {cells.map((c) => (
-        <div key={c.label} className="flex items-baseline justify-between gap-3 px-4 py-3 md:px-6">
-          <dt className="text-sm font-semibold text-soft">{c.label}</dt>
-          <dd className="text-right">
-            <span className="text-[1.45rem] leading-none font-black tabular-nums">{c.value}</span>
-            {c.hint ? <span className="block text-xs font-semibold text-soft">{c.hint}</span> : null}
-          </dd>
-        </div>
-      ))}
-    </dl>
     </div>
   );
 }
