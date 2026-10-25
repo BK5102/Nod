@@ -43,39 +43,39 @@ export function CardObject({ mandate, trip }: { mandate: Mandate | null; trip: T
 
   return (
     <section aria-labelledby="card-h" className="flex flex-col gap-4">
-      <div className="relative aspect-[2.1] w-full border border-rule bg-ink p-4">
+      <div className="relative aspect-[2.1] w-full rounded-xl bg-ink p-4 text-white">
         <div className="flex items-start justify-between">
-          <h2 id="card-h" className="text-lg font-extrabold">
+          <h2 id="card-h" className="text-[15px] font-extrabold">
             Travel card
           </h2>
-          <span className="border border-rule px-2 py-0.5 text-xs font-bold text-soft">Simulated</span>
+          <span className="rounded border border-white/25 px-2 py-0.5 text-xs font-bold text-white/75">Simulated</span>
         </div>
-        <p className="absolute bottom-4 left-4 font-mono text-xl font-semibold tracking-[0.12em]">•••• 4242</p>
-        <Pictogram name="card" size={36} className="absolute right-4 bottom-3 bg-panel-2!" />
+        <p className="absolute bottom-4 left-4 font-mono text-[17px] font-semibold tracking-[0.12em]">•••• 4242</p>
+        <Pictogram name="card" size={36} className="absolute right-4 bottom-3 rounded-md bg-white/10!" />
       </div>
 
       <div>
         <p className="flex items-baseline justify-between">
-          <span className="text-[2rem] leading-none font-black tabular-nums">{money(shown)}</span>
-          <span className="text-lg font-bold text-soft tabular-nums">of {money(cap)} trip cap</span>
+          <span className="text-[1.5rem] leading-none font-black tabular-nums">{money(shown)}</span>
+          <span className="text-[15px] font-bold text-muted tabular-nums">of {money(cap)} trip cap</span>
         </p>
-        <div className="relative mt-3 h-3 bg-panel-2" role="meter" aria-valuemin={0} aria-valuemax={cap / 100} aria-valuenow={spent / 100} aria-label="Spent against the trip cap">
-          <div className="absolute inset-y-0 left-0 bg-white transition-[width] duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ width: `${pct}%` }} />
+        <div className="relative mt-3 h-2.5 rounded-full bg-sunk" role="meter" aria-valuemin={0} aria-valuemax={cap / 100} aria-valuenow={spent / 100} aria-label="Spent against the trip cap">
+          <div className="absolute inset-y-0 left-0 rounded-full bg-fg transition-[width] duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ width: `${pct}%` }} />
           <div className="absolute -top-1.5 -bottom-1.5 w-0.5 bg-soft" style={{ left: `${askPct}%` }} />
         </div>
       </div>
 
-      <ul className="divide-y divide-rule border-y border-rule text-lg">
+      <ul className="divide-y divide-line border-y border-line text-[15px]">
         <li className="flex justify-between gap-4 py-2">
-          <span className="text-soft">Trip cap</span>
+          <span className="text-muted">Trip cap</span>
           <span className="font-bold tabular-nums">{money(cap)}</span>
         </li>
         <li className="flex justify-between gap-4 py-2">
-          <span className="text-soft">Asks you above</span>
+          <span className="text-muted">Asks you above</span>
           <span className="font-bold tabular-nums">{mandate ? money(mandate.askAboveCents) : ""}</span>
         </li>
         <li className="flex justify-between gap-4 py-2">
-          <span className="text-soft">Allowed</span>
+          <span className="text-muted">Allowed</span>
           <span className="font-bold">Airlines, hotels</span>
         </li>
       </ul>

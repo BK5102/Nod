@@ -32,7 +32,7 @@ export function SignBand({ trip, offers }: { trip: Trip | null; offers: Offer[] 
       alert = true;
       detail = (
         <>
-          <span className="line-through decoration-alert decoration-2">
+          <span className="line-through decoration-danger decoration-2">
             {trip.flight}, {trip.departs}
           </span>
           <span className="ml-3">You need to be at JFK by 9:00 AM.</span>
@@ -53,15 +53,15 @@ export function SignBand({ trip, offers }: { trip: Trip | null; offers: Offer[] 
   }
 
   return (
-    <header className="board flex h-[124px] items-center gap-8 border-b border-rule px-6 xl:px-10">
+    <header className="flex h-[112px] shrink-0 items-center gap-8 px-8">
       <div key={`${trip?.status}-${big}`} className="flap min-w-0 flex-1" aria-live="polite">
-        <p className={`truncate text-[4.25rem] leading-[0.95] font-black tracking-[-0.035em] ${alert ? "text-alert uppercase" : "text-white"}`}>{big || " "}</p>
-        <p className="mt-1 truncate text-xl font-semibold text-soft">{detail}</p>
+        <p className={`truncate text-[2.25rem] leading-[1.05] font-extrabold tracking-[-0.025em] ${alert ? "text-danger uppercase" : "text-fg"}`}>{big || " "}</p>
+        <p className="mt-1 truncate text-[15px] text-muted">{detail}</p>
       </div>
       {trip?.canceledAt ? (
         <div className="text-right">
-          <p className="text-base font-semibold text-soft">{trip.bookedAt ? "Canceled to booked" : "Since the cancellation"}</p>
-          <p className="text-[2.4rem] leading-none font-black tabular-nums">{elapsed(trip.canceledAt, trip.bookedAt ? Date.parse(trip.bookedAt) : now)}</p>
+          <p className="text-sm font-semibold text-muted">{trip.bookedAt ? "Canceled to booked" : "Since the cancellation"}</p>
+          <p className="text-[1.75rem] leading-none font-extrabold tabular-nums">{elapsed(trip.canceledAt, trip.bookedAt ? Date.parse(trip.bookedAt) : now)}</p>
         </div>
       ) : null}
     </header>

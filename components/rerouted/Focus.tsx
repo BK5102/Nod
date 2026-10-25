@@ -38,31 +38,31 @@ function landing(o: Offer) {
 export function CalmPanel({ trip }: { trip: Trip | null }) {
   return (
     <section aria-labelledby="calm-h" className="flex flex-col gap-5">
-      <h2 id="calm-h" className="text-lg font-extrabold">
+      <h2 id="calm-h" className="text-[15px] font-extrabold">
         Your trip
       </h2>
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-4">
         <div>
-          <p className="text-[4.25rem] leading-none font-black tracking-[-0.03em]">SFO</p>
-          <p className="mt-1 text-lg text-soft">Departs {trip?.departs}</p>
+          <p className="text-[2.25rem] leading-none font-black tracking-[-0.03em]">SFO</p>
+          <p className="mt-1 text-[15px] text-muted">Departs {trip?.departs}</p>
         </div>
-        <Pictogram name="depart" size={44} className="mb-2 bg-panel-2!" />
+        <Pictogram name="depart" size={44} className="mb-2 bg-sunk!" />
         <div className="text-right">
-          <p className="text-[4.25rem] leading-none font-black tracking-[-0.03em]">JFK</p>
-          <p className="mt-1 text-lg text-soft">Arrive by 9:00 AM</p>
+          <p className="text-[2.25rem] leading-none font-black tracking-[-0.03em]">JFK</p>
+          <p className="mt-1 text-[15px] text-muted">Arrive by 9:00 AM</p>
         </div>
       </div>
-      <dl className="divide-y divide-rule border-y border-rule text-lg">
+      <dl className="divide-y divide-line border-y border-line text-[15px]">
         <div className="flex justify-between py-2">
-          <dt className="text-soft">Flight</dt>
+          <dt className="text-muted">Flight</dt>
           <dd className="font-bold">{trip?.flight}</dd>
         </div>
         <div className="flex justify-between py-2">
-          <dt className="text-soft">Fare paid</dt>
+          <dt className="text-muted">Fare paid</dt>
           <dd className="font-bold tabular-nums">{trip ? money(trip.fareCents) : ""}</dd>
         </div>
       </dl>
-      <p className="text-lg leading-snug text-soft">If it is canceled, the agent checks the airline&apos;s free rebooking first, then shops inside your card&apos;s rules. Nothing is bought until you tap.</p>
+      <p className="text-[15px] leading-snug text-muted">If it is canceled, the agent checks the airline&apos;s free rebooking first, then shops inside your card&apos;s rules. Nothing is bought until you tap.</p>
     </section>
   );
 }
@@ -71,8 +71,8 @@ export function CalmPanel({ trip }: { trip: Trip | null }) {
 export function ShoppingPanel() {
   return (
     <section className="flex flex-col gap-3" aria-live="polite">
-      <h2 className="text-lg font-extrabold">Shopping for you</h2>
-      <p className="text-lg leading-snug text-soft">Free rebooking first, then paid flights and a hotel, ranked against 9:00 AM.</p>
+      <h2 className="text-[15px] font-extrabold">Shopping for you</h2>
+      <p className="text-[15px] leading-snug text-muted">Free rebooking first, then paid flights and a hotel, ranked against 9:00 AM.</p>
     </section>
   );
 }
@@ -99,57 +99,57 @@ export function OptionCard({
   const misses = delta && !delta.before;
 
   return (
-    <article className={`slide-in border bg-panel ${lead ? "border-white p-4" : "border-rule px-4 py-3"}`} style={{ animationDelay: `${offer.rank * 110}ms` }} aria-label={`Option ${offer.rank}: ${offer.title}`}>
+    <article className={`slide-in rounded-xl border bg-card ${lead ? "card-focus border-line p-5" : "border-line px-4 py-3"}`} style={{ animationDelay: `${offer.rank * 110}ms` }} aria-label={`Option ${offer.rank}: ${offer.title}`}>
       <div className="flex items-start gap-3">
-        <span className={`leading-[0.85] font-black tabular-nums ${lead ? "text-[2.4rem]" : "text-[1.45rem] text-soft"}`}>{offer.rank}</span>
+        <span className={`leading-[0.85] font-black tabular-nums ${lead ? "text-[1.75rem]" : "text-lg text-muted"}`}>{offer.rank}</span>
         <div className="min-w-0 flex-1">
-          <h3 className={`truncate font-extrabold ${lead ? "text-[1.45rem] leading-tight" : "text-lg"}`}>{offer.title}</h3>
-          <p className="flex items-baseline gap-2 text-base text-soft">
+          <h3 className={`truncate font-extrabold ${lead ? "text-lg leading-tight" : "text-[15px]"}`}>{offer.title}</h3>
+          <p className="flex items-baseline gap-2 text-sm text-muted">
             <span>{times}</span>
-            {delta ? <span className={`ml-2 font-bold ${misses ? "text-soft" : "text-white"}`}>{misses ? "misses 9:00 AM" : `${delta.text.replace(" before 9:00 AM", "")} early`}</span> : null}
+            {delta ? <span className={`ml-2 font-bold ${misses ? "text-muted" : "text-fg"}`}>{misses ? "misses 9:00 AM" : `${delta.text.replace(" before 9:00 AM", "")} early`}</span> : null}
             {!lead ? (
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => onApprove(offer)}
-                className="ml-auto shrink-0 font-bold text-white underline decoration-rule underline-offset-4 hover:decoration-white disabled:cursor-wait"
+                className="ml-auto shrink-0 font-bold text-fg underline decoration-line underline-offset-4 hover:decoration-fg disabled:cursor-wait"
               >
                 {busy ? "Checking" : "Approve"}
               </button>
             ) : null}
           </p>
         </div>
-        <p className={`text-right leading-none font-black tabular-nums ${lead ? "text-[2rem]" : "text-[1.45rem]"}`}>
+        <p className={`text-right leading-none font-black tabular-nums ${lead ? "text-[1.5rem]" : "text-lg"}`}>
           <span key={offer.priceCents} className="price-flip inline-block">{price}</span>
-          {voided ? <span className="mt-1 block text-base font-bold text-soft line-through decoration-alert decoration-2">{money(voided.priceCents)}</span> : null}
+          {voided ? <span className="mt-1 block text-sm font-bold text-muted line-through decoration-danger decoration-2">{money(voided.priceCents)}</span> : null}
         </p>
       </div>
 
       {lead ? (
-        <p className="mt-2 truncate text-base" title={whyRank(offer, delta)}>
+        <p className="mt-2 truncate text-sm" title={whyRank(offer, delta)}>
           <span className="font-bold">Why #1:</span> {whyRank(offer, delta)}
         </p>
       ) : null}
       {offer.claudeReason && (lead || offer.kind !== "hotel") ? (
-        <p className={`mt-1.5 flex gap-2 ${lead ? "text-lg leading-snug" : "text-base text-soft"}`} title={offer.claudeReason}>
-          <span className="mt-0.5 shrink-0 border border-rule px-1.5 text-xs leading-5 font-bold text-soft">Claude</span>
+        <p className={`mt-1.5 flex gap-2 ${lead ? "text-[15px] leading-snug" : "text-sm text-muted"}`} title={offer.claudeReason}>
+          <span className="mt-0.5 shrink-0 border border-line px-1.5 text-xs leading-5 font-bold text-muted">Claude</span>
           <span className="line-clamp-1">{offer.claudeReason}</span>
         </p>
       ) : null}
 
       {stamp?.by === "agent" ? (
-        <p role="alert" className="stamp mt-3 flex items-center gap-3 border-2 border-alert p-2.5 text-lg leading-snug font-bold text-alert">
-          <Pictogram name="lock" size={32} className="bg-alert! text-ink!" />
+        <p role="alert" className="stamp mt-3 flex items-center gap-3 rounded-lg border border-danger bg-danger/5 p-2.5 text-[15px] leading-snug font-bold text-danger">
+          <Pictogram name="lock" size={32} className="bg-danger! text-ink!" />
           {stamp.text}
         </p>
       ) : null}
 
       {voided && offer.status !== "booked" ? (
-        <p role="alert" className="stamp mt-3 border-2 border-alert p-3 text-lg leading-snug font-bold" title={voided.text !== "quote" ? `The database said: ${voided.text}` : undefined}>
+        <p role="alert" className="stamp mt-3 rounded-lg border border-danger bg-danger/5 p-3 text-[15px] leading-snug font-bold" title={voided.text !== "quote" ? `The database said: ${voided.text}` : undefined}>
           You approved {money(voided.priceCents)}. The price is now {money(offer.priceCents)}. That approval is void.
         </p>
       ) : stamp?.by === "traveler" ? (
-        <p role="alert" className="stamp mt-3 border-2 border-alert p-2.5 text-lg font-bold text-alert">
+        <p role="alert" className="stamp mt-3 rounded-lg border border-danger bg-danger/5 p-2.5 text-[15px] font-bold text-danger">
           {stamp.text}
         </p>
       ) : null}
@@ -159,12 +159,12 @@ export function OptionCard({
           type="button"
           disabled={busy}
           onClick={() => onApprove(offer)}
-          className="mt-3 flex w-full items-center justify-center gap-3 bg-yellow py-3 text-xl font-black text-ink transition-[transform,background-color] duration-150 hover:bg-yellow-deep focus-visible:outline-white active:scale-[0.985] disabled:cursor-wait disabled:opacity-70"
+          className="mt-3 flex w-full items-center justify-center gap-3 rounded-lg bg-yellow py-3 text-[17px] font-black text-ink transition-[transform,background-color] duration-150 hover:bg-yellow-deep focus-visible:outline-fg active:scale-[0.985] disabled:cursor-wait disabled:opacity-70"
         >
           {busy ? "Checking your card" : `Approve ${offer.priceCents === 0 ? "free rebooking" : price}`}
         </button>
       ) : null}
-      {lead ? <p className="mt-1.5 text-center text-sm text-soft">Charges card •••• 4242 exactly {price}. Nothing else is bought.</p> : null}
+      {lead ? <p className="mt-1.5 text-center text-[13px] text-muted">Charges card •••• 4242 exactly {price}. Nothing else is bought.</p> : null}
     </article>
   );
 }
@@ -173,27 +173,27 @@ export function OptionCard({
 export function SetAsideShelf({ offers }: { offers: Offer[] }) {
   if (!offers.length) return null;
   return (
-    <section aria-labelledby="aside-h" className="slide-in board px-5 py-3" style={{ animationDelay: "600ms" }}>
-      <h2 id="aside-h" className="mb-2 text-base font-extrabold text-soft">
+    <section aria-labelledby="aside-h" className="slide-in card px-5 py-4" style={{ animationDelay: "600ms" }}>
+      <h2 id="aside-h" className="mb-2 text-sm font-extrabold text-muted">
         Set aside by your card&apos;s rules
       </h2>
-      <ul className="grid gap-4 md:grid-cols-2">
+      <ul className="flex flex-col gap-3">
         {offers.map((o) => {
           const block = parseRules(o.rulesJson).find((r) => r.tier === "BLOCK");
           const listing = listingOf.get(o.offerId);
           return (
             <li key={o.offerId}>
-              <p className="flex items-baseline justify-between gap-3 text-base">
+              <p className="flex items-baseline justify-between gap-3 text-sm">
                 <span className="truncate font-bold">{o.title}</span>
-                <span className="font-bold text-soft tabular-nums line-through decoration-alert decoration-2">{money(o.priceCents)}</span>
+                <span className="font-bold text-muted tabular-nums line-through decoration-danger decoration-2">{money(o.priceCents)}</span>
               </p>
               {o.flagged && listing ? (
-                <div className="mt-1 border-2 border-alert p-2.5">
-                  <p className="text-sm font-bold text-alert">Claude caught it: the listing tried to give the agent orders</p>
-                  <blockquote className="mt-1 text-base leading-snug text-white">&ldquo;{listing}&rdquo;</blockquote>
+                <div className="mt-1 rounded-lg border border-danger bg-danger/5 p-2.5">
+                  <p className="text-[13px] font-bold text-danger">Claude caught it: the listing tried to give the agent orders</p>
+                  <blockquote className="mt-1 text-sm leading-snug text-fg">&ldquo;{listing}&rdquo;</blockquote>
                 </div>
               ) : (
-                <p className="text-base text-alert">{o.flagged ? o.flagReason : block?.reason}</p>
+                <p className="text-sm text-danger">{o.flagged ? o.flagReason : block?.reason}</p>
               )}
             </li>
           );
@@ -214,35 +214,35 @@ export function ReceiptPanel({ receipts, trip, voids, offers }: { receipts: Rece
   const minutes = trip.canceledAt && trip.bookedAt ? Math.max(0, Math.round((Date.parse(trip.bookedAt) - Date.parse(trip.canceledAt)) / 1000)) : null;
   const took = minutes === null ? null : `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
   return (
-    <section aria-labelledby="receipt-h" className="print flex flex-col gap-3 bg-white p-5 text-ink">
+    <section aria-labelledby="receipt-h" className="print card card-focus flex flex-col gap-3 p-5">
       <div className="flex items-baseline justify-between">
-        <h2 id="receipt-h" className="text-lg font-extrabold">
+        <h2 id="receipt-h" className="text-[15px] font-extrabold">
           Receipt #{r.seq}
         </h2>
-        <span className="text-sm font-bold">Simulated payment</span>
+        <span className="text-[13px] font-bold">Simulated payment</span>
       </div>
       <div className="flex items-end justify-between gap-4 border-b-2 border-dashed border-ink/30 pb-3">
         <div>
-          <p className="text-xl font-extrabold">{r.merchant}</p>
-          <p className="text-base">
+          <p className="text-[17px] font-extrabold">{r.merchant}</p>
+          <p className="text-sm">
             Approved by you, card •••• {r.tokenLast4}, {clockOf(r.at)}
           </p>
-          {v ? <p className="text-base font-bold">{money(v.priceCents)} approval voided: the price changed</p> : null}
+          {v ? <p className="text-sm font-bold">{money(v.priceCents)} approval voided: the price changed</p> : null}
         </div>
-        <p className="text-[2.4rem] leading-none font-black tabular-nums">{money(r.amountCents)}</p>
+        <p className="text-[1.75rem] leading-none font-black tabular-nums">{money(r.amountCents)}</p>
       </div>
-      <p className="text-base font-bold">
+      <p className="text-sm font-bold">
         {shown} options shown, #{chosen ?? 1} chosen{took ? `, ${took} from cancel to booked` : ""}. Free rebooking checked first.
       </p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-base">
-        <dt className="text-ink/70">Fingerprint</dt>
-        <dd className="font-mono text-sm" title={r.hash}>{r.hash.slice(0, 16)}</dd>
-        <dt className="text-ink/70">Linked to</dt>
-        <dd className="font-mono text-sm" title={r.prevHash}>{/^0+$/.test(r.prevHash) ? "the start of the chain" : `#${r.seq - 1}, ${r.prevHash.slice(0, 16)}`}</dd>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-muted">Fingerprint</dt>
+        <dd className="font-mono text-[13px]" title={r.hash}>{r.hash.slice(0, 16)}</dd>
+        <dt className="text-muted">Linked to</dt>
+        <dd className="font-mono text-[13px]" title={r.prevHash}>{/^0+$/.test(r.prevHash) ? "the start of the chain" : `#${r.seq - 1}, ${r.prevHash.slice(0, 16)}`}</dd>
       </dl>
-      <p className={`text-base font-bold ${chain.ok ? "" : "text-alert"}`}>{chain.ok ? "Fingerprints match. This receipt has not been changed." : `Fingerprints do not match: ${chain.reason}`}</p>
+      <p className={`text-sm font-bold ${chain.ok ? "" : "text-danger"}`}>{chain.ok ? "Fingerprints match. This receipt has not been changed." : `Fingerprints do not match: ${chain.reason}`}</p>
       {trip.refundOwedCents ? (
-        <p className="flex items-center gap-3 border-t-2 border-ink pt-3 text-xl font-black">
+        <p className="flex items-center gap-3 border-t-2 border-ink pt-3 text-[17px] font-black">
           <Pictogram name="refund" size={36} />
           {money(trip.refundOwedCents)} refund owed for the canceled ticket
         </p>
@@ -255,9 +255,9 @@ export function ReceiptPanel({ receipts, trip, voids, offers }: { receipts: Rece
 export function ClosedOptions({ offers }: { offers: Offer[] }) {
   if (!offers.length) return null;
   return (
-    <ul className="flex flex-col divide-y divide-rule border-y border-rule">
+    <ul className="flex flex-col divide-y divide-line border-y border-line">
       {offers.map((o) => (
-        <li key={o.offerId} className="flex justify-between gap-3 py-1.5 text-base text-soft">
+        <li key={o.offerId} className="flex justify-between gap-3 py-1.5 text-sm text-muted">
           <span className="truncate">
             {o.rank}. {o.title}
           </span>

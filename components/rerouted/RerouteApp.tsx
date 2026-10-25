@@ -5,7 +5,7 @@ import { CorridorCanvas } from "@/components/three/CorridorCanvas";
 import { CardObject } from "./CardObject";
 import { ClaudeSaw } from "./ClaudeSaw";
 import { CalmPanel, ClosedOptions, OptionCard, ReceiptPanel, SetAsideShelf, ShoppingPanel, type Stamp } from "./Focus";
-import { Pictogram } from "./Pictogram";
+import { Pictogram, type PictoName } from "./Pictogram";
 import { SignBand } from "./SignBand";
 import { StepsList } from "./StepsList";
 import { LiveProvider, STDB_DB, useLive } from "./live";
@@ -176,7 +176,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
   const controls = [
     { id: "reset", key: "R", label: "Reset", enabled: true },
     { id: "cancel", key: "C", label: "Cancel flight", enabled: trip?.status === "scheduled" },
-    { id: "agent", key: "A", label: "Agent buys", enabled: !!top && !flightBooked },
+    { id: "agent", key: "A", label: "Agent tries to buy", enabled: !!top && !flightBooked },
     { id: "price", key: "P", label: "Price moves", enabled: !!top && !flightBooked && top.priceCents !== NEW_PRICE },
   ];
   // The presenter's next key is marked, so nobody has to remember the order.
@@ -185,117 +185,223 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
     trip?.status === "scheduled" ? "cancel" : top && !flightBooked && !agentTried ? "agent" : top && !flightBooked && top.priceCents !== NEW_PRICE ? "price" : flightBooked ? "reset" : null;
 
   const shopping = trip?.status === "canceled" && ranked.length === 0;
-  const [saw, setSaw] = useState(false);
+  const [view, setView] = useState<View>("trip");
 
   return (
-    <div className="flex min-h-dvh flex-col bg-ink lg:h-dvh lg:overflow-hidden">
-      <TopBar trip={trip} account={account} controls={controls} nextKey={nextKey} running={control} onRun={run} note={mode === "mock" ? `Mock data${source.fallbackReason ? `: ${source.fallbackReason}` : ""}` : null} />
-      <SignBand trip={trip} offers={offers} />
+    <div className="flex min-h-dvh bg-canvas text-fg lg:h-dvh lg:overflow-hidden">
+      <Sidebar
+        view={view}
+        onView={setView}
+        controls={controls}
+        nextKey={nextKey}
+        running={control}
+        onRun={run}
+        account={account}
+        note={mode === "mock" ? `Mock data${source.fallbackReason ? `: ${source.fallbackReason}` : ""}` : null}
+        receipts={receipts.length}
+      />
 
-      <main className="grid min-h-0 flex-1 gap-6 p-4 md:p-6 lg:grid-cols-[280px_minmax(0,1fr)_420px] xl:grid-cols-[320px_minmax(0,1fr)_480px] xl:gap-8 xl:px-10">
-        <div className="order-2 flex min-h-0 flex-col gap-6 lg:order-none">
-          <CardObject mandate={mandate} trip={trip} />
-          <StepsList steps={steps} idle={trip?.status === "scheduled"} />
-          {notice || source.seatError ? (
-            <p role="alert" className="mt-auto text-base font-bold text-alert">
-              {notice ?? `Could not take the traveler seat: ${source.seatError}`}
-            </p>
-          ) : null}
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <SignBand trip={trip} offers={offers} />
 
-        <div className="order-3 flex min-h-0 min-w-0 flex-col gap-4 lg:order-none">
-        <section aria-labelledby="corridor" className="board flex min-h-[300px] min-w-0 flex-1 flex-col">
-          <div className="flex items-baseline justify-between gap-4 px-5 pt-4">
-            <h2 id="corridor" className="text-lg font-extrabold whitespace-nowrap">
-              Every way home <span className="font-semibold text-soft">· New York time</span>
-            </h2>
-            <button type="button" onClick={() => setSaw((v) => !v)} aria-expanded={saw} className="border border-rule px-2.5 py-1 text-sm font-bold whitespace-nowrap hover:bg-panel-2">
-              What Claude saw
-            </button>
-          </div>
-          <div className="relative min-h-0 flex-1">
-            <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
-            {saw ? <ClaudeSaw trip={trip} mandate={mandate} onClose={() => setSaw(false)} /> : null}
-          </div>
-        </section>
-        {!flightBooked ? <SetAsideShelf offers={aside} /> : null}
-        </div>
+        {notice || source.seatError ? (
+          <p role="alert" className="mx-8 mb-3 rounded-lg border border-danger bg-danger/5 px-4 py-2 text-sm font-bold text-danger">
+            {notice ?? `Could not take the traveler seat: ${source.seatError}`}
+          </p>
+        ) : null}
 
-        <div className="order-1 flex min-h-0 flex-col gap-3 lg:order-none lg:overflow-y-auto">
-          {flightBooked && trip ? (
-            <>
-              <ReceiptPanel receipts={receipts} trip={trip} voids={shownVoids} offers={offers} />
-              <ClosedOptions offers={ranked.filter((o) => o.status !== "booked")} />
-            </>
-          ) : ranked.length ? (
-            <>
-              {ranked.map((o, i) => (
-                <OptionCard key={o.offerId} offer={o} lead={i === 0} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} onApprove={approve} />
-              ))}
-            </>
-          ) : shopping ? (
-            <ShoppingPanel />
+        <main className="min-h-0 flex-1 px-8 pb-8">
+          {view === "trip" ? (
+            <div className="grid h-full min-h-0 gap-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_440px]">
+              <div className="flex min-h-0 min-w-0 flex-col gap-6">
+                <section aria-labelledby="corridor" className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-xl bg-panel text-white">
+                  <div className="flex items-center justify-between gap-4 px-5 pt-4">
+                    <h2 id="corridor" className="text-[15px] font-bold whitespace-nowrap">
+                      Every way home <span className="font-medium text-soft">· New York time</span>
+                    </h2>
+                    <button type="button" onClick={() => setView("claude")} className="rounded-md border border-white/20 px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap hover:bg-white/10">
+                      What Claude saw
+                    </button>
+                  </div>
+                  <div className="relative min-h-0 flex-1">
+                    <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} />
+                  </div>
+                </section>
+
+                <div className="grid shrink-0 gap-6 md:grid-cols-2">
+                  <div className="card px-5 py-4">
+                    <StepsList steps={steps} idle={trip?.status === "scheduled"} />
+                  </div>
+                  {!flightBooked && aside.length ? <SetAsideShelf offers={aside} /> : <CardMeter mandate={mandate} trip={trip} />}
+                </div>
+              </div>
+
+              <div className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto lg:pr-1">
+                {flightBooked && trip ? (
+                  <>
+                    <ReceiptPanel receipts={receipts} trip={trip} voids={shownVoids} offers={offers} />
+                    <ClosedOptions offers={ranked.filter((o) => o.status !== "booked")} />
+                  </>
+                ) : ranked.length ? (
+                  ranked.map((o, i) => (
+                    <OptionCard key={o.offerId} offer={o} lead={i === 0} stamp={stamps[o.offerId]} voided={shownVoids[o.offerId]} busy={busy === o.offerId} onApprove={approve} />
+                  ))
+                ) : (
+                  <div className="card p-5">{shopping ? <ShoppingPanel /> : <CalmPanel trip={trip} />}</div>
+                )}
+                {!flightBooked && aside.length ? <CardMeter mandate={mandate} trip={trip} /> : null}
+              </div>
+            </div>
+          ) : view === "card" ? (
+            <div className="grid max-w-4xl gap-8 md:grid-cols-[360px_1fr]">
+              <div className="card p-5">
+                <CardObject mandate={mandate} trip={trip} />
+              </div>
+              <div className="space-y-3 text-[15px] leading-relaxed text-muted">
+                <h2 className="text-lg font-bold text-fg">How the card decides</h2>
+                <p>Every option is checked against these rules inside the database before it is shown. Over the cap or outside the allowed categories, it is set aside. Above the ask limit, it waits for your tap.</p>
+                <p>The agent can search and explain. It cannot approve a purchase; the database refuses it on the agent&apos;s identity.</p>
+              </div>
+            </div>
+          ) : view === "activity" ? (
+            <div className="card max-w-3xl px-6 py-5">
+              <StepsList steps={steps} idle={trip?.status === "scheduled"} limit={50} />
+            </div>
+          ) : view === "claude" ? (
+            <div className="card relative max-w-5xl overflow-hidden">
+              <ClaudeSaw trip={trip} mandate={mandate} onClose={() => setView("trip")} inline />
+            </div>
           ) : (
-            <CalmPanel trip={trip} />
+            <div className="max-w-xl">
+              {receipts.length && trip ? (
+                <ReceiptPanel receipts={receipts} trip={trip} voids={shownVoids} offers={offers} />
+              ) : (
+                <div className="card p-6">
+                  <h2 className="text-lg font-bold">No receipt yet</h2>
+                  <p className="mt-1 text-[15px] text-muted">Approve a way home on the Trip view and its receipt appears here.</p>
+                </div>
+              )}
+            </div>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
 
-/** Where you are, who you are, and the presenter's keys. The agent's seat is shown locked. */
-function TopBar({
-  trip,
-  account,
+type View = "trip" | "card" | "activity" | "claude" | "receipts";
+
+/** The card's limit under one glance, like a bank app's spending bar. */
+function CardMeter({ mandate, trip }: { mandate: { tripCapCents: number; askAboveCents: number } | null; trip: { spendCents: number } | null }) {
+  const cap = mandate?.tripCapCents ?? 0;
+  const spent = trip?.spendCents ?? 0;
+  const pct = cap ? Math.min(100, (spent / cap) * 100) : 0;
+  const d = (c: number) => `$${Math.round(c / 100).toLocaleString("en-US")}`;
+  return (
+    <section aria-label="Card limit" className="card px-5 py-4">
+      <p className="flex items-baseline justify-between text-[15px]">
+        <span className="font-bold">Travel card •••• 4242</span>
+        <span className="tabular-nums">
+          <span className="font-bold">{d(spent)}</span> <span className="text-muted">/ {d(cap)}</span>
+        </span>
+      </p>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-sunk" role="meter" aria-valuemin={0} aria-valuemax={cap / 100} aria-valuenow={spent / 100} aria-label="Spent against the trip cap">
+        <div className="h-full rounded-full bg-fg transition-[width] duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-2 text-[13px] text-muted">Asks above {mandate ? d(mandate.askAboveCents) : ""} · Airlines and hotels only · Simulated card</p>
+    </section>
+  );
+}
+
+const MENU: { id: View; label: string; picto: PictoName }[] = [
+  { id: "trip", label: "Trip", picto: "reroute" },
+  { id: "card", label: "Card and rules", picto: "card" },
+  { id: "activity", label: "Agent activity", picto: "search" },
+  { id: "claude", label: "What Claude saw", picto: "agent" },
+  { id: "receipts", label: "Receipts", picto: "check" },
+];
+
+/** The menu, the seats, and the presenter's keys. One tinted item marks where you are. */
+function Sidebar({
+  view,
+  onView,
   controls,
   nextKey,
   running,
   onRun,
+  account,
   note,
+  receipts,
 }: {
-  trip: { route: string; flight: string } | null;
-  account?: ReactNode;
+  view: View;
+  onView: (v: View) => void;
   controls: { id: string; key: string; label: string; enabled: boolean }[];
   nextKey: string | null;
   running: string | null;
   onRun: (id: string) => void;
+  account?: ReactNode;
   note: string | null;
+  receipts: number;
 }) {
   return (
-    <div className="flex h-14 shrink-0 items-center gap-4 border-b border-rule px-4 md:px-6 xl:px-10">
-      <span className="flex items-center gap-2.5">
-        <Pictogram name="reroute" size={32} label="Rerouted" className="bg-white! text-ink!" />
+    <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-card px-4 py-6 lg:flex">
+      <div className="flex items-center gap-2.5 px-2">
+        <Pictogram name="reroute" size={32} label="Rerouted" className="rounded-lg" />
         <span className="text-lg font-extrabold">Rerouted</span>
-      </span>
-      <span className="hidden text-base text-soft md:inline">{trip ? `${trip.flight}, ${trip.route}` : ""}</span>
+      </div>
 
-      <span className="ml-2 hidden items-center gap-2 border border-rule px-2.5 py-1 text-sm font-bold sm:flex">
-        <Pictogram name="check" size={18} className="bg-white! text-ink!" />
-        You, traveler
-      </span>
-      <span className="hidden items-center gap-2 border border-rule px-2.5 py-1 text-sm font-bold text-soft sm:flex" title="The agent's seat cannot approve a purchase. The database refuses it.">
-        <Pictogram name="lock" size={18} className="bg-panel-2!" />
-        Agent, locked
-      </span>
-
-      {note ? <span className="hidden truncate text-sm text-soft lg:inline">{note}</span> : null}
-      <nav aria-label="Presenter keys" className="ml-auto flex items-center gap-1">
-        {controls.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            disabled={!c.enabled || !!running}
-            onClick={() => onRun(c.id)}
-            title={`${c.label} (${c.key})`}
-            className={`flex items-center gap-1.5 px-2 py-1 text-sm font-semibold transition-colors disabled:opacity-40 ${nextKey === c.id ? "text-white" : "text-soft hover:text-white"}`}
-          >
-            <kbd className={`grid h-6 w-6 place-items-center font-mono text-xs ${nextKey === c.id ? "bg-white text-ink" : "border border-rule"}`}>{c.key}</kbd>
-            <span className="hidden xl:inline">{running === c.id ? "Working" : c.label}</span>
-          </button>
-        ))}
-        <span className="ml-2 border-l border-rule pl-3">{account}</span>
+      <nav aria-label="Dashboard" className="mt-8 flex flex-col gap-1">
+        {MENU.map((m) => {
+          const on = view === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onView(m.id)}
+              aria-current={on ? "page" : undefined}
+              className={`flex items-center gap-3 rounded-lg px-2 py-2 text-left text-[15px] transition-colors ${on ? "bg-tint font-bold" : "font-medium text-muted hover:bg-sunk hover:text-fg"}`}
+            >
+              <Pictogram name={m.picto} size={30} className={`rounded-md ${on ? "bg-fg! text-yellow!" : "bg-sunk! text-fg!"}`} />
+              {m.label}
+              {m.id === "receipts" && receipts ? <span className="ml-auto rounded-full bg-fg px-2 text-xs leading-5 font-bold text-card">{receipts}</span> : null}
+            </button>
+          );
+        })}
       </nav>
-    </div>
+
+      <div className="mt-auto flex flex-col gap-3">
+        <div className="rounded-xl bg-sunk p-3 text-[13px]">
+          <p className="flex items-center gap-2 font-bold">
+            <Pictogram name="check" size={20} className="rounded bg-fg! text-card!" />
+            You, traveler
+          </p>
+          <p className="mt-2 flex items-center gap-2 font-semibold text-muted" title="The agent's seat cannot approve a purchase. The database refuses it.">
+            <Pictogram name="lock" size={20} className="rounded bg-card! text-fg!" />
+            Agent, locked
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-line p-3">
+          <p className="mb-2 text-[13px] font-bold">Presenter</p>
+          <ul className="flex flex-col gap-1">
+            {controls.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  disabled={!c.enabled || !!running}
+                  onClick={() => onRun(c.id)}
+                  className={`flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[13px] disabled:opacity-40 ${nextKey === c.id ? "bg-tint font-bold" : "text-muted hover:bg-sunk"}`}
+                >
+                  <kbd className={`grid h-5 w-5 place-items-center rounded font-mono text-[11px] ${nextKey === c.id ? "bg-fg text-card" : "border border-line"}`}>{c.key}</kbd>
+                  {running === c.id ? "Working" : c.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {note ? <p className="mt-2 text-xs text-muted">{note}</p> : null}
+        </div>
+        <div className="px-2">{account}</div>
+      </div>
+    </aside>
   );
 }

@@ -13,6 +13,15 @@
   --on-panel-soft: #b8b8b8; /* secondary text on black, 9:1 */
   --on-yellow-soft: #3d3300; /* secondary text on yellow, 9:1 */
   --alert: #ff5a4e; /* only on black */
+  /* Dashboard (light): calm canvas, white cards, one accent for the next action. */
+  --d-bg: #f4f5f7;
+  --d-card: #ffffff;
+  --d-sunk: #f1f2f4;
+  --d-line: #e3e5e9;
+  --d-fg: #111318;
+  --d-muted: #5a606b; /* 6.4:1 on white */
+  --d-danger: #c42f1f; /* 5.6:1 on white */
+  --d-tint: #fff6cc; /* active menu item, the accent at rest */
   --go: #3ddc84; /* booked, only on black */
 }
 
@@ -28,6 +37,14 @@
   --color-yellow-soft: var(--on-yellow-soft);
   --color-alert: var(--alert);
   --color-go: var(--go);
+  --color-canvas: var(--d-bg);
+  --color-card: var(--d-card);
+  --color-sunk: var(--d-sunk);
+  --color-line: var(--d-line);
+  --color-fg: var(--d-fg);
+  --color-muted: var(--d-muted);
+  --color-danger: var(--d-danger);
+  --color-tint: var(--d-tint);
   --font-sans: var(--font-sign), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-board), ui-monospace, monospace;
 }
@@ -67,6 +84,15 @@ body {
 }
 
 @layer components {
+  /* A dashboard surface: white, rounded, hairline edge. Elevation is reserved for the one card in focus. */
+  .card {
+    background: var(--d-card);
+    border: 1px solid var(--d-line);
+    border-radius: 12px;
+  }
+  .card-focus {
+    box-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 8px 24px -8px rgb(16 24 40 / 0.14);
+  }
 /* A sign panel: square corners, flat, framed by its own edge. */
 .sign {
   background: var(--sign-yellow);
