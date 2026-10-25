@@ -51,7 +51,7 @@ A light canvas with a left menu: Home (back to the landing page), Trip, Card and
 - `components/rerouted/format.ts`: reads the day labels on flight times ("Today", "Tonight", "Tomorrow", or a date such as "Mon Oct 26") onto one axis, Pacific date as day 0.
 - Mode: live when `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` is set. `?mock=1` forces the mock. If the live database sends no trip within 8 seconds, the page says why and runs the mock.
 - Price beat: the top fare goes up $23 (the same move `scripts/demo-check.ts` makes). The void is matched to the offer by airline and new price, so it stays on the right flight after reranking.
-- Rehearsal: `?to=options|agent|price|booked` plays the demo up to that beat. Presenter keys: R reset, C cancel, A agent tries to buy, P price moves.
+- Rehearsal: `?to=options|agent|price|booked` plays the demo up to that beat. Keyboard: R reset, C cancel, A agent tries to buy, P price moves (the same as the demo controls in the menu).
 
 ## 6. Sign-in
 

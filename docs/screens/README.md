@@ -40,3 +40,13 @@ Fixed in this round:
 Already fine: no empty dark strip, no admin email (only a small Sign out at the bottom of the menu), everything for the demo fits at 1440x900 without scrolling.
 
 Left alone: labels of the set-aside routes can overlap inside the 3D scene at 1920 (camera framing; risky to retune before judging).
+
+## Round 4: live flights and travelers only (`v4-*`)
+
+- `v4-live-options-1440`: real flights from Google Flights via SerpApi, on the time axis that starts at the current hour.
+- `v4-live-price-1440`: the agent refused, then the top fare up $23 ($382 to $405); the old approval void, the flight reranked.
+- `v4-live-booked-1440`: booked at $405, receipt, $318 refund owed.
+- `v4-corridor-dragged-1440`, `v4-corridor-expanded-1440`: the 3D panel turned and zoomed by hand, and expanded.
+- `v4-landing-1440`: the landing page with the traveler-only section ("alone at the gate" vs "with Rerouted") and the route ahead.
+
+Checked: `pnpm typecheck`, and `pnpm demo:check` twice on live flights with `pnpm demo:reset` between runs.

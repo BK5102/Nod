@@ -1,5 +1,7 @@
 # PROMPT.md: Rerouted backend build prompts
 
+**Historical.** These are the prompts the backend was first built from. Since then the audience is travelers only and the default demo uses live flight search (FLIGHT_PROVIDER=serpapi). For what is built now, read CLAUDE.md, docs/PLAN.md and docs/FRONTEND.md.
+
 **For:** the backend teammate, using Claude Code. The frontend teammate has their own prompts.
 
 **Source of truth:** `docs/PLAN.md`. CLAUDE.md is the short guide. Where they conflict, PLAN.md wins.
