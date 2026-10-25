@@ -142,7 +142,7 @@ AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
 8. Label every simulated part: the cancellation, flights and hotels, the card token and the payment. Call it a prototype.
 9. Never invent statistics, savings figures, quotes or Visa API details.
 10. If Claude fails, show the error as a step and keep the rules working. Never fake a Claude answer.
-11. Search is real, purchasing is not, and that holds in production too. Flights come from a real Duffel search. Approving runs every rule for real, then records a mock booking and a receipt. Never call Duffel's order, payment or booking endpoints, never issue a ticket, never move money. Label the booking as simulated.
+11. Search is real, purchasing is not, and that holds in production too. Flights come from a real search (Google Flights via SerpApi, or Duffel). Approving runs every rule for real, then records a mock booking and a receipt. Never call any provider's order, payment or booking endpoints (SerpApi has none; for Duffel, never its orders or payments), never issue a ticket, never move money. Label the booking as simulated.
 
 ## Real and simulated
 
@@ -153,14 +153,14 @@ AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
 | Quote-bound atomic purchase, receipts | Real |
 | Claude reasons and flags | Real when the key is set |
 | Cancellation | Simulated, triggered by the operator |
-| Flights | Real search: live Duffel flight API (FLIGHT_PROVIDER=duffel). In Duffel test mode the fares are sandbox data; a live-mode token returns real airline inventory. Saved demo offers are the default and the fallback |
+| Flights | Real search. FLIGHT_PROVIDER=serpapi returns real, current fares from Google Flights via SerpApi (search only, it cannot book). FLIGHT_PROVIDER=duffel returns Duffel test-mode sandbox fares. Saved demo offers are the default and the fallback |
 | Free rebooking, hotels | Simulated, fictional names (the free rebooking comes from the airline, not a search API) |
 | Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Traveler | Fictional |
 
 ## Known limits
 
-- No real booking, live fares or Visa integration.
+- No real booking or Visa integration. Fares are real only with FLIGHT_PROVIDER=serpapi.
 - One US domestic cancellation scenario.
 - No real sign-in. Any visitor can take the traveler seat.
 - The free rebooking is taken as given.

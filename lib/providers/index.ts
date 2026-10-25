@@ -1,30 +1,37 @@
 import "server-only";
 import fixture from "@/data/fixtures/demo.json";
 import { duffelConfigured, searchDuffel } from "./duffel";
+import { searchSerpapi, serpapiConfigured } from "./serpapi";
 import type { ProviderOffer, SearchRequest, SearchResult } from "./types";
 
 const FIXTURE = fixture.offers as ProviderOffer[];
 
+/** Live flight providers, chosen with FLIGHT_PROVIDER. Each returns flights in the offer table's shape. */
+const PROVIDERS = {
+  serpapi: { configured: serpapiConfigured, search: searchSerpapi, keyName: "SERPAPI_KEY", source: "live flight search (Google Flights via SerpApi)" },
+  duffel: { configured: duffelConfigured, search: searchDuffel, keyName: "DUFFEL_ACCESS_TOKEN", source: "live flight search (Duffel test mode)" },
+} as const;
+
 /**
- * Where offers come from. FLIGHT_PROVIDER=duffel searches live flights (Duffel); anything else, or any
- * failure, uses the replayed fixture. The airline's free rebooking and the hotels always come from the
- * fixture (SIMULATED): free rebooking is offered by the airline, not a search API, and hotel search is
- * not wired. Offers keep the same shape either way, so the database contract never changes.
+ * Where offers come from. FLIGHT_PROVIDER=serpapi (real current fares) or duffel (sandbox fares) searches
+ * live flights; anything else, or any failure, uses the replayed fixture. The airline's free rebooking and
+ * the hotels always come from the fixture (SIMULATED): free rebooking is offered by the airline, not a
+ * search API, and hotel search is not wired. Offers keep the same shape either way, so the database
+ * contract never changes. No provider is ever asked to book.
  */
 export async function findOffers(req: SearchRequest): Promise<SearchResult> {
-  if (process.env.FLIGHT_PROVIDER !== "duffel") {
-    return { offers: FIXTURE, source: "saved demo offers (SIMULATED)", fallbackReason: null };
-  }
-  if (!duffelConfigured()) {
-    return { offers: FIXTURE, source: "saved demo offers (SIMULATED)", fallbackReason: "DUFFEL_ACCESS_TOKEN is not set" };
-  }
+  const saved = "saved demo offers (SIMULATED)";
+  const name = process.env.FLIGHT_PROVIDER;
+  if (name !== "serpapi" && name !== "duffel") return { offers: FIXTURE, source: saved, fallbackReason: null };
+  const provider = PROVIDERS[name];
+  if (!provider.configured()) return { offers: FIXTURE, source: saved, fallbackReason: `${provider.keyName} is not set` };
   try {
-    const flights = await searchDuffel(req);
+    const flights = await provider.search(req);
     if (flights.length === 0) throw new Error(`no USD flights from ${req.origin} to ${req.destination} tonight or tomorrow`);
     const keep = FIXTURE.filter((o) => o.kind !== "flight");
-    return { offers: [...keep.filter((o) => o.kind === "free_rebooking"), ...flights, ...keep.filter((o) => o.kind === "hotel")], source: "live flight search (Duffel test mode)", fallbackReason: null };
+    return { offers: [...keep.filter((o) => o.kind === "free_rebooking"), ...flights, ...keep.filter((o) => o.kind === "hotel")], source: provider.source, fallbackReason: null };
   } catch (e) {
-    return { offers: FIXTURE, source: "saved demo offers (SIMULATED)", fallbackReason: (e as Error).message };
+    return { offers: FIXTURE, source: saved, fallbackReason: (e as Error).message };
   }
 }
 
@@ -52,7 +59,7 @@ export function searchRequestFor(route: string, deadlineLabel: string, now = new
 /** A traveler needs time to get to a new gate, so flights leaving sooner than this are not offered. */
 const GATE_BUFFER_MS = 60 * 60 * 1000;
 
-/** The wall-clock time in a time zone as YYYY-MM-DDTHH:MM:SS, the format Duffel uses for local times. */
+/** The wall-clock time in a time zone as YYYY-MM-DDTHH:MM:SS, the format the providers are compared in. */
 function localIso(d: Date, timeZone: string): string {
   const p = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })

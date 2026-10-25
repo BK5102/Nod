@@ -66,7 +66,7 @@ async function main() {
     }
   } else {
     // Live flights: the same guarantees, whatever the search returned.
-    const flights = offers(traveler).filter((o) => o.offerId.startsWith("duf_"));
+    const flights = offers(traveler).filter((o) => /^(duf|serp)_/.test(o.offerId));
     check(flights.length > 0, "cancel: live flights arrived", `${flights.length} flights`);
     const ranks = offers(traveler).filter((o) => o.rank > 0).map((o) => o.rank).sort((a, b) => a - b);
     check(ranks.every((r, i) => r === i + 1), "cancel: ranks are 1..n with no gaps", ranks.join(","));
