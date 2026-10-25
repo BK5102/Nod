@@ -16,21 +16,22 @@ const GROUND = 0x1a1a1a;
 
 const PT_TO_ET = 3; // departures are printed in San Francisco time, arrivals in New York time
 const DEADLINE_ET = 21; // 9:00 AM tomorrow on the clockHours axis
+const AXIS_TO = 29; // 5 PM tomorrow
 /**
- * The axis starts at 8 PM tonight, or earlier when live flights can leave earlier: a search run in the
- * morning returns flights later today, so the axis starts at the current hour in New York.
+ * The axis starts at 8 PM tonight. With live flights it starts at the current hour in New York when
+ * that is earlier: a search run in the morning returns flights later today. One scene per page, so
+ * the constructor sets these before anything is drawn.
  */
-const AXIS_FROM = (() => {
+let AXIS_FROM = 8;
+let X_SCALE = 0.95;
+function axisFromNow(): number {
   const hourIn = (timeZone: string) => Number(new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", hourCycle: "h23" }).format(new Date()));
   const et = hourIn("America/New_York");
   const pt = hourIn("America/Los_Angeles");
   // Hours after noon on the Pacific date; past midnight in New York is still tonight in San Francisco.
   const now = et - 12 + (et < pt ? 24 : 0);
   return Math.max(-11, Math.min(8, Math.floor(now)));
-})();
-const AXIS_TO = 29; // 5 PM tomorrow
-// The scene keeps the same width however many hours it covers, so the camera framing still fits.
-const X_SCALE = (0.95 * 21) / (AXIS_TO - AXIS_FROM);
+}
 const xOf = (h: number) => (h - (AXIS_FROM + AXIS_TO) / 2) * X_SCALE;
 
 const easeOut = (k: number) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k));
@@ -146,8 +147,11 @@ export class Corridor {
 
   constructor(
     private host: HTMLElement,
-    private opts: { labelScale?: number; interactive?: boolean } = {},
+    private opts: { labelScale?: number; interactive?: boolean; liveAxis?: boolean } = {},
   ) {
+    AXIS_FROM = opts.liveAxis ? axisFromNow() : 8;
+    // The scene keeps the same width however many hours it covers, so the camera framing still fits.
+    X_SCALE = (0.95 * 21) / (AXIS_TO - AXIS_FROM);
     this.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

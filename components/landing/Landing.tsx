@@ -111,10 +111,26 @@ function Reveal({ from, children, className = "" }: { from: "left" | "right"; ch
 
 /** The story, one sign per beat, alternating sides as you scroll. */
 const story: { picto: PictoName; tone: "yellow" | "alert"; big: string; head: string; line: string }[] = [
-  { picto: "refund", tone: "yellow", big: "Free", head: "Free first", line: "It checks the airline's free rebooking before it spends a dollar." },
+  { picto: "search", tone: "yellow", big: "Live", head: "Real flights, ranked", line: "It searches current fares across airlines and ranks them against the time you need to land." },
   { picto: "card", tone: "yellow", big: "$600", head: "Your card decides", line: "Trip cap, ask-first limit and allowed categories, enforced in the database." },
   { picto: "agent", tone: "alert", big: "No", head: "The agent cannot pay itself", line: "Only your tap buys, at the exact price you saw." },
   { picto: "arrive", tone: "yellow", big: "$318", head: "Your refund, counted", line: "Every purchase leaves a receipt that cannot be quietly changed." },
+];
+
+/** The traveler at the gate, alone and with Rerouted, one moment per row. */
+const gate: { moment: string; alone: string; with: string }[] = [
+  { moment: "Finding a flight", alone: "One airline app at a time, while the gate line grows.", with: "Every flight to your destination, ranked against when you need to land." },
+  { moment: "Spending", alone: "Easy to overpay in a panic.", with: "Your card's trip cap and ask-first limit, checked on every option." },
+  { moment: "Buying", alone: "Hand an assistant your card and hope.", with: "Nothing is bought until you tap, at the exact price you saw." },
+  { moment: "Afterwards", alone: "Hard to tell what you paid and what you are owed.", with: "A receipt for the new ticket, and the refund owed for the canceled one." },
+];
+
+/** Where it goes next for the traveler. Only the first stop is built. */
+const route: { when: string; what: string; built: boolean }[] = [
+  { when: "Now", what: "Real flights from Google Flights, ranked against your deadline, bought only on your tap.", built: true },
+  { when: "Next", what: "The airline's own free rebooking and nearby hotels, from live sources.", built: false },
+  { when: "Then", what: "Delays and missed connections, not only cancellations.", built: false },
+  { when: "Later", what: "Real card controls in place of the simulated card.", built: false },
 ];
 
 export function Landing() {
@@ -215,36 +231,84 @@ export function Landing() {
         })}
       </section>
 
-      <section className="mx-auto grid max-w-[1440px] gap-12 px-4 pb-24 md:px-8 lg:grid-cols-2 lg:gap-20">
+      {/* Who it is for: one traveler, the same four moments alone and with Rerouted. */}
+      <section aria-labelledby="who-h" className="mx-auto max-w-[1440px] px-4 pb-24 md:px-8 lg:pb-32">
         <Reveal from="left">
-          <h2 className="text-[2.4rem] leading-tight font-black tracking-[-0.03em]">Who it helps</h2>
-          <dl className="mt-6 divide-y divide-rule border-y border-rule text-lg">
-            {[
-              ["Travelers", "A way home in minutes, inside limits they set, with nothing bought until they tap."],
-              ["Card issuers", "Spending rules that hold even when an AI agent is the one shopping."],
-              ["Airlines and hotels", "A sale the cardholder approved at an exact price, with a receipt behind it."],
-            ].map(([who, what]) => (
-              <div key={who} className="grid gap-1 py-4 md:grid-cols-[11rem_1fr] md:gap-6">
-                <dt className="font-extrabold">{who}</dt>
-                <dd className="text-soft">{what}</dd>
-              </div>
-            ))}
-          </dl>
+          <h2 id="who-h" className="max-w-[20ch] text-[2.4rem] leading-[1.02] font-black tracking-[-0.03em] md:text-[3.25rem]">
+            Built for one person: the traveler stuck at the gate.
+          </h2>
         </Reveal>
-        <Reveal from="right">
-          <h2 className="text-[2.4rem] leading-tight font-black tracking-[-0.03em]">What comes next</h2>
-          <ul className="mt-6 divide-y divide-rule border-y border-rule text-lg">
-            {[
-              "Live fares and hotel rates from public travel APIs instead of a replayed demo.",
-              "Card network agent controls in place of the simulated token.",
-              "More disruptions: delays, missed connections, a traveler group on one card.",
-            ].map((line) => (
-              <li key={line} className="py-4 text-soft">
-                {line}
+
+        <div className="mt-10 hidden grid-cols-[11rem_1fr_1fr] gap-4 text-sm font-extrabold tracking-[0.02em] text-soft uppercase md:grid">
+          <span />
+          <span className="flex items-center gap-2">
+            <Pictogram name="closed" size={28} className="bg-panel-2! text-soft!" />
+            Alone at the gate
+          </span>
+          <span className="flex items-center gap-2 text-yellow">
+            <Pictogram name="reroute" size={28} className="bg-yellow! text-ink!" />
+            With Rerouted
+          </span>
+        </div>
+
+        <ol className="mt-4 flex flex-col gap-3">
+          {gate.map((g, i) => (
+            <li key={g.moment}>
+              <Reveal from={i % 2 === 0 ? "left" : "right"} className="grid gap-3 md:grid-cols-[11rem_1fr_1fr] md:gap-4">
+                <p className="flex items-center gap-3 text-lg font-extrabold md:flex-col md:items-start md:justify-center md:gap-1">
+                  <span className="font-mono text-sm text-soft">0{i + 1}</span>
+                  {g.moment}
+                </p>
+                <p className="board flex items-start gap-3 border border-rule p-4 text-lg leading-snug text-soft">
+                  <span className="sr-only">Alone at the gate: </span>
+                  <span aria-hidden className="mt-2 h-0.5 w-4 shrink-0 bg-alert" />
+                  <span className="line-through decoration-white/25">{g.alone}</span>
+                </p>
+                <p className="sign on-yellow flex items-start gap-3 p-4 text-lg leading-snug font-bold">
+                  <span className="sr-only">With Rerouted: </span>
+                  <Pictogram name="check" size={24} className="mt-0.5 shrink-0" />
+                  {g.with}
+                </p>
+              </Reveal>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* What comes next, drawn as the route ahead: the first stop is built, the rest are planned. */}
+      <section aria-labelledby="next-h" className="border-t border-rule">
+        <div className="mx-auto max-w-[1440px] px-4 py-20 md:px-8 lg:py-28">
+          <Reveal from="right">
+            <h2 id="next-h" className="text-[2.4rem] leading-tight font-black tracking-[-0.03em] md:text-[3.25rem]">
+              The route ahead
+            </h2>
+            <p className="mt-2 text-lg text-soft">One stop is built. The others are planned, for the same traveler.</p>
+          </Reveal>
+
+          <ol className="relative mt-12 grid gap-10 md:grid-cols-4 md:gap-6">
+            <span aria-hidden className="absolute top-0 bottom-0 left-[15px] w-1 bg-panel-2 md:top-[15px] md:right-0 md:bottom-auto md:left-0 md:h-1 md:w-auto" />
+            <span aria-hidden className="absolute top-0 left-[15px] h-[calc(25%-1rem)] w-1 bg-yellow md:top-[15px] md:h-1 md:w-[12.5%]" />
+            {route.map((r, i) => (
+              <li key={r.when} className="relative">
+                <Reveal from={i % 2 === 0 ? "left" : "right"} className="flex gap-5 md:flex-col md:gap-4">
+                  <span
+                    aria-hidden
+                    className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center border-4 ${r.built ? "border-yellow bg-yellow" : "border-panel-2 bg-ink"}`}
+                  >
+                    {r.built ? <span className="h-2 w-2 bg-ink" /> : null}
+                  </span>
+                  <div>
+                    <p className={`text-[1.75rem] leading-none font-black tracking-[-0.02em] ${r.built ? "text-yellow" : "text-white"}`}>
+                      {r.when}
+                      {r.built ? <span className="ml-3 bg-yellow px-2 py-0.5 align-middle text-sm font-extrabold tracking-normal text-ink">Built</span> : null}
+                    </p>
+                    <p className="mt-2 max-w-[30ch] text-lg leading-snug text-soft">{r.what}</p>
+                  </div>
+                </Reveal>
               </li>
             ))}
-          </ul>
-        </Reveal>
+          </ol>
+        </div>
       </section>
 
       <section className="sign on-yellow">

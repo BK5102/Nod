@@ -271,7 +271,7 @@ function RerouteView({ source, account }: { source: RerouteSource; account?: Rea
                       </div>
                     </div>
                     <div className="relative min-h-0 flex-1">
-                      <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} interactive resetKey={resetKey} />
+                      <CorridorCanvas trip={trip} offers={offers} refusedPulse={pulse} interactive liveAxis={mode === "live"} resetKey={resetKey} />
                     </div>
                   </section>
                 </div>

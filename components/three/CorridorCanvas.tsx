@@ -10,6 +10,7 @@ export function CorridorCanvas({
   refusedPulse,
   labelScale,
   interactive = false,
+  liveAxis = false,
   resetKey = 0,
 }: {
   trip: Trip | null;
@@ -18,6 +19,8 @@ export function CorridorCanvas({
   labelScale?: number;
   /** Drag to turn, scroll or pinch to zoom. */
   interactive?: boolean;
+  /** Start the time axis at the current hour, for live flights that can leave later today. */
+  liveAxis?: boolean;
   /** Bump to return to the default view. */
   resetKey?: number;
 }) {
@@ -32,7 +35,7 @@ export function CorridorCanvas({
     // Labels are drawn on canvases, so wait for the sign face before building the stage.
     Promise.all([import("./corridor"), document.fonts.ready]).then(([{ Corridor }]) => {
       if (!alive || !host.current) return;
-      made = new Corridor(host.current, { labelScale, interactive });
+      made = new Corridor(host.current, { labelScale, interactive, liveAxis });
       scene.current = made;
       made.update(latest.current.trip, latest.current.offers);
     });
