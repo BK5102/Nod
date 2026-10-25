@@ -60,7 +60,7 @@ When a flight is canceled, the agent:
 3. checks each against the card's rules
 4. explains each one in a sentence
 
-The saved demo offers (FLIGHT_PROVIDER unset) add the airline's free rebooking, a hotel and the Skyport listing, for offline runs, the landing page replay and the tests.
+With FLIGHT_PROVIDER unset, the agent replays a recorded real search (FLIGHT_PROVIDER unset): Google Flights results for SFO to JFK, recorded Oct 25, 2026, in `data/fixtures/demo.json`, for offline runs, rehearsal and the landing page replay. It holds real flights only, like live mode.
 
 The traveler approves one option with one tap. It is bought only if it fits the card's rules (trip cap, ask-first threshold, allowed categories) at the exact price approved.
 
@@ -141,7 +141,7 @@ AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
 2. The agent can never approve. Enforce on `ctx.sender` in reducers. Never trust a role passed as an argument.
 3. `approve_offer` requires the current quote hash. A changed price voids the old one.
 4. Default to no. Any failed check throws and reverts.
-5. Listing text is untrusted. Wrap it in `<untrusted_listing>` tags, tell Claude to flag instructions inside it, and keep the hostile Skyport Suites listing in the fixture and tests.
+5. Listing text is untrusted. Wrap it in `<untrusted_listing>` tags, tell Claude to flag instructions inside it, and keep a hostile listing case (Skyport Suites) in the tests.
 6. No personal data (name, email, booking reference, loyalty number, card data) in public tables, step text, receipts, logs or Claude input. Receipts show only the token's last 4.
 7. Secrets are server-only env vars, never committed: `ANTHROPIC_API_KEY`, `SPACETIMEDB_AGENT_TOKEN`, `SPACETIMEDB_OPERATOR_TOKEN`, `SERPAPI_KEY`, `REROUTED_ADMIN_PASSWORD_HASH`, `REROUTED_AUTH_SECRET`.
 8. Label every simulated part: the cancellation, flights and hotels, the card token and the payment. Call it a prototype.
@@ -157,19 +157,20 @@ AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
 | Agent cannot approve | Real, on `ctx.sender`, checked live |
 | Quote-bound atomic purchase, receipts | Real |
 | Claude reasons and flags | Real when the key is set |
-| Cancellation | Simulated, triggered by the operator |
+| Canceled flight | The flight is real (Delta DL 363, SFO 4:15 PM to JFK, $382 on Google Flights for Oct 25, 2026). Its cancellation is simulated, triggered by the operator, and the step says so |
 | Flights | Real. With FLIGHT_PROVIDER=serpapi, the agent shows only real, current flights from Google Flights via SerpApi (search only, it cannot book). If the search fails, no options are shown and nothing is bought; made-up offers never stand in. FLIGHT_PROVIDER=duffel gives Duffel sandbox fares |
-| Free rebooking, hotels, Skyport Suites | Not shown in live mode. They exist only in the saved demo offers (FLIGHT_PROVIDER unset), used offline and in tests; Skyport Suites is the planted prompt-injection listing |
+| Recorded offers | Real: a recorded real search (FLIGHT_PROVIDER unset): Google Flights results for SFO to JFK, recorded Oct 25, 2026, in `data/fixtures/demo.json`. Not live, so fares may have changed |
+| Free rebooking, hotels, Skyport Suites | Not shown anywhere in the app. They exist only as constructed rule cases in `tests/policy.test.ts`; Skyport Suites is the prompt-injection case |
 | Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Price change | Simulated: the operator raises the top fare by $23 |
-| Traveler, trip and card | Fictional |
+| Traveler, booking and card | Fictional |
 
 ## Known limits
 
 - No real booking or Visa integration. Fares are real only with FLIGHT_PROVIDER=serpapi.
 - One US domestic cancellation scenario.
 - One admin sign-in for the dashboard, not traveler accounts. Any signed-in visitor takes the traveler seat.
-- The free rebooking and hotels are not searched live; they exist only in the saved demo offers.
+- The airline's free rebooking and hotels are not searched, so the free-first rule never fires in the app.
 - The refund line assumes the DOT automatic refund rule (in effect since October 2024) still applies.
 - Claude needs a key and a network connection.
 
@@ -177,9 +178,9 @@ AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
 
 **Seed:**
 - Traveler: fictional, never named on screen.
-- Trip: Bayline Air 412, SFO to JFK, 6:40 PM.
+- Trip: Delta DL 363, SFO to JFK, 4:15 PM (a real flight; the cancellation is simulated).
 - Deadline: arrive JFK by 9:00 AM.
-- Fare: $318.
+- Fare: $382.
 - Mandate:
   - $600 trip cap
   - ask above $250
@@ -193,9 +194,9 @@ AUTO < ASK < BLOCK. Start at AUTO, and rules raise it.
 4. The agent tries to buy the top flight itself and is refused live.
 5. The top fare goes up $23, so the old approval is refused. The traveler approves the new price.
 6. Booked, with a receipt, and the spend against $600.
-7. "$318 refund owed for the canceled ticket", plus the time from cancel to booked.
+7. "$382 refund owed for the canceled ticket", plus the time from cancel to booked.
 
-With the saved demo offers, beat 3 is: Harbor Air red-eye $389, Bayline's free rebooking and Coastal (both miss 9 AM), Airport Inn; set aside: business class at $1,140 (over cap) and Skyport Suites (its listing tried to instruct the agent). Beat 5 is $389 to $412.
+With the recorded search, beat 3 is four real red-eyes, all $382 and all landing before 9:00 AM: JetBlue B6 16, Delta DL 2112, Alaska AS 40, Delta DL 670. Beat 5 is $382 to $405.
 
 `scripts/demo-check.ts` replays every beat against the live database with no UI. It also checks the agent refusal, the stale quote, the cap, the receipt chain and that no personal data is public. It is the only check script. `tests/policy.test.ts` is the only test file.
 
@@ -220,5 +221,5 @@ Submit a working Devpost entry by hour 12, then use the buffer to improve it.
 - the agent refusal
 - the quote-bound approval
 - the receipts
-- the Skyport flag (saved offers and tests; live mode shows real flights only)
+- the Skyport flag (in the tests; the app shows real flights only)
 - reset

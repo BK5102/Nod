@@ -1,15 +1,17 @@
-// The demo seed (docs/PLAN.md section 12). Everything here is fictional. The traveler's personal data
-// only ever goes into private tables; the public trip row carries none of it.
+// The demo seed (docs/PLAN.md section 12). The flight is real: Delta DL 363, SFO 4:15 PM to JFK, $382 in
+// economy on Google Flights for Oct 25, 2026 (the same recorded search as data/fixtures/demo.json). Its
+// cancellation is simulated, and the traveler, card and booking are fictional. The traveler's personal
+// data only ever goes into private tables; the public trip row carries none of it.
 
 export const DEMO_TRIP_ID = "trip_demo";
 
 export const DEMO_TRIP = {
   tripId: DEMO_TRIP_ID,
   route: "SFO to JFK",
-  flight: "Bayline Air 412",
-  departs: "6:40 PM",
+  flight: "Delta DL 363",
+  departs: "4:15 PM",
   deadlineText: "Arrive JFK by 9:00 AM",
-  fareCents: 31_800,
+  fareCents: 38_200,
 };
 
 export const DEMO_MANDATE = {
@@ -27,7 +29,7 @@ export const DEMO_PROFILE = {
   name: "Sam Rivera",
   email: "sam.rivera@example.com",
   bookingRef: "BX7Q2K",
-  loyaltyNumber: "BL-55120938",
+  loyaltyNumber: "LY-55120938",
 };
 
 /** Private mock token. Allows merchant category codes 4511 (airlines) and 7011 (lodging). */
@@ -40,7 +42,8 @@ export const DEMO_TOKEN = {
   expiresAt: "2099-01-01T00:00:00.000Z",
 };
 
-export const CANCEL_REASON = "crew availability";
+/** The cancellation is simulated; the step says so rather than inventing an airline reason. */
+export const CANCEL_REASON = "simulated cancellation, for this demo";
 
 /** How long a quote stays valid after the agent submits it. */
 export const QUOTE_MINUTES = 15;

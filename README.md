@@ -80,7 +80,7 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 | `/login` | Sign in to the dashboard (one admin account from env vars, signed session cookie) |
 | `/dashboard` | The traveler's screen: the trip, every way home on a 3D time axis against the deadline (drag to turn, scroll to zoom, expand), ranked options with one-tap approve, the agent's steps, the card and its rules, what the agent saw, and receipts |
 
-`/dashboard?mock=1` runs the same screen on the saved demo offers in the browser, with no database.
+`/dashboard?mock=1` runs the same screen on the recorded real search in the browser, with no database.
 
 ## Security, reliability, privacy
 
@@ -88,14 +88,14 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 - The agent identity can never approve a purchase. This is enforced in the reducer on the caller's identity and refused live in the demo.
 - Each approval is bound to one quote hash, so a price change voids it.
 - Caps are checked by the policy engine, by `approve_offer`, and again by the mock card token.
-- Listing text is untrusted. In the saved demo offers, one hotel listing tries to instruct the agent, and it is flagged and set aside.
+- Listing text is untrusted. It is delimited in the prompt, and Claude is told to flag instructions inside it. The tests keep a hostile listing case (Skyport Suites).
 - Secrets are server-only env vars. `scripts/secret-check.sh` runs before submission.
 
 **Reliability**
 - Default to no. Every failed check reverts the whole transaction.
 - If Claude fails, the error is shown, the rules still work, and nothing is bought without a tap.
 - If the flight search fails, the screen says so, nothing is bought, and the traveler can search again.
-- Reset is one reducer, and `scripts/demo-check.ts` replays the whole demo against the live database, with live flights or the saved offers.
+- Reset is one reducer, and `scripts/demo-check.ts` replays the whole demo against the live database, with live flights or the recorded search.
 
 **Privacy**
 - Name, email, booking reference, loyalty number and card data live only in private tables.
@@ -112,7 +112,8 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 | Claude reasons and listing flags | Real when `ANTHROPIC_API_KEY` is set; errors shown, never faked |
 | Cancellation | Simulated, triggered by the operator |
 | Flights | Real. With FLIGHT_PROVIDER=serpapi, the agent shows only real, current flights from Google Flights via SerpApi (search only, it cannot book). If the search fails, no options are shown and nothing is bought; made-up offers never stand in. FLIGHT_PROVIDER=duffel gives Duffel sandbox fares |
-| Free rebooking, hotels, Skyport Suites | Not shown in live mode. They exist only in the saved demo offers (FLIGHT_PROVIDER unset), used offline, in the landing page replay and in tests; Skyport Suites is the planted prompt-injection listing |
+| Recorded offers | Real: a recorded Google Flights search (SFO to JFK, recorded Oct 25, 2026) in `data/fixtures/demo.json`, replayed when FLIGHT_PROVIDER is unset. Not live, so fares may have changed |
+| Free rebooking, hotels, Skyport Suites | Not shown anywhere in the app. They exist only as constructed rule cases in `tests/policy.test.ts`; Skyport Suites is the prompt-injection case |
 | Price change | Simulated: the operator raises the top fare by $23 to show that a changed price voids the old approval |
 | Booking and payment | Simulated by design, also in production: every rule is checked for real, then the booking and receipt are recorded in the database. No ticket is issued, no money moves. Mock card modeled on controls Visa publicly describes, no Visa API |
 | Traveler, trip and card | Fictional |
@@ -130,7 +131,7 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 ## The demo (about 90 seconds)
 
 **Seed:**
-- A fictional traveler is on Bayline Air 412, SFO to JFK, 6:40 PM.
+- A fictional traveler is on Delta DL 363, SFO to JFK, 4:15 PM. The flight is real; its cancellation is simulated.
 - They must land at JFK by 9:00 AM.
 - The card allows $600 for the trip, asks above $250, and covers airlines and hotels only.
 
@@ -143,7 +144,7 @@ Full plan: [docs/PLAN.md](docs/PLAN.md). Backend contract for the frontend: sect
 6. Booked, with a receipt, and the spend against $600.
 7. The $318 refund owed on the canceled ticket.
 
-With the saved demo offers (FLIGHT_PROVIDER unset), the same beats show the free rebooking, a hotel, and the Skyport listing caught trying to instruct the agent. The price change there is $389 to $412.
+With FLIGHT_PROVIDER unset, the same beats replay a recorded real search (Oct 25, 2026): four red-eyes on JetBlue, Delta and Alaska, all $382 and all landing before 9:00 AM. The price change there is $382 to $405.
 
 ## Run the live demo (teammate quickstart)
 
@@ -184,7 +185,7 @@ The backend is already live on Maincloud as the database `rerouted-calhacks13`. 
 
 | Step | What happens | Backend call |
 | --- | --- | --- |
-| 1. Reset | Bayline Air 412, SFO to JFK, 6:40 PM, is scheduled | `POST /api/demo {"action":"reset"}` |
+| 1. Reset | Delta DL 363, SFO to JFK, 4:15 PM, is scheduled | `POST /api/demo {"action":"reset"}` |
 | 2. Cancel | The flight is canceled; the agent searches real flights and its steps stream in over a few seconds | `POST /api/demo {"action":"cancel"}` |
 | 3. Options appear | Real flights, ranked: those landing before 9:00 AM first, then cheaper first. Over the cap is set aside | `offer` rows |
 | 4. Agent tries to buy | The top flight's purchase is refused: "Refused: the agent cannot approve its own purchase." | `POST /api/agent/try-approve {"offerId":"<top offer>"}` |
@@ -195,7 +196,7 @@ The backend is already live on Maincloud as the database `rerouted-calhacks13`. 
 **Notes:**
 - **Who changes the data:** every laptop connects to the same live database, so a reset or cancel on one changes what the others see. During judging, only one person should drive the demo.
 - **Mock fallback:** if the page falls back to the mock, `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` is missing or the dev server was started before `.env.local` existed. Restart `pnpm dev`.
-- **Flight search failed:** the dashboard says so, shows no options and buys nothing. Press "Search again". Check `SERPAPI_KEY`, or unset `FLIGHT_PROVIDER` to use the saved demo offers.
+- **Flight search failed:** the dashboard says so, shows no options and buys nothing. Press "Search again". Check `SERPAPI_KEY`, or unset `FLIGHT_PROVIDER` to replay the recorded search.
 - **Claude missing or out of credits:** cancel still works. You get an `error` step and no Claude reasons. The rules still tier everything, and nothing is bought without a tap.
 - **Routes:** every route returns `{ ok: true, result }` or `{ ok: false, error, refused }`. Show `error` as is. The full contract is in [docs/PLAN.md](docs/PLAN.md) section 9.
 

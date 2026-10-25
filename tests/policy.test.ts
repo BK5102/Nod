@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fixture from "@/data/fixtures/demo.json";
+import recorded from "@/data/fixtures/demo.json";
 import { deadlineLabel, evaluateOffer, quoteHash, rankOffers } from "@/spacetimedb/src/core/policy";
 import { maxTier, mergeFlags, tierRank } from "@/spacetimedb/src/core/tiers";
 import { checkMockToken } from "@/spacetimedb/src/core/token";
@@ -8,7 +8,18 @@ import { DEMO_MANDATE, DEMO_TOKEN, DEMO_TRIP } from "@/spacetimedb/src/core/seed
 import type { Flag, MandateRules, OfferInput, Tier } from "@/spacetimedb/src/core/types";
 
 const mandate: MandateRules = { ...DEMO_MANDATE, categories: DEMO_MANDATE.categories.split(",") };
-const offers = fixture.offers as unknown as OfferInput[];
+/**
+ * Constructed rule cases, not data anyone sees: a free rebooking, an over-cap fare, a hotel and a listing
+ * Claude flags, so every rule and the ranking order are exercised. The app shows only real flights.
+ */
+const offers: OfferInput[] = [
+  { offerId: "off_bayline_free", kind: "free_rebooking", merchant: "Bayline Air", title: "Bayline free rebooking, flight 418", departs: "Tomorrow 7:05 AM", arrives: "Tomorrow 3:30 PM", meetsDeadline: false, priceCents: 0, refundable: true, category: "airline", mcc: "4511" },
+  { offerId: "off_harbor_redeye", kind: "flight", merchant: "Harbor Air", title: "Harbor Air red-eye, flight 77", departs: "Tonight 10:15 PM", arrives: "Tomorrow 6:45 AM", meetsDeadline: true, priceCents: 38900, refundable: true, category: "airline", mcc: "4511" },
+  { offerId: "off_coastal_0600", kind: "flight", merchant: "Coastal Airways", title: "Coastal Airways 6:00 AM, flight 210", departs: "Tomorrow 6:00 AM", arrives: "Tomorrow 2:20 PM", meetsDeadline: false, priceCents: 21000, refundable: true, category: "airline", mcc: "4511" },
+  { offerId: "off_harbor_business", kind: "flight", merchant: "Harbor Air", title: "Harbor Air red-eye, business class", departs: "Tonight 10:15 PM", arrives: "Tomorrow 6:45 AM", meetsDeadline: true, priceCents: 114000, refundable: true, category: "airline", mcc: "4511" },
+  { offerId: "off_airport_inn", kind: "hotel", merchant: "Airport Inn SFO", title: "Airport Inn SFO, one night", departs: "", arrives: "", meetsDeadline: true, priceCents: 15900, refundable: true, category: "lodging", mcc: "7011" },
+  { offerId: "off_skyport", kind: "hotel", merchant: "Skyport Suites", title: "Skyport Suites, one night", departs: "", arrives: "", meetsDeadline: true, priceCents: 9500, refundable: false, category: "lodging", mcc: "7011" },
+];
 const free = offers.find((o) => o.kind === "free_rebooking")!;
 const ctxFor = (o: OfferInput, spendCents = 0) => ({
   spendCents,
@@ -28,7 +39,7 @@ function demoOutcome() {
   return Object.fromEntries(tiered.map((o) => [o.offerId, { tier: o.tier, rank: ranks.get(o.offerId), rules: o.rules.map((r) => r.id) }]));
 }
 
-describe("demo fixture (docs/PLAN.md section 12)", () => {
+describe("rule cases", () => {
   it("gets exactly the planned tiers and ranks", () => {
     const out = demoOutcome();
     expect(out.off_harbor_redeye).toMatchObject({ tier: "ASK", rank: 1 });
@@ -67,6 +78,21 @@ describe("demo fixture (docs/PLAN.md section 12)", () => {
   it("counts what is already spent against the trip cap", () => {
     const inn = offers.find((o) => o.offerId === "off_airport_inn")!;
     expect(evaluateOffer(inn, mandate, ctxFor(inn, 45_000)).tier).toBe("BLOCK");
+  });
+});
+
+describe("recorded search (data/fixtures/demo.json)", () => {
+  const real = recorded.offers as unknown as OfferInput[];
+  it("holds only real flights from the recorded search, not the canceled one", () => {
+    expect(real.length).toBeGreaterThan(0);
+    expect(real.every((o) => o.kind === "flight" && o.offerId.startsWith("serp_") && o.mcc === "4511")).toBe(true);
+    expect(real.some((o) => o.title.endsWith(DEMO_TRIP.flight.replace(/^\S+ /, "")))).toBe(false);
+  });
+  it("ranks every option that is not blocked, 1..n", () => {
+    const tiered = real.map((o) => ({ ...o, tier: evaluateOffer(o, mandate, { spendCents: 0, freeOption: null, deadlineLabel: deadlineLabel(DEMO_TRIP.deadlineText) }).tier }));
+    const ranks = rankOffers(tiered);
+    const open = tiered.filter((o) => o.tier !== "BLOCK").map((o) => ranks.get(o.offerId)).sort();
+    expect(open).toEqual(open.map((_, i) => i + 1));
   });
 });
 

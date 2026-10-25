@@ -45,7 +45,7 @@ Airlines rebook you on their own flights. Search sites make you shop alone. Visa
 These are the backend inputs:
 - one simulated cancellation, triggered by the operator
 - real, current flights from Google Flights via SerpApi (FLIGHT_PROVIDER=serpapi); if the search fails, no options are shown and nothing is bought
-- saved demo offers in `data/fixtures/demo.json` (free rebooking, flights, hotels, the Skyport listing), fictional names, used offline and in tests
+- a recorded real search in `data/fixtures/demo.json` (Google Flights via SerpApi, recorded Oct 25, 2026), replayed offline
 - a mandate (trip cap, ask-first threshold, auto ceiling, allowed categories)
 - a mock card token in a private table
 
@@ -60,8 +60,7 @@ The frontend reads public tables live through SpacetimeDB subscriptions, and cal
 - Listing text is untrusted input.
 - Personal data stays in private tables and never reaches Claude.
 - Simulated:
-  - the cancellation and the price change
-  - the saved demo offers (free rebooking, hotels, Skyport)
+  - the cancellation (of a real flight) and the price change
   - the card token
   - the payment and booking
 - Not built:

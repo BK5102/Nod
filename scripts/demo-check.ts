@@ -4,7 +4,7 @@
 // .env.local from `pnpm db:setup`.
 import { connectAs, reason, subscribeAll, waitFor, type Conn } from "@/lib/stdb/node";
 import { verifyReceipts } from "@/spacetimedb/src/core/receipt";
-import { DEMO_PROFILE, DEMO_TRIP_ID } from "@/spacetimedb/src/core/seed";
+import { DEMO_PROFILE, DEMO_TRIP, DEMO_TRIP_ID } from "@/spacetimedb/src/core/seed";
 import { env, refused } from "./env";
 
 const URL = process.env.DEMO_URL ?? "http://localhost:3001";
@@ -54,39 +54,21 @@ async function main() {
   }
   await waitFor(() => traveler.db.trip.tripId.find(DEMO_TRIP_ID)?.status === "options_ready" && offers(traveler).length > 0, "options");
 
-  if (!live) {
-    // Saved demo offers: the exact tiers and ranks from docs/PLAN.md section 12.
-    const expect: Record<string, [string, number]> = {
-      off_harbor_redeye: ["ASK", 1],
-      off_bayline_free: ["ASK", 2],
-      off_coastal_0600: ["ASK", 3],
-      off_airport_inn: ["ASK", 4],
-      off_harbor_business: ["BLOCK", 0],
-      off_skyport: ["BLOCK", 0],
-    };
-    for (const [id, [tier, rank]] of Object.entries(expect)) {
-      const o = offer(traveler, id);
-      check(o?.tier === tier && o?.rank === rank, `cancel: ${id} is ${tier} rank ${rank}`, `${o?.tier} rank ${o?.rank}`);
-    }
-  } else {
-    // Live flights: the same guarantees, whatever the search returned.
-    const flights = offers(traveler).filter((o) => /^(duf|serp)_/.test(o.offerId));
-    check(flights.length > 0 && flights.length === offers(traveler).length, "cancel: only real flights, nothing simulated", `${flights.length} of ${offers(traveler).length} offers`);
-    const ranks = offers(traveler).filter((o) => o.rank > 0).map((o) => o.rank).sort((a, b) => a - b);
-    check(ranks.every((r, i) => r === i + 1), "cancel: ranks are 1..n with no gaps", ranks.join(","));
-    check(offers(traveler).every((o) => o.tier !== "BLOCK" || o.rank === 0), "cancel: every BLOCK offer is set aside");
-  }
-  if (!live) check(!!offer(traveler, "off_skyport")?.flagged, "cancel: Skyport's injected instruction was flagged", offer(traveler, "off_skyport")?.flagReason);
+  // Real flights only (live or recorded): the same guarantees, whatever the search returned.
+  const flights = offers(traveler).filter((o) => /^(duf|serp)_/.test(o.offerId));
+  check(flights.length > 0 && flights.length === offers(traveler).length, "cancel: only real flights, nothing simulated", `${flights.length} of ${offers(traveler).length} offers`);
+  const ranks = offers(traveler).filter((o) => o.rank > 0).map((o) => o.rank).sort((a, b) => a - b);
+  check(ranks.every((r, i) => r === i + 1), "cancel: ranks are 1..n with no gaps", ranks.join(","));
+  check(offers(traveler).every((o) => o.tier !== "BLOCK" || o.rank === 0), "cancel: every BLOCK offer is set aside");
+
   check(steps(traveler).length >= 5, "cancel: agent steps streamed", `${steps(traveler).length} steps`);
 
   // The flight the traveler buys: the top-ranked paid flight that fits under the cap after a price rise.
-  const target = live
-    ? offers(traveler)
-        .filter((o) => o.kind === "flight" && o.status === "open" && o.priceCents + 2_300 <= 60_000)
-        .sort((a, b) => a.rank - b.rank)[0]
-    : offer(traveler, "off_harbor_redeye");
+  const target = offers(traveler)
+    .filter((o) => o.kind === "flight" && o.status === "open" && o.priceCents + 2_300 <= 60_000)
+    .sort((a, b) => a.rank - b.rank)[0];
   if (!target) throw new Error("No paid flight under the cap to run the purchase checks on");
-  const newPrice = live ? target.priceCents + 2_300 : 41_200;
+  const newPrice = target.priceCents + 2_300;
   const newDollars = `$${(newPrice / 100).toFixed(newPrice % 100 ? 2 : 0)}`;
 
   // 3. the agent tries to buy for itself
@@ -118,18 +100,15 @@ async function main() {
   const receipts = [...traveler.db.receipt.iter()].filter((x) => x.tripId === DEMO_TRIP_ID);
   check(trip.spendCents === newPrice && receipts.length === 1, `booked at ${newDollars}, one receipt`, `spend ${trip.spendCents}, ${receipts.length} receipts`);
 
-  // 7. a second flight is refused. Saved offers use the $0 free rebooking, so only the one-flight rule can
-  // be the reason; live flights have no $0 option, so the cap may refuse first.
-  const other = live
-    ? offers(traveler).find((o) => o.kind === "flight" && o.status === "open" && o.tier !== "BLOCK")
-    : offer(traveler, "off_bayline_free");
+  // 7. a second flight is refused (by the cap or the one-flight rule, whichever the fares trip first)
+  const other = offers(traveler).find((o) => o.kind === "flight" && o.status === "open" && o.tier !== "BLOCK");
   if (other) {
     const second = await refused(traveler.reducers.approveOffer({ offerId: other.offerId, quoteHash: other.quoteHash }));
-    check(!!second && (live ? /already have a flight|over your/ : /already have a flight/).test(second), "a second flight is refused", second ?? "was NOT refused");
+    check(!!second && /already have a flight|over your/.test(second), "a second flight is refused", second ?? "was NOT refused");
   }
 
-  // 8. blocked options stay blocked (business class in the saved offers; live, whichever search result is blocked)
-  const biz = live ? offers(traveler).find((o) => o.tier === "BLOCK") : offer(traveler, "off_harbor_business");
+  // 8. blocked options stay blocked (whichever search result is blocked, if any)
+  const biz = offers(traveler).find((o) => o.tier === "BLOCK");
   if (biz) {
     const blocked = await refused(traveler.reducers.approveOffer({ offerId: biz.offerId, quoteHash: biz.quoteHash }));
     check(!!blocked && /blocked/.test(blocked), `${biz.title} (blocked) is refused`, blocked ?? "was NOT refused");
@@ -142,7 +121,7 @@ async function main() {
   check(chain.ok, "receipt chain recomputes to the stored hash", chain.reason ?? "");
 
   // 10. commerce numbers
-  check(trip.refundOwedCents === 31_800 && !!trip.canceledAt && !!trip.bookedAt, "refund owed $318, canceled and booked times set", `${trip.canceledAt} to ${trip.bookedAt}`);
+  check(trip.refundOwedCents === DEMO_TRIP.fareCents && !!trip.canceledAt && !!trip.bookedAt, `refund owed $${DEMO_TRIP.fareCents / 100}, canceled and booked times set`, `${trip.canceledAt} to ${trip.bookedAt}`);
   if (trip.canceledAt && trip.bookedAt) {
     const secs = Math.round((Date.parse(trip.bookedAt) - Date.parse(trip.canceledAt)) / 1000);
     console.log(`        cancel to booked: ${secs} s (this run, including the scripted pauses)`);

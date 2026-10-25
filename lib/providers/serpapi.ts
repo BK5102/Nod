@@ -87,7 +87,7 @@ export async function searchSerpapi(req: SearchRequest, timeoutMs = 9_000): Prom
       const departs = iso(first.departure_airport.time);
       const arrives = iso(last.arrival_airport.time);
       if (departs < req.departAfter) continue;
-      const flights = segs.map((s) => s.flight_number.replace(/\s+/g, "")).join(", ");
+      const flights = segs.map((s) => s.flight_number).join(", "); // "B6 16", as Google Flights writes it
       if (seen.has(flights)) continue;
       seen.add(flights);
       const airlines = [...new Set(segs.map((s) => s.airline))].join(" / ");

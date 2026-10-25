@@ -16,12 +16,12 @@ const PROVIDERS = {
  * Where offers come from. FLIGHT_PROVIDER=serpapi (real current fares) or duffel (sandbox fares) returns
  * real search results only: flights, no simulated free rebooking or hotels. If that search fails, there
  * are no offers and the reason is reported; made-up offers never stand in for a failed live search.
- * With FLIGHT_PROVIDER unset, the saved demo offers (SIMULATED) are used, for offline development and
- * the policy tests. Offers keep the same shape either way. No provider is ever asked to book.
+ * With FLIGHT_PROVIDER unset, a recorded real search (data/fixtures/demo.json) is replayed, for offline
+ * development and rehearsal without spending searches. Offers keep the same shape either way. No provider is ever asked to book.
  */
 export async function findOffers(req: SearchRequest): Promise<SearchResult> {
   const name = process.env.FLIGHT_PROVIDER;
-  if (name !== "serpapi" && name !== "duffel") return { offers: FIXTURE, source: "saved demo offers (SIMULATED)", fallbackReason: null };
+  if (name !== "serpapi" && name !== "duffel") return { offers: FIXTURE, source: "recorded flight search (Google Flights via SerpApi, Oct 25, 2026)", fallbackReason: null };
   const provider = PROVIDERS[name];
   if (!provider.configured()) return { offers: [], source: provider.source, fallbackReason: `${provider.keyName} is not set` };
   try {

@@ -5,7 +5,7 @@ import { env } from "./env";
 async function main() {
   const { conn } = await connectAs(env("SPACETIMEDB_HOST"), env("SPACETIMEDB_DB_NAME"), env("SPACETIMEDB_OPERATOR_TOKEN"));
   await conn.reducers.resetDemo({});
-  console.log("Demo reset: Bayline Air 412 is scheduled again, no offers, no receipts.");
+  console.log("Demo reset: Delta DL 363 is scheduled again, no offers, no receipts.");
   process.exit(0);
 }
 
